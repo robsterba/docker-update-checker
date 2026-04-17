@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docker Update Checker</title>
+<style>
+  :root,[data-theme="light"]{--bg:#f7f6f2;--surface:#ffffff;--surface2:#f3f0ec;--border:#d4d1ca;--text:#28251d;--muted:#7a7974;--faint:#bab9b4;--primary:#01696f;--primary-h:#0c4e54;--success:#437a22;--warning:#da7101;--error:#a12c7b;--badge-up:rgba(67,122,34,.15);--badge-update:rgba(218,113,1,.15);--badge-err:rgba(161,44,123,.15);--badge-unk:rgba(122,121,116,.15)}
+  [data-theme="dark"]{--bg:#171614;--surface:#1c1b19;--surface2:#22211f;--border:#393836;--text:#cdccca;--muted:#797876;--faint:#5a5957;--primary:#4f98a3;--primary-h:#227f8b;--success:#6daa45;--warning:#fdab43;--error:#d163a7;--badge-up:rgba(109,170,69,.15);--badge-update:rgba(253,171,67,.15);--badge-err:rgba(209,99,167,.15);--badge-unk:rgba(90,89,87,.2)}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{font-family:'Inter',system-ui,sans-serif;font-size:15px;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+  body{min-height:100dvh;display:flex;flex-direction:column}
+  a{color:var(--primary);text-decoration:none}
+  button{cursor:pointer;border:none;font:inherit;background:none}
+
+  /* Layout */
+  header{background:var(--surface);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100}
+  .logo{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
+  .logo svg{color:var(--primary)}
+  .header-actions{margin-left:auto;display:flex;align-items:center;gap:.5rem}
+  main{flex:1;padding:1.5rem;max-width:1200px;margin-inline:auto;width:100%}
+
+  /* KPI cards */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:.625rem;padding:1rem 1.25rem}
+  .kpi-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem}
+  .kpi-value{font-size:1.75rem;font-weight:700;font-variant-numeric:tabular-nums}
+  .kpi-value.updates{color:var(--warning)}
+  .kpi-value.ok{color:var(--success)}
+  .kpi-value.err{color:var(--error)}
+
+  /* Table */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:.625rem;overflow:hidden;margin-bottom:1.5rem}
+  .card-header{padding:.75rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
+  .card-title{font-weight:600;font-size:.95rem}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:.6rem 1rem;border-bottom:1px solid var(--border);white-space:nowrap}
+  td{padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.85rem;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--surface2)}
+  .img-name{font-family:'JetBrains Mono','Fira Mono',monospace;font-size:.8rem;word-break:break-all}
+  .digest{font-family:monospace;font-size:.72rem;color:var(--muted)}
+
+  /* Badges */
+  .badge{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;white-space:nowrap}
+  .badge.up_to_date{background:var(--badge-up);color:var(--success)}
+  .badge.update_available{background:var(--badge-update);color:var(--warning)}
+  .badge.registry_error{background:var(--badge-err);color:var(--error)}
+  .badge.not_pulled,.badge.unknown{background:var(--badge-unk);color:var(--muted)}
+  .badge svg{width:10px;height:10px}
+
+  /* Buttons */
+  .btn{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;border-radius:.5rem;font-size:.82rem;font-weight:500;transition:background .15s,color .15s,opacity .15s;white-space:nowrap}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-primary:hover:not(:disabled){background:var(--primary-h)}
+  .btn-ghost{border:1px solid var(--border);color:var(--text)}
+  .btn-ghost:hover:not(:disabled){background:var(--surface2)}
+  .btn-sm{padding:.3rem .65rem;font-size:.78rem}
+  .btn-warn{background:var(--warning);color:#fff}
+  .btn-warn:hover:not(:disabled){opacity:.85}
+
+  /* Compose files list */
+  .cf-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
+
+  /* Log */
+  .log-list{padding:.5rem 1rem;max-height:300px;overflow-y:auto}
+  .log-entry{display:flex;gap:.75rem;align-items:flex-start;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.8rem}
+  .log-entry:last-child{border-bottom:none}
+  .log-time{color:var(--faint);font-family:monospace;white-space:nowrap;min-width:9rem}
+  .log-action{font-weight:600;min-width:5rem}
+  .log-msg{color:var(--muted);word-break:break-all}
+  .log-status.success{color:var(--success)}
+  .log-status.error{color:var(--error)}
+  .log-status.started{color:var(--warning)}
+
+  /* Modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .2s}
+  .modal-backdrop.open{opacity:1;pointer-events:all}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:.75rem;padding:1.5rem;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;transform:translateY(12px);transition:transform .2s}
+  .modal-backdrop.open .modal{transform:none}
+  .modal-title{font-weight:700;font-size:1rem;margin-bottom:1rem}
+  .modal pre{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.75rem;font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--text)}
+
+  /* Spinner */
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{animation:spin .8s linear infinite}
+
+  /* Theme toggle */
+  .theme-btn{padding:.35rem;border-radius:.4rem;color:var(--muted);transition:color .15s,background .15s}
+  .theme-btn:hover{background:var(--surface2);color:var(--text)}
+
+  /* Filter bar */
+  .filter-bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  .filter-btn{padding:.3rem .7rem;border-radius:.4rem;font-size:.78rem;border:1px solid var(--border);color:var(--muted);transition:all .15s}
+  .filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+  /* Last check */
+  .last-check{font-size:.75rem;color:var(--muted)}
+
+  /* Empty state */
+  .empty{padding:3rem 1rem;text-align:center;color:var(--muted)}
+  .empty svg{margin-inline:auto;margin-bottom:.75rem;opacity:.4}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    Docker Update Checker
+  </div>
+  <div class="header-actions">
+    <span class="last-check" id="lastCheck">—</span>
+    <button class="btn btn-primary btn-sm" id="checkBtn" onclick="triggerCheck()">
+      <svg id="checkIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Check Now
+    </button>
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle theme">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="kpis">
+    <div class="kpi"><div class="kpi-label">Total Images</div><div class="kpi-value" id="kpiTotal">—</div></div>
+    <div class="kpi"><div class="kpi-label">Up to Date</div><div class="kpi-value ok" id="kpiOk">—</div></div>
+    <div class="kpi"><div class="kpi-label">Updates Available</div><div class="kpi-value updates" id="kpiUpdates">—</div></div>
+    <div class="kpi"><div class="kpi-label">Unknown / Error</div><div class="kpi-value err" id="kpiErr">—</div></div>
+    <div class="kpi"><div class="kpi-label">Auto-Check Every</div><div class="kpi-value" id="kpiInterval">—</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Container Images</span>
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+        <button class="filter-btn" onclick="setFilter('update_available', this)">Updates</button>
+        <button class="filter-btn" onclick="setFilter('up_to_date', this)">Up to Date</button>
+        <button class="filter-btn" onclick="setFilter('unknown', this)">Unknown</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Status</th>
+          <th>Compose Project(s)</th>
+          <th>Checked</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="imageTable">
+        <tr><td colspan="5" class="empty">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          <div>Loading images…</div>
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Recent Operations</span>
+      <button class="btn btn-ghost btn-sm" onclick="loadOps()">Refresh</button>
+    </div>
+    <div class="log-list" id="opLog">
+      <div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>
+    </div>
+  </div>
+</main>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle"></div>
+    <div id="modalBody"></div>
+    <div style="margin-top:1rem;text-align:right">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '';
+let allImages = [];
+let activeFilter = 'all';
+let checking = false;
+let theme = document.documentElement.getAttribute('data-theme') || 'dark';
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+function toggleTheme() {
+  theme = theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeBtn').innerHTML = theme === 'dark'
+    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+}
+
+// ── Filter ─────────────────────────────────────────────────────────────────
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable(allImages);
+}
+
+// ── Status badge ──────────────────────────────────────────────────────────
+function badge(status) {
+  const labels = {
+    up_to_date: '✓ Up to Date',
+    update_available: '↑ Update Available',
+    registry_error: '✗ Registry Error',
+    not_pulled: '? Not Pulled',
+    unknown: '? Unknown'
+  };
+  return `<span class="badge ${status}">${labels[status] || status}</span>`;
+}
+
+// ── Format date ───────────────────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Render table ──────────────────────────────────────────────────────────
+function renderTable(images) {
+  const tbody = document.getElementById('imageTable');
+  let filtered = images;
+  if (activeFilter !== 'all') {
+    if (activeFilter === 'unknown') {
+      filtered = images.filter(i => ['unknown','registry_error','not_pulled'].includes(i.status));
+    } else {
+      filtered = images.filter(i => i.status === activeFilter);
+    }
+  }
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <div>No images match this filter.</div></td></tr>`;
+    return;
+  }
+
+  // Sort: updates first
+  const order = { update_available: 0, registry_error: 1, not_pulled: 2, unknown: 3, up_to_date: 4 };
+  filtered.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+
+  tbody.innerHTML = filtered.map(img => {
+    const projects = (img.compose_files || []).map(p => {
+      const parts = p.split('/');
+      const project = parts[parts.length - 2] || '?';
+      return `<span class="cf-pill" title="${p}">${project}</span>`;
+    }).join('') || '<span style="color:var(--faint);font-size:.75rem">—</span>';
+
+    const actions = buildActions(img);
+    return `<tr>
+      <td><div class="img-name">${escHtml(img.image)}</div></td>
+      <td>${badge(img.status)}</td>
+      <td>${projects}</td>
+      <td style="color:var(--muted);font-size:.78rem">${fmtDate(img.checked_at)}</td>
+      <td><div style="display:flex;gap:.4rem;flex-wrap:wrap">${actions}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+function buildActions(img) {
+  let btns = `<button class="btn btn-ghost btn-sm" onclick="recheckImage('${escAttr(img.image)}')">Re-check</button>`;
+  if (img.status === 'update_available' || img.status === 'not_pulled') {
+    btns += `<button class="btn btn-warn btn-sm" onclick="pullImage('${escAttr(img.image)}')">Pull Update</button>`;
+  }
+  if (img.compose_files && img.compose_files.length) {
+    img.compose_files.forEach(cf => {
+      const lbl = cf.split('/').slice(-2).join('/');
+      btns += `<button class="btn btn-primary btn-sm" onclick="recreate('${escAttr(cf)}')">↻ ${escHtml(lbl)}</button>`;
+    });
+  }
+  return btns;
+}
+
+// ── API calls ─────────────────────────────────────────────────────────────
+async function loadStatus() {
+  const r = await fetch(`${API}/api/status`);
+  const d = await r.json();
+  document.getElementById('kpiTotal').textContent = d.total ?? '—';
+  document.getElementById('kpiOk').textContent = d.up_to_date ?? '—';
+  document.getElementById('kpiUpdates').textContent = d.updates_available ?? '—';
+  document.getElementById('kpiErr').textContent = d.unknown ?? '—';
+  document.getElementById('kpiInterval').textContent = d.check_interval_minutes ? `${d.check_interval_minutes}m` : '—';
+  document.getElementById('lastCheck').textContent = d.last_check ? `Last check: ${fmtDate(d.last_check)}` : 'Not checked yet';
+}
+
+async function loadImages() {
+  const r = await fetch(`${API}/api/images`);
+  allImages = await r.json();
+  renderTable(allImages);
+}
+
+async function loadOps() {
+  const r = await fetch(`${API}/api/operations`);
+  const ops = await r.json();
+  const el = document.getElementById('opLog');
+  if (!ops.length) { el.innerHTML = `<div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>`; return; }
+  el.innerHTML = ops.map(o => `
+    <div class="log-entry">
+      <span class="log-time">${fmtDate(o.time)}</span>
+      <span class="log-action">${escHtml(o.action)}</span>
+      <span class="log-status ${o.status}">${escHtml(o.status)}</span>
+      <span class="log-msg">${escHtml(o.message)}</span>
+    </div>`).join('');
+}
+
+async function triggerCheck() {
+  if (checking) return;
+  checking = true;
+  const btn = document.getElementById('checkBtn');
+  const icon = document.getElementById('checkIcon');
+  btn.disabled = true;
+  icon.classList.add('spin');
+  await fetch(`${API}/api/check`, { method: 'POST' });
+  // Poll until check completes
+  setTimeout(async () => {
+    await Promise.all([loadStatus(), loadImages(), loadOps()]);
+    checking = false;
+    btn.disabled = false;
+    icon.classList.remove('spin');
+  }, 3000);
+}
+
+async function recheckImage(imageRef) {
+  showModal('Re-checking…', `<p style="color:var(--muted)">Checking <code>${escHtml(imageRef)}</code>…</p>`);
+  const r = await fetch(`${API}/api/check/${encodeURIComponent(imageRef)}`, { method: 'POST' });
+  const d = await r.json();
+  showModal('Check Result', `
+    <p><strong>Image:</strong> <code>${escHtml(d.image)}</code></p>
+    <p style="margin-top:.5rem"><strong>Status:</strong> ${badge(d.status)}</p>
+    <p style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Local digest:<br><code>${d.local_digest || '—'}</code></p>
+    <p style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Remote digest:<br><code>${d.remote_digest || '—'}</code></p>
+  `);
+  await Promise.all([loadImages(), loadStatus(), loadOps()]);
+}
+
+async function pullImage(imageRef) {
+  showModal('Pulling Image', `<p style="color:var(--muted)">Pulling <code>${escHtml(imageRef)}</code>…<br>This may take a minute.</p>`);
+  const r = await fetch(`${API}/api/update/${encodeURIComponent(imageRef)}`, { method: 'POST' });
+  const d = await r.json();
+  if (d.status === 'success') {
+    showModal('Pull Complete', `<p style="color:var(--success)">✓ Image pulled successfully.</p><p style="margin-top:.5rem">New status: ${badge(d.result.status)}</p>`);
+  } else {
+    showModal('Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p>`);
+  }
+  await Promise.all([loadImages(), loadStatus(), loadOps()]);
+}
+
+async function recreate(composePath) {
+  if (!confirm(`Run docker compose up -d on:\n${composePath}\n\nThis will recreate updated containers. Continue?`)) return;
+  showModal('Recreating Containers', `<p style="color:var(--muted)">Running <code>docker compose up -d</code>…<br>This may take a moment.</p>`);
+  const r = await fetch(`${API}/api/compose/recreate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ compose_path: composePath })
+  });
+  const d = await r.json();
+  if (d.status === 'success') {
+    showModal('Recreate Complete', `<p style="color:var(--success);margin-bottom:.75rem">✓ Containers recreated successfully.</p><pre>${escHtml(d.output || '')}</pre>`);
+  } else {
+    showModal('Recreate Failed', `<p style="color:var(--error);margin-bottom:.75rem">✗ Failed</p><pre>${escHtml(d.message || '')}</pre>`);
+  }
+  await loadOps();
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+function showModal(title, body) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modalBackdrop'))
+    document.getElementById('modalBackdrop').classList.remove('open');
+}
+
+// ── Util ──────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s || '').replace(/'/g,"\\'");
+}
+
+// ── Init & poll ───────────────────────────────────────────────────────────
+async function init() {
+  await Promise.all([loadStatus(), loadImages(), loadOps()]);
+  // Refresh every 30 seconds
+  setInterval(() => Promise.all([loadStatus(), loadImages(), loadOps()]), 30000);
+}
+
+init();
+</script>
+</body>
+</html>
