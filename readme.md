@@ -213,4 +213,3 @@ Official images (e.g. `redis`, `nginx`) require the `library/` namespace prefix.
 ## License
 
 MIT
-"""
