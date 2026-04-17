@@ -5,11 +5,14 @@ services:
     restart: unless-stopped
     ports:
       - "5000:5000"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     volumes:
       # Docker socket — required for pulling images and running compose
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Mount your entire compose root (adjust path as needed)
-      - /opt/docker:/compose:ro
+      - /home/rob/docker/:/compose:ro
     environment:
       # Path inside container where compose files live
       COMPOSE_ROOT: /compose

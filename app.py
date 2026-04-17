@@ -6,7 +6,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
-
+import re
 import requests
 import docker
 import yaml
@@ -66,19 +66,55 @@ def find_compose_files() -> list[dict]:
     return files
 
 
+def resolve_env_vars(value: str, env: dict) -> str:
+    """Resolve ${VAR:-default} and ${VAR} patterns."""
+    def replacer(m):
+        var, _, default = m.group(1).partition(':-')
+        return env.get(var, default if default else m.group(0))
+    return re.sub(r'\$\{([^}]+)\}', replacer, value)
+
+
+
 def parse_images_from_compose(path: str) -> list[str]:
     try:
+        # Load .env file from same directory if present
+        env = {}
+        env_file = Path(path).parent / ".env"
+        if env_file.exists():
+            with open(env_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        k, _, v = line.partition('=')
+                        env[k.strip()] = v.strip().strip('"').strip("'")
+
         with open(path) as f:
             data = yaml.safe_load(f)
+
         images = []
         for svc in (data.get("services") or {}).values():
             img = svc.get("image")
-            if img:
-                images.append(img)
+            if not img:
+                continue
+
+            img = resolve_env_vars(img, env)
+
+            # Skip still-unresolved shell variables
+            if '${' in img:
+                log.debug(f"Skipping unresolved image ref: {img}")
+                continue
+
+            # Strip digest pin — compare by tag only
+            if '@sha256:' in img:
+                img = img.split('@')[0]
+
+            images.append(img)
+
         return list(set(images))
     except Exception as e:
         log.warning(f"Failed to parse {path}: {e}")
         return []
+
 
 
 def parse_image_ref(image_ref: str) -> tuple[str, str, str]:
@@ -96,6 +132,7 @@ def parse_image_ref(image_ref: str) -> tuple[str, str, str]:
         return "registry-1.docker.io", ref, tag
 
 
+
 def get_remote_digest(image_ref: str) -> Optional[str]:
     registry, repo, tag = parse_image_ref(image_ref)
     accept = (
@@ -106,16 +143,32 @@ def get_remote_digest(image_ref: str) -> Optional[str]:
     )
     try:
         if registry in ("registry-1.docker.io", "docker.io"):
+            # Official single-name images (redis, nginx, etc.) need library/ prefix
+            if '/' not in repo:
+                repo = f"library/{repo}"
             r = requests.get(
                 f"https://auth.docker.io/token"
                 f"?service=registry.docker.io&scope=repository:{repo}:pull",
-                timeout=15
+                timeout=15,
             )
             r.raise_for_status()
             token = r.json().get("token")
             headers = {"Authorization": f"Bearer {token}", "Accept": accept}
             url = f"https://registry-1.docker.io/v2/{repo}/manifests/{tag}"
+
+        elif registry == "ghcr.io":
+            # GHCR anonymous token auth
+            r = requests.get(
+                f"https://ghcr.io/token?service=ghcr.io&scope=repository:{repo}:pull",
+                timeout=15,
+            )
+            r.raise_for_status()
+            token = r.json().get("token")
+            headers = {"Authorization": f"Bearer {token}", "Accept": accept}
+            url = f"https://ghcr.io/v2/{repo}/manifests/{tag}"
+
         else:
+            # Generic registry fallback (Quay, private registries, etc.)
             headers = {"Accept": accept}
             url = f"https://{registry}/v2/{repo}/manifests/{tag}"
 
