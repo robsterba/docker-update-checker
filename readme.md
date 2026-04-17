@@ -81,7 +81,7 @@ docker-update-checker/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/docker-update-checker.git
+git clone https://github.com/robsterba/docker-update-checker.git
 cd docker-update-checker
 ```
 
