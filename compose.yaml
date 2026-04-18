@@ -21,7 +21,7 @@ services:
       LOG_LEVEL: INFO
       NOTIFY_ENABLED: true
       NOTIFY_BACKEND: webhook
-      NOTIFY_WEBHOOK_URL: <webhook-url>
+      NOTIFY_WEBHOOK_URL: ${NOTIFY_WEBHOOK_URL}
       NOTIFY_WEBHOOK_METHOD: POST
 
 # For MQTT notification, uncomment and configure the following:
