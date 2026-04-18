@@ -1,6 +1,6 @@
 # 🐳 Docker Update Checker
 
-A self-hosted web dashboard that monitors your Docker Compose stacks for container image updates. It compares local image digests against upstream registry digests and lets you pull updates and recreate services on demand — no automation, full control.
+A self-hosted web dashboard that monitors your Docker Compose stacks for container image updates. It compares local image digests against upstream registry digests and lets you pull updates and recreate services on demand — Right now there is intenionally no automation, because I wanted something super lightweight and manual. There are already good automated solutions out there like watchtower or komodo's global update feature if you want heavier more automated solutions. 
 
 ---
 
