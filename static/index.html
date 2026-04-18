@@ -5,22 +5,21 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Docker Update Checker</title>
 <style>
-  :root,[data-theme="light"]{--bg:#f7f6f2;--surface:#ffffff;--surface2:#f3f0ec;--border:#d4d1ca;--text:#28251d;--muted:#7a7974;--faint:#bab9b4;--primary:#01696f;--primary-h:#0c4e54;--success:#437a22;--warning:#da7101;--error:#a12c7b;--badge-up:rgba(67,122,34,.15);--badge-update:rgba(218,113,1,.15);--badge-err:rgba(161,44,123,.15);--badge-unk:rgba(122,121,116,.15)}
-  [data-theme="dark"]{--bg:#171614;--surface:#1c1b19;--surface2:#22211f;--border:#393836;--text:#cdccca;--muted:#797876;--faint:#5a5957;--primary:#4f98a3;--primary-h:#227f8b;--success:#6daa45;--warning:#fdab43;--error:#d163a7;--badge-up:rgba(109,170,69,.15);--badge-update:rgba(253,171,67,.15);--badge-err:rgba(209,99,167,.15);--badge-unk:rgba(90,89,87,.2)}
+  :root,[data-theme="light"]{--bg:#f7f6f2;--surface:#ffffff;--surface2:#f3f0ec;--border:#d4d1ca;--text:#28251d;--muted:#7a7974;--faint:#bab9b4;--primary:#01696f;--primary-h:#0c4e54;--success:#437a22;--warning:#da7101;--error:#a12c7b;--info:#006494;--badge-up:rgba(67,122,34,.15);--badge-update:rgba(218,113,1,.15);--badge-err:rgba(161,44,123,.15);--badge-unk:rgba(122,121,116,.15);--badge-run:rgba(0,100,148,.12)}
+  [data-theme="dark"]{--bg:#171614;--surface:#1c1b19;--surface2:#22211f;--border:#393836;--text:#cdccca;--muted:#797876;--faint:#5a5957;--primary:#4f98a3;--primary-h:#227f8b;--success:#6daa45;--warning:#fdab43;--error:#d163a7;--info:#5591c7;--badge-up:rgba(109,170,69,.15);--badge-update:rgba(253,171,67,.15);--badge-err:rgba(209,99,167,.15);--badge-unk:rgba(90,89,87,.2);--badge-run:rgba(85,145,199,.14)}
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html{font-family:'Inter',system-ui,sans-serif;font-size:15px;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
   body{min-height:100dvh;display:flex;flex-direction:column}
   a{color:var(--primary);text-decoration:none}
   button{cursor:pointer;border:none;font:inherit;background:none}
+  code{font-family:'JetBrains Mono','Fira Mono',monospace}
 
-  /* Layout */
   header{background:var(--surface);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100}
   .logo{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
   .logo svg{color:var(--primary)}
   .header-actions{margin-left:auto;display:flex;align-items:center;gap:.5rem}
-  main{flex:1;padding:1.5rem;max-width:1200px;margin-inline:auto;width:100%}
+  main{flex:1;padding:1.5rem;max-width:1280px;margin-inline:auto;width:100%}
 
-  /* KPI cards */
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem}
   .kpi{background:var(--surface);border:1px solid var(--border);border-radius:.625rem;padding:1rem 1.25rem}
   .kpi-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem}
@@ -28,8 +27,16 @@
   .kpi-value.updates{color:var(--warning)}
   .kpi-value.ok{color:var(--success)}
   .kpi-value.err{color:var(--error)}
+  .kpi-value.info{color:var(--info)}
 
-  /* Table */
+  .grid-2{display:grid;grid-template-columns:1.25fr .95fr;gap:1.5rem;margin-bottom:1.5rem}
+  .stack-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.85rem}
+  .stack-card{background:var(--surface2);border:1px solid var(--border);border-radius:.65rem;padding:.9rem}
+  .stack-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.55rem}
+  .stack-name{font-weight:700;font-size:.9rem}
+  .stack-meta{font-size:.76rem;color:var(--muted);line-height:1.4}
+  .stack-badges{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.65rem}
+
   .card{background:var(--surface);border:1px solid var(--border);border-radius:.625rem;overflow:hidden;margin-bottom:1.5rem}
   .card-header{padding:.75rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
   .card-title{font-weight:600;font-size:.95rem}
@@ -40,16 +47,18 @@
   tr:hover td{background:var(--surface2)}
   .img-name{font-family:'JetBrains Mono','Fira Mono',monospace;font-size:.8rem;word-break:break-all}
   .digest{font-family:monospace;font-size:.72rem;color:var(--muted)}
+  .stack-col{display:flex;flex-wrap:wrap;gap:.3rem}
 
-  /* Badges */
   .badge{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;white-space:nowrap}
   .badge.up_to_date{background:var(--badge-up);color:var(--success)}
   .badge.update_available{background:var(--badge-update);color:var(--warning)}
   .badge.registry_error{background:var(--badge-err);color:var(--error)}
   .badge.not_pulled,.badge.unknown{background:var(--badge-unk);color:var(--muted)}
+  .badge.running,.badge.started,.badge.info{background:var(--badge-run);color:var(--info)}
+  .badge.success{background:var(--badge-up);color:var(--success)}
+  .badge.error{background:var(--badge-err);color:var(--error)}
   .badge svg{width:10px;height:10px}
 
-  /* Buttons */
   .btn{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;border-radius:.5rem;font-size:.82rem;font-weight:500;transition:background .15s,color .15s,opacity .15s;white-space:nowrap}
   .btn:disabled{opacity:.45;cursor:not-allowed}
   .btn-primary{background:var(--primary);color:#fff}
@@ -60,10 +69,9 @@
   .btn-warn{background:var(--warning);color:#fff}
   .btn-warn:hover:not(:disabled){opacity:.85}
 
-  /* Compose files list */
-  .cf-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
+  .cf-pill,.stack-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
+  .stack-pill{font-family:inherit;font-weight:600}
 
-  /* Log */
   .log-list{padding:.5rem 1rem;max-height:300px;overflow-y:auto}
   .log-entry{display:flex;gap:.75rem;align-items:flex-start;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.8rem}
   .log-entry:last-child{border-bottom:none}
@@ -74,33 +82,53 @@
   .log-status.error{color:var(--error)}
   .log-status.started{color:var(--warning)}
 
-  /* Modal */
+  .jobs-wrap{padding:.65rem 1rem}
+  .job{border:1px solid var(--border);border-radius:.6rem;padding:.75rem .85rem;background:var(--surface2);margin-bottom:.7rem}
+  .job:last-child{margin-bottom:0}
+  .job-head{display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start;margin-bottom:.45rem}
+  .job-title{font-weight:700;font-size:.84rem}
+  .job-meta{font-size:.76rem;color:var(--muted);margin-top:.15rem}
+  .job-message{font-size:.8rem;color:var(--muted);margin:.4rem 0 .5rem;word-break:break-word}
+  .progress{height:.45rem;background:var(--bg);border-radius:999px;overflow:hidden;border:1px solid var(--border)}
+  .progress-bar{height:100%;background:var(--primary);width:0%;transition:width .2s ease}
+  .job-events{margin-top:.55rem;font-size:.74rem;color:var(--muted)}
+  .job-events details{border-top:1px dashed var(--border);padding-top:.45rem}
+  .job-events summary{cursor:pointer;color:var(--text)}
+  .job-event{padding:.22rem 0;border-bottom:1px dashed var(--border)}
+  .job-event:last-child{border-bottom:none}
+
   .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .2s}
   .modal-backdrop.open{opacity:1;pointer-events:all}
-  .modal{background:var(--surface);border:1px solid var(--border);border-radius:.75rem;padding:1.5rem;max-width:560px;width:90%;max-height:80vh;overflow-y:auto;transform:translateY(12px);transition:transform .2s}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:.75rem;padding:1.5rem;max-width:700px;width:92%;max-height:80vh;overflow-y:auto;transform:translateY(12px);transition:transform .2s}
   .modal-backdrop.open .modal{transform:none}
   .modal-title{font-weight:700;font-size:1rem;margin-bottom:1rem}
   .modal pre{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.75rem;font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--text)}
 
-  /* Spinner */
   @keyframes spin{to{transform:rotate(360deg)}}
   .spin{animation:spin .8s linear infinite}
 
-  /* Theme toggle */
   .theme-btn{padding:.35rem;border-radius:.4rem;color:var(--muted);transition:color .15s,background .15s}
   .theme-btn:hover{background:var(--surface2);color:var(--text)}
 
-  /* Filter bar */
   .filter-bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
   .filter-btn{padding:.3rem .7rem;border-radius:.4rem;font-size:.78rem;border:1px solid var(--border);color:var(--muted);transition:all .15s}
   .filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 
-  /* Last check */
   .last-check{font-size:.75rem;color:var(--muted)}
-
-  /* Empty state */
   .empty{padding:3rem 1rem;text-align:center;color:var(--muted)}
   .empty svg{margin-inline:auto;margin-bottom:.75rem;opacity:.4}
+
+  @media (max-width: 980px){
+    .grid-2{grid-template-columns:1fr}
+  }
+
+  @media (max-width: 760px){
+    main{padding:1rem}
+    header{padding:.75rem 1rem}
+    .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+    th:nth-child(3),td:nth-child(3),
+    th:nth-child(4),td:nth-child(4){display:none}
+  }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -134,7 +162,31 @@
     <div class="kpi"><div class="kpi-label">Up to Date</div><div class="kpi-value ok" id="kpiOk">—</div></div>
     <div class="kpi"><div class="kpi-label">Updates Available</div><div class="kpi-value updates" id="kpiUpdates">—</div></div>
     <div class="kpi"><div class="kpi-label">Unknown / Error</div><div class="kpi-value err" id="kpiErr">—</div></div>
-    <div class="kpi"><div class="kpi-label">Auto-Check Every</div><div class="kpi-value" id="kpiInterval">—</div></div>
+    <div class="kpi"><div class="kpi-label">Stacks</div><div class="kpi-value info" id="kpiStacks">—</div></div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Stacks</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadStacks()">Refresh</button>
+      </div>
+      <div class="jobs-wrap">
+        <div class="stack-grid" id="stackGrid">
+          <div class="empty" style="padding:1.25rem">Loading stacks…</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Jobs</span>
+        <button class="btn btn-ghost btn-sm" onclick="loadJobs()">Refresh</button>
+      </div>
+      <div class="jobs-wrap" id="jobsList">
+        <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -152,7 +204,7 @@
         <tr>
           <th>Image</th>
           <th>Status</th>
-          <th>Compose Project(s)</th>
+          <th>Stack(s)</th>
           <th>Checked</th>
           <th>Actions</th>
         </tr>
@@ -177,7 +229,6 @@
   </div>
 </main>
 
-<!-- Modal -->
 <div class="modal-backdrop" id="modalBackdrop" onclick="closeModal(event)">
   <div class="modal">
     <div class="modal-title" id="modalTitle"></div>
@@ -191,11 +242,12 @@
 <script>
 const API = '';
 let allImages = [];
+let allStacks = [];
+let allJobs = [];
 let activeFilter = 'all';
 let checking = false;
 let theme = document.documentElement.getAttribute('data-theme') || 'dark';
 
-// ── Theme ──────────────────────────────────────────────────────────────────
 function toggleTheme() {
   theme = theme === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', theme);
@@ -204,7 +256,6 @@ function toggleTheme() {
     : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
 }
 
-// ── Filter ─────────────────────────────────────────────────────────────────
 function setFilter(f, btn) {
   activeFilter = f;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -212,26 +263,106 @@ function setFilter(f, btn) {
   renderTable(allImages);
 }
 
-// ── Status badge ──────────────────────────────────────────────────────────
 function badge(status) {
   const labels = {
     up_to_date: '✓ Up to Date',
     update_available: '↑ Update Available',
     registry_error: '✗ Registry Error',
     not_pulled: '? Not Pulled',
-    unknown: '? Unknown'
+    unknown: '? Unknown',
+    running: '↻ Running',
+    started: '↻ Started',
+    success: '✓ Success',
+    error: '✗ Error',
+    info: '• Info'
   };
   return `<span class="badge ${status}">${labels[status] || status}</span>`;
 }
 
-// ── Format date ───────────────────────────────────────────────────────────
 function fmtDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
   return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-// ── Render table ──────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) {
+  return String(s || '').replace(/'/g,"\\'");
+}
+
+function renderStacks(stacks) {
+  const el = document.getElementById('stackGrid');
+  document.getElementById('kpiStacks').textContent = stacks.length || '0';
+
+  if (!stacks.length) {
+    el.innerHTML = `<div class="empty" style="padding:1.25rem">No stacks found.</div>`;
+    return;
+  }
+
+  el.innerHTML = stacks.map(stack => `
+    <div class="stack-card">
+      <div class="stack-head">
+        <div>
+          <div class="stack-name">${escHtml(stack.stack)}</div>
+          <div class="stack-meta">${stack.total_images} image(s) · Last checked ${fmtDate(stack.last_checked)}</div>
+        </div>
+        ${stack.updates_available > 0 ? badge('update_available') : badge('up_to_date')}
+      </div>
+      <div class="stack-meta">
+        Up to date: ${stack.up_to_date} · Updates: ${stack.updates_available} · Unknown: ${stack.unknown}
+      </div>
+      <div class="stack-badges">
+        ${(stack.compose_files || []).map(cf => `<span class="cf-pill" title="${escHtml(cf)}">${escHtml(cf.split('/').slice(-2).join('/'))}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderJobs(jobs) {
+  const el = document.getElementById('jobsList');
+  if (!jobs.length) {
+    el.innerHTML = `<div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>`;
+    return;
+  }
+
+  el.innerHTML = jobs.map(job => {
+    const pct = Math.max(0, Math.min(100, Math.round(((job.progress || 0) / Math.max(job.total_steps || 1, 1)) * 100)));
+    const events = (job.events || []).slice(0, 8);
+    return `
+      <div class="job">
+        <div class="job-head">
+          <div>
+            <div class="job-title">${escHtml(job.type)} — ${escHtml(job.target)}</div>
+            <div class="job-meta">
+              ${job.stack ? `Stack: ${escHtml(job.stack)} · ` : ''}
+              Started: ${fmtDate(job.started_at)}
+              ${job.finished_at ? ` · Finished: ${fmtDate(job.finished_at)}` : ''}
+            </div>
+          </div>
+          <div>${badge(job.status)}</div>
+        </div>
+        <div class="job-message">${escHtml(job.current_step || '')}${job.message ? ` — ${escHtml(job.message)}` : ''}</div>
+        <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>
+        <div class="job-meta" style="margin-top:.35rem">${job.progress || 0} / ${job.total_steps || 1} step(s)</div>
+        <div class="job-events">
+          <details>
+            <summary>Recent events</summary>
+            <div style="margin-top:.35rem">
+              ${events.length ? events.map(ev => `
+                <div class="job-event">
+                  <strong>${fmtDate(ev.time)}</strong> — ${escHtml(ev.status || 'info')} — ${escHtml(ev.message || '')}
+                </div>
+              `).join('') : '<div class="job-event">No events yet.</div>'}
+            </div>
+          </details>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function renderTable(images) {
   const tbody = document.getElementById('imageTable');
   let filtered = images;
@@ -250,22 +381,19 @@ function renderTable(images) {
     return;
   }
 
-  // Sort: updates first
   const order = { update_available: 0, registry_error: 1, not_pulled: 2, unknown: 3, up_to_date: 4 };
   filtered.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
 
   tbody.innerHTML = filtered.map(img => {
-    const projects = (img.compose_files || []).map(p => {
-      const parts = p.split('/');
-      const project = parts[parts.length - 2] || '?';
-      return `<span class="cf-pill" title="${p}">${project}</span>`;
-    }).join('') || '<span style="color:var(--faint);font-size:.75rem">—</span>';
+    const stacks = (img.stacks || []).length
+      ? (img.stacks || []).map(s => `<span class="stack-pill">${escHtml(s)}</span>`).join('')
+      : '<span style="color:var(--faint);font-size:.75rem">—</span>';
 
     const actions = buildActions(img);
     return `<tr>
       <td><div class="img-name">${escHtml(img.image)}</div></td>
       <td>${badge(img.status)}</td>
-      <td>${projects}</td>
+      <td><div class="stack-col">${stacks}</div></td>
       <td style="color:var(--muted);font-size:.78rem">${fmtDate(img.checked_at)}</td>
       <td><div style="display:flex;gap:.4rem;flex-wrap:wrap">${actions}</div></td>
     </tr>`;
@@ -286,7 +414,6 @@ function buildActions(img) {
   return btns;
 }
 
-// ── API calls ─────────────────────────────────────────────────────────────
 async function loadStatus() {
   const r = await fetch(`${API}/api/status`);
   const d = await r.json();
@@ -294,7 +421,6 @@ async function loadStatus() {
   document.getElementById('kpiOk').textContent = d.up_to_date ?? '—';
   document.getElementById('kpiUpdates').textContent = d.updates_available ?? '—';
   document.getElementById('kpiErr').textContent = d.unknown ?? '—';
-  document.getElementById('kpiInterval').textContent = d.check_interval_minutes ? `${d.check_interval_minutes}m` : '—';
   document.getElementById('lastCheck').textContent = d.last_check ? `Last check: ${fmtDate(d.last_check)}` : 'Not checked yet';
 }
 
@@ -302,6 +428,18 @@ async function loadImages() {
   const r = await fetch(`${API}/api/images`);
   allImages = await r.json();
   renderTable(allImages);
+}
+
+async function loadStacks() {
+  const r = await fetch(`${API}/api/stacks`);
+  allStacks = await r.json();
+  renderStacks(allStacks);
+}
+
+async function loadJobs() {
+  const r = await fetch(`${API}/api/jobs`);
+  allJobs = await r.json();
+  renderJobs(allJobs);
 }
 
 async function loadOps() {
@@ -318,6 +456,10 @@ async function loadOps() {
     </div>`).join('');
 }
 
+async function refreshAll() {
+  await Promise.all([loadStatus(), loadImages(), loadStacks(), loadJobs(), loadOps()]);
+}
+
 async function triggerCheck() {
   if (checking) return;
   checking = true;
@@ -325,27 +467,36 @@ async function triggerCheck() {
   const icon = document.getElementById('checkIcon');
   btn.disabled = true;
   icon.classList.add('spin');
-  await fetch(`${API}/api/check`, { method: 'POST' });
-  // Poll until check completes
-  setTimeout(async () => {
-    await Promise.all([loadStatus(), loadImages(), loadOps()]);
-    checking = false;
-    btn.disabled = false;
-    icon.classList.remove('spin');
-  }, 3000);
+
+  try {
+    await fetch(`${API}/api/check`, { method: 'POST' });
+    await refreshAll();
+  } finally {
+    setTimeout(() => {
+      checking = false;
+      btn.disabled = false;
+      icon.classList.remove('spin');
+    }, 1200);
+  }
 }
 
 async function recheckImage(imageRef) {
   showModal('Re-checking…', `<p style="color:var(--muted)">Checking <code>${escHtml(imageRef)}</code>…</p>`);
   const r = await fetch(`${API}/api/check/${encodeURIComponent(imageRef)}`, { method: 'POST' });
   const d = await r.json();
-  showModal('Check Result', `
-    <p><strong>Image:</strong> <code>${escHtml(d.image)}</code></p>
-    <p style="margin-top:.5rem"><strong>Status:</strong> ${badge(d.status)}</p>
-    <p style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Local digest:<br><code>${d.local_digest || '—'}</code></p>
-    <p style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Remote digest:<br><code>${d.remote_digest || '—'}</code></p>
-  `);
-  await Promise.all([loadImages(), loadStatus(), loadOps()]);
+  if (d.status === 'error') {
+    showModal('Check Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p>`);
+  } else {
+    showModal('Check Result', `
+      <p><strong>Image:</strong> <code>${escHtml(d.image)}</code></p>
+      <p style="margin-top:.5rem"><strong>Status:</strong> ${badge(d.status)}</p>
+      <p style="margin-top:.5rem"><strong>Stacks:</strong> ${(d.stacks || []).map(s => `<span class="stack-pill">${escHtml(s)}</span>`).join(' ') || '—'}</p>
+      <p style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Local digest:<br><code>${escHtml(d.local_digest || '—')}</code></p>
+      <p style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Remote digest:<br><code>${escHtml(d.remote_digest || '—')}</code></p>
+      <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
+    `);
+  }
+  await refreshAll();
 }
 
 async function pullImage(imageRef) {
@@ -353,11 +504,11 @@ async function pullImage(imageRef) {
   const r = await fetch(`${API}/api/update/${encodeURIComponent(imageRef)}`, { method: 'POST' });
   const d = await r.json();
   if (d.status === 'success') {
-    showModal('Pull Complete', `<p style="color:var(--success)">✓ Image pulled successfully.</p><p style="margin-top:.5rem">New status: ${badge(d.result.status)}</p>`);
+    showModal('Pull Complete', `<p style="color:var(--success)">✓ Image pulled successfully.</p><p style="margin-top:.5rem">New status: ${badge(d.result.status)}</p><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   } else {
-    showModal('Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p>`);
+    showModal('Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   }
-  await Promise.all([loadImages(), loadStatus(), loadOps()]);
+  await refreshAll();
 }
 
 async function recreate(composePath) {
@@ -370,14 +521,13 @@ async function recreate(composePath) {
   });
   const d = await r.json();
   if (d.status === 'success') {
-    showModal('Recreate Complete', `<p style="color:var(--success);margin-bottom:.75rem">✓ Containers recreated successfully.</p><pre>${escHtml(d.output || '')}</pre>`);
+    showModal('Recreate Complete', `<p style="color:var(--success);margin-bottom:.75rem">✓ Containers recreated successfully.</p><pre>${escHtml(d.output || '')}</pre><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   } else {
-    showModal('Recreate Failed', `<p style="color:var(--error);margin-bottom:.75rem">✗ Failed</p><pre>${escHtml(d.message || '')}</pre>`);
+    showModal('Recreate Failed', `<p style="color:var(--error);margin-bottom:.75rem">✗ Failed</p><pre>${escHtml(d.message || '')}</pre><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   }
-  await loadOps();
+  await refreshAll();
 }
 
-// ── Modal ─────────────────────────────────────────────────────────────────
 function showModal(title, body) {
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalBody').innerHTML = body;
@@ -389,19 +539,9 @@ function closeModal(e) {
     document.getElementById('modalBackdrop').classList.remove('open');
 }
 
-// ── Util ──────────────────────────────────────────────────────────────────
-function escHtml(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function escAttr(s) {
-  return String(s || '').replace(/'/g,"\\'");
-}
-
-// ── Init & poll ───────────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadStatus(), loadImages(), loadOps()]);
-  // Refresh every 30 seconds
-  setInterval(() => Promise.all([loadStatus(), loadImages(), loadOps()]), 30000);
+  await refreshAll();
+  setInterval(refreshAll, 10000);
 }
 
 init();

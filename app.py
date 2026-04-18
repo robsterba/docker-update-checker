@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 import re
+import uuid
 import requests
 import docker
 import yaml
@@ -41,6 +42,7 @@ state_lock = threading.Lock()
 check_results: dict = {}
 last_full_check: Optional[str] = None
 operations_log: list = []
+jobs_state: dict = {}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -55,6 +57,156 @@ def log_op(action, target, status, message):
         if len(operations_log) > 200:
             operations_log.pop()
 
+def derive_stack_name(compose_path: str) -> str:
+    p = Path(compose_path)
+    return p.parent.name or "default"
+
+
+def create_job(job_type: str, target: str, stack: Optional[str] = None,
+               total_steps: int = 1, meta: Optional[dict] = None) -> str:
+    job_id = str(uuid.uuid4())
+    job = {
+        "job_id": job_id,
+        "type": job_type,
+        "target": target,
+        "stack": stack,
+        "status": "running",
+        "progress": 0,
+        "total_steps": max(total_steps, 1),
+        "current_step": "Starting",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": None,
+        "message": "",
+        "meta": meta or {},
+        "events": []
+    }
+    with state_lock:
+        jobs_state[job_id] = job
+        _trim_jobs_locked()
+    return job_id
+
+
+def update_job(job_id: str, progress: Optional[int] = None,
+               current_step: Optional[str] = None,
+               message: Optional[str] = None,
+               event: Optional[dict] = None,
+               status: Optional[str] = None):
+    with state_lock:
+        job = jobs_state.get(job_id)
+        if not job:
+            return
+        if progress is not None:
+            job["progress"] = max(0, min(progress, job["total_steps"]))
+        if current_step is not None:
+            job["current_step"] = current_step
+        if message is not None:
+            job["message"] = message
+        if status is not None:
+            job["status"] = status
+        if event:
+            entry = {
+                "time": datetime.now(timezone.utc).isoformat(),
+                **event
+            }
+            job["events"].insert(0, entry)
+            if len(job["events"]) > 100:
+                job["events"].pop()
+
+
+def finish_job(job_id: str, status: str = "success", message: str = ""):
+    with state_lock:
+        job = jobs_state.get(job_id)
+        if not job:
+            return
+        job["status"] = status
+        job["progress"] = job["total_steps"]
+        job["message"] = message or job.get("message", "")
+        job["finished_at"] = datetime.now(timezone.utc).isoformat()
+        job["events"].insert(0, {
+            "time": job["finished_at"],
+            "status": status,
+            "message": job["message"] or f"Job finished with status: {status}"
+        })
+        if len(job["events"]) > 100:
+            job["events"].pop()
+        _trim_jobs_locked()
+
+
+def _trim_jobs_locked():
+    if len(jobs_state) <= 100:
+        return
+    ordered = sorted(
+        jobs_state.items(),
+        key=lambda kv: kv[1].get("started_at", ""),
+        reverse=True
+    )
+    keep_ids = {job_id for job_id, _ in ordered[:100]}
+    for job_id in list(jobs_state.keys()):
+        if job_id not in keep_ids:
+            jobs_state.pop(job_id, None)
+
+
+def summarize_stacks() -> list[dict]:
+    stacks: dict[str, dict] = {}
+    with state_lock:
+        results = list(check_results.values())
+
+    for item in results:
+        compose_files = item.get("compose_files") or []
+        if not compose_files:
+            stacks.setdefault("unassigned", {
+                "stack": "unassigned",
+                "compose_files": [],
+                "images": [],
+                "total_images": 0,
+                "updates_available": 0,
+                "up_to_date": 0,
+                "unknown": 0,
+                "last_checked": None
+            })
+            targets = ["unassigned"]
+        else:
+            targets = [derive_stack_name(cf) for cf in compose_files]
+
+        for stack_name in set(targets):
+            stack = stacks.setdefault(stack_name, {
+                "stack": stack_name,
+                "compose_files": [],
+                "images": [],
+                "total_images": 0,
+                "updates_available": 0,
+                "up_to_date": 0,
+                "unknown": 0,
+                "last_checked": None
+            })
+
+            stack["images"].append({
+                "image": item["image"],
+                "status": item["status"],
+                "checked_at": item.get("checked_at"),
+                "compose_files": compose_files,
+            })
+            stack["total_images"] += 1
+
+            if item["status"] == "update_available":
+                stack["updates_available"] += 1
+            elif item["status"] == "up_to_date":
+                stack["up_to_date"] += 1
+            else:
+                stack["unknown"] += 1
+
+            for cf in compose_files:
+                if cf not in stack["compose_files"] and derive_stack_name(cf) == stack_name:
+                    stack["compose_files"].append(cf)
+
+            checked = item.get("checked_at")
+            if checked and (not stack["last_checked"] or checked > stack["last_checked"]):
+                stack["last_checked"] = checked
+
+    return sorted(
+        stacks.values(),
+        key=lambda s: (-s["updates_available"], s["stack"])
+    )
 
 def find_compose_files() -> list[dict]:
     root = Path(COMPOSE_ROOT)
@@ -220,21 +372,68 @@ def check_image(image_ref: str) -> dict:
     }
 
 
-def run_full_check():
+def run_full_check(job_id: Optional[str] = None):
     global last_full_check
     log.info("Running full image check...")
-    compose_files = find_compose_files()
-    all_images: dict[str, list[str]] = {}
 
-    for cf in compose_files:
+    own_job = False
+    if not job_id:
+        job_id = create_job("full_check", "all", total_steps=4)
+        own_job = True
+
+    update_job(job_id, progress=0, current_step="Scanning compose files",
+               message="Looking for compose files")
+    compose_files = find_compose_files()
+    update_job(job_id, event={
+        "status": "info",
+        "message": f"Found {len(compose_files)} compose files"
+    })
+
+    all_images: dict[str, list[str]] = {}
+    total_compose = max(len(compose_files), 1)
+
+    for idx, cf in enumerate(compose_files, start=1):
+        update_job(
+            job_id,
+            progress=1,
+            current_step=f"Parsing compose files ({idx}/{total_compose})",
+            message=f"Parsing {cf['path']}",
+            event={
+                "status": "info",
+                "message": f"Parsing compose file {cf['path']}"
+            }
+        )
         for img in parse_images_from_compose(cf["path"]):
             all_images.setdefault(img, []).append(cf["path"])
 
     results = {}
-    for img, paths in all_images.items():
+    images = list(all_images.items())
+    total_images = max(len(images), 1)
+
+    update_job(job_id, progress=2,
+               current_step="Checking image digests",
+               message=f"Checking {len(images)} images")
+
+    for idx, (img, paths) in enumerate(images, start=1):
         result = check_image(img)
         result["compose_files"] = paths
+        result["stacks"] = sorted(list({derive_stack_name(p) for p in paths}))
         results[img] = result
+
+        if idx == 1 or idx == total_images or idx % 5 == 0:
+            update_job(
+                job_id,
+                progress=2,
+                current_step=f"Checking image digests ({idx}/{total_images})",
+                message=f"Checked {idx} of {total_images} images",
+                event={
+                    "status": "info",
+                    "message": f"Checked {img}: {result['status']}"
+                }
+            )
+
+    update_job(job_id, progress=3, current_step="Saving results",
+               message="Updating in-memory state")
 
     with state_lock:
         check_results.clear()
@@ -245,6 +444,12 @@ def run_full_check():
     log.info(f"Check complete: {len(results)} images, {updates} updates available.")
     log_op("check", "all", "success",
            f"Checked {len(results)} images, {updates} updates available")
+
+    finish_job(
+        job_id,
+        status="success",
+        message=f"Checked {len(results)} images, {updates} updates available"
+    )
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -277,38 +482,92 @@ def api_images():
 
 @app.route("/api/check", methods=["POST"])
 def api_check():
-    threading.Thread(target=run_full_check, daemon=True).start()
-    return jsonify({"status": "started"})
+    job_id = create_job("full_check", "all", total_steps=4)
+    threading.Thread(target=run_full_check, args=(job_id,), daemon=True).start()
+    return jsonify({"status": "started", "job_id": job_id})
 
 
 @app.route("/api/check/<path:image_ref>", methods=["POST"])
 def api_check_single(image_ref):
-    result = check_image(image_ref)
-    with state_lock:
-        if image_ref in check_results:
-            result["compose_files"] = check_results[image_ref].get("compose_files", [])
-        check_results[image_ref] = result
-    log_op("check", image_ref, "success", f"Status: {result['status']}")
-    return jsonify(result)
-
-
-@app.route("/api/update/<path:image_ref>", methods=["POST"])
-def api_update_image(image_ref):
-    log_op("pull", image_ref, "started", f"Pulling {image_ref}")
+    job_id = create_job("check_image", image_ref, total_steps=2, meta={"image": image_ref})
+    update_job(job_id, progress=0, current_step="Checking image", message=f"Checking {image_ref}")
     try:
-        if not docker_client:
-            raise RuntimeError("Docker socket not connected")
-        docker_client.images.pull(image_ref)
         result = check_image(image_ref)
         with state_lock:
             if image_ref in check_results:
                 result["compose_files"] = check_results[image_ref].get("compose_files", [])
+            else:
+                result["compose_files"] = []
+            result["stacks"] = sorted(list({derive_stack_name(p) for p in result["compose_files"]}))
             check_results[image_ref] = result
+
+        log_op("check", image_ref, "success", f"Status: {result['status']}")
+        update_job(job_id,
+                   progress=1,
+                   current_step="Check complete",
+                   message=f"Status: {result['status']}",
+                   event={"status": "success", "message": f"{image_ref}: {result['status']}"})
+        finish_job(job_id, "success", f"{image_ref}: {result['status']}")
+        return jsonify({"job_id": job_id, **result})
+    except Exception as e:
+        log_op("check", image_ref, "error", str(e))
+        finish_job(job_id, "error", str(e))
+        return jsonify({"status": "error", "message": str(e), "job_id": job_id}), 500
+
+
+@app.route("/api/update/<path:image_ref>", methods=["POST"])
+def api_update_image(image_ref):
+    stack = None
+    with state_lock:
+        existing = check_results.get(image_ref, {})
+        compose_files = existing.get("compose_files", []) or []
+        stacks = sorted(list({derive_stack_name(p) for p in compose_files}))
+        if stacks:
+            stack = stacks[0]
+
+    job_id = create_job(
+        "pull_image",
+        image_ref,
+        stack=stack,
+        total_steps=3,
+        meta={"image": image_ref, "compose_files": compose_files}
+    )
+
+    log_op("pull", image_ref, "started", f"Pulling {image_ref}")
+    update_job(job_id, progress=0, current_step="Pulling image", message=f"Pulling {image_ref}")
+
+    try:
+        if not docker_client:
+            raise RuntimeError("Docker socket not connected")
+
+        update_job(job_id, progress=1,
+                   current_step="Downloading image",
+                   message=f"Downloading {image_ref}",
+                   event={"status": "started", "message": f"Pull started for {image_ref}"})
+
+        docker_client.images.pull(image_ref)
+
+        update_job(job_id, progress=2,
+                   current_step="Refreshing status",
+                   message=f"Refreshing status for {image_ref}",
+                   event={"status": "info", "message": f"Pull finished for {image_ref}"})
+
+        result = check_image(image_ref)
+        with state_lock:
+            if image_ref in check_results:
+                result["compose_files"] = check_results[image_ref].get("compose_files", [])
+            else:
+                result["compose_files"] = compose_files
+            result["stacks"] = sorted(list({derive_stack_name(p) for p in result["compose_files"]}))
+            check_results[image_ref] = result
+
         log_op("pull", image_ref, "success", "Pulled successfully")
-        return jsonify({"status": "success", "result": result})
+        finish_job(job_id, "success", f"Pulled {image_ref} successfully")
+        return jsonify({"status": "success", "result": result, "job_id": job_id})
     except Exception as e:
         log_op("pull", image_ref, "error", str(e))
-        return jsonify({"status": "error", "message": str(e)}), 500
+        finish_job(job_id, "error", str(e))
+        return jsonify({"status": "error", "message": str(e), "job_id": job_id}), 500
 
 
 @app.route("/api/compose/recreate", methods=["POST"])
@@ -322,26 +581,66 @@ def api_compose_recreate():
     if not compose_file.exists():
         return jsonify({"status": "error", "message": "File not found"}), 404
 
+    stack = derive_stack_name(str(compose_file))
+    job_id = create_job(
+        "recreate_stack",
+        compose_path,
+        stack=stack,
+        total_steps=3,
+        meta={"compose_path": compose_path}
+    )
+
     log_op("recreate", compose_path, "started", "Running docker compose up -d")
+    update_job(job_id, progress=0, current_step="Preparing recreate",
+               message=f"Preparing recreate for {compose_path}")
+
     try:
+        update_job(job_id, progress=1, current_step="Running docker compose",
+                   message=f"docker compose up -d for {compose_path}",
+                   event={"status": "started", "message": f"Recreate started for stack {stack}"})
+
         r = subprocess.run(
             ["docker", "compose", "-f", str(compose_file),
              "up", "-d", "--remove-orphans"],
             capture_output=True, text=True, timeout=300,
             cwd=str(compose_file.parent)
         )
+
         if r.returncode == 0:
+            update_job(job_id, progress=2, current_step="Refreshing stack state",
+                       message=f"Refreshing image state for {stack}")
+
+            refreshed = 0
+            related_images = []
+            with state_lock:
+                for image_ref, item in check_results.items():
+                    if compose_path in (item.get("compose_files") or []):
+                        related_images.append(image_ref)
+
+            for image_ref in related_images:
+                result = check_image(image_ref)
+                with state_lock:
+                    existing = check_results.get(image_ref, {})
+                    result["compose_files"] = existing.get("compose_files", [])
+                    result["stacks"] = sorted(list({derive_stack_name(p) for p in result["compose_files"]}))
+                    check_results[image_ref] = result
+                refreshed += 1
+
             log_op("recreate", compose_path, "success", r.stdout or "Done")
-            return jsonify({"status": "success", "output": r.stdout})
+            finish_job(job_id, "success", f"Recreated stack {stack}, refreshed {refreshed} images")
+            return jsonify({"status": "success", "output": r.stdout, "job_id": job_id})
         else:
             log_op("recreate", compose_path, "error", r.stderr)
-            return jsonify({"status": "error", "message": r.stderr}), 500
+            finish_job(job_id, "error", r.stderr)
+            return jsonify({"status": "error", "message": r.stderr, "job_id": job_id}), 500
     except subprocess.TimeoutExpired:
         log_op("recreate", compose_path, "error", "Timed out")
-        return jsonify({"status": "error", "message": "Timed out after 300s"}), 500
+        finish_job(job_id, "error", "Timed out after 300s")
+        return jsonify({"status": "error", "message": "Timed out after 300s", "job_id": job_id}), 500
     except Exception as e:
         log_op("recreate", compose_path, "error", str(e))
-        return jsonify({"status": "error", "message": str(e)}), 500
+        finish_job(job_id, "error", str(e))
+        return jsonify({"status": "error", "message": str(e), "job_id": job_id}), 500
 
 
 @app.route("/api/compose/files")
@@ -354,13 +653,41 @@ def api_operations():
     with state_lock:
         return jsonify(operations_log[:50])
 
+@app.route("/api/stacks")
+def api_stacks():
+    return jsonify(summarize_stacks())
+
+
+@app.route("/api/jobs")
+def api_jobs():
+    with state_lock:
+        jobs = sorted(
+            jobs_state.values(),
+            key=lambda j: j.get("started_at", ""),
+            reverse=True
+        )
+        return jsonify(jobs[:30])
+
+
+@app.route("/api/jobs/<job_id>")
+def api_job(job_id):
+    with state_lock:
+        job = jobs_state.get(job_id)
+        if not job:
+            return jsonify({"status": "error", "message": "Job not found"}), 404
+        return jsonify(job)
+
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 scheduler = BackgroundScheduler()
 scheduler.add_job(run_full_check, "interval",
                   minutes=CHECK_INTERVAL_MINUTES, id="full_check")
 scheduler.start()
 
-threading.Thread(target=run_full_check, daemon=True).start()
+threading.Thread(
+    target=run_full_check,
+    args=(create_job("startup_check", "all", total_steps=4),),
+    daemon=True
+).start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
