@@ -19,6 +19,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 COMPOSE_ROOT = os.environ.get("COMPOSE_ROOT", "/compose")
 CHECK_INTERVAL_MINUTES = int(os.environ.get("CHECK_INTERVAL_MINUTES", "60"))
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+AUTO_RECREATE_AFTER_PULL = os.environ.get("AUTO_RECREATE_AFTER_PULL", "false").lower() == "true"
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
@@ -267,6 +268,94 @@ def parse_images_from_compose(path: str) -> list[str]:
         log.warning(f"Failed to parse {path}: {e}")
         return []
 
+def get_services_for_image(compose_path: str, image_ref: str) -> list[str]:
+    try:
+        env = {}
+        env_file = Path(compose_path).parent / ".env"
+        if env_file.exists():
+            with open(env_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        k, _, v = line.partition('=')
+                        env[k.strip()] = v.strip().strip('"').strip("'")
+
+        with open(compose_path) as f:
+            data = yaml.safe_load(f) or {}
+
+        matches = []
+        for svc_name, svc in (data.get("services") or {}).items():
+            img = svc.get("image")
+            if not img:
+                continue
+            img = resolve_env_vars(img, env)
+            if '${' in img:
+                continue
+            if '@sha256:' in img:
+                img = img.split('@')[0]
+            if img == image_ref:
+                matches.append(svc_name)
+        return matches
+    except Exception as e:
+        log.warning(f"Failed to map services for image {image_ref} in {compose_path}: {e}")
+        return []
+
+
+def recreate_compose(compose_path: str, services: Optional[list[str]] = None,
+                     remove_orphans: bool = True, timeout: int = 300) -> subprocess.CompletedProcess:
+    compose_file = Path(compose_path)
+    cmd = ["docker", "compose", "-f", str(compose_file), "up", "-d"]
+
+    if remove_orphans and not services:
+        cmd.append("--remove-orphans")
+
+    if services:
+        cmd.append("--no-deps")
+        cmd.extend(services)
+
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        cwd=str(compose_file.parent)
+    )
+
+
+def refresh_image_result(image_ref: str):
+    result = check_image(image_ref)
+    with state_lock:
+        existing = check_results.get(image_ref, {})
+        result["compose_files"] = existing.get("compose_files", [])
+        result["stacks"] = sorted(list({derive_stack_name(p) for p in result["compose_files"]}))
+        check_results[image_ref] = result
+    return result
+
+
+def get_images_for_stack(stack_name: str) -> list[str]:
+    with state_lock:
+        items = list(check_results.values())
+
+    images = []
+    for item in items:
+        stacks = item.get("stacks") or []
+        if stack_name in stacks:
+            images.append(item["image"])
+    return sorted(list(set(images)))
+
+
+def get_outdated_images(stack_name: Optional[str] = None) -> list[str]:
+    with state_lock:
+        items = list(check_results.values())
+
+    images = []
+    for item in items:
+        if item.get("status") not in ("update_available", "not_pulled"):
+            continue
+        if stack_name and stack_name not in (item.get("stacks") or []):
+            continue
+        images.append(item["image"])
+    return sorted(list(set(images)))
 
 
 def parse_image_ref(image_ref: str) -> tuple[str, str, str]:
@@ -451,6 +540,199 @@ def run_full_check(job_id: Optional[str] = None):
         message=f"Checked {len(results)} images, {updates} updates available"
     )
 
+def run_bulk_pull(job_id: str, stack_name: Optional[str] = None, auto_recreate: bool = False):
+    label = stack_name or "all"
+    images = get_outdated_images(stack_name=stack_name)
+
+    if not docker_client:
+        finish_job(job_id, "error", "Docker socket not connected")
+        log_op("bulk_pull", label, "error", "Docker socket not connected")
+        return
+
+    if not images:
+        finish_job(job_id, "success", f"No outdated images found for {label}")
+        log_op("bulk_pull", label, "success", f"No outdated images found for {label}")
+        return
+
+    steps = len(images) + (1 if auto_recreate else 0)
+    with state_lock:
+        if job_id in jobs_state:
+            jobs_state[job_id]["total_steps"] = steps
+
+    updated_images = []
+    affected_compose_files = set()
+
+    for idx, image_ref in enumerate(images, start=1):
+        update_job(
+            job_id,
+            progress=idx - 1,
+            current_step=f"Pulling image {idx}/{len(images)}",
+            message=image_ref,
+            event={"status": "started", "message": f"Pulling {image_ref}"}
+        )
+        log_op("bulk_pull", image_ref, "started", f"Pulling {image_ref}")
+
+        try:
+            docker_client.images.pull(image_ref)
+            result = refresh_image_result(image_ref)
+            updated_images.append(image_ref)
+            for cf in result.get("compose_files", []):
+                affected_compose_files.add(cf)
+
+            log_op("bulk_pull", image_ref, "success", f"Pulled {image_ref}")
+            update_job(
+                job_id,
+                progress=idx,
+                current_step=f"Pulled image {idx}/{len(images)}",
+                message=image_ref,
+                event={"status": "success", "message": f"Pulled {image_ref} ({result['status']})"}
+            )
+        except Exception as e:
+            log_op("bulk_pull", image_ref, "error", str(e))
+            update_job(
+                job_id,
+                progress=idx,
+                current_step=f"Pull failed for {image_ref}",
+                message=str(e),
+                event={"status": "error", "message": f"{image_ref}: {e}"}
+            )
+
+    if auto_recreate and affected_compose_files:
+        update_job(
+            job_id,
+            progress=len(images),
+            current_step="Auto-recreating affected services",
+            message=f"{len(affected_compose_files)} compose file(s)",
+            event={"status": "started", "message": "Starting auto-recreate phase"}
+        )
+
+        recreate_results = []
+        for compose_path in sorted(affected_compose_files):
+            target_services = []
+            for image_ref in updated_images:
+                target_services.extend(get_services_for_image(compose_path, image_ref))
+            target_services = sorted(list(set(target_services)))
+
+            try:
+                result = recreate_compose(compose_path, services=target_services or None)
+                if result.returncode == 0:
+                    recreate_results.append((compose_path, "success"))
+                    log_op("auto_recreate", compose_path, "success", result.stdout or "Done")
+                    update_job(
+                        job_id,
+                        event={"status": "success",
+                               "message": f"Recreated {compose_path} ({', '.join(target_services) if target_services else 'full stack'})"}
+                    )
+                else:
+                    recreate_results.append((compose_path, "error"))
+                    log_op("auto_recreate", compose_path, "error", result.stderr)
+                    update_job(
+                        job_id,
+                        event={"status": "error",
+                               "message": f"Recreate failed for {compose_path}: {result.stderr}"}
+                    )
+            except Exception as e:
+                recreate_results.append((compose_path, "error"))
+                log_op("auto_recreate", compose_path, "error", str(e))
+                update_job(
+                    job_id,
+                    event={"status": "error",
+                           "message": f"Recreate exception for {compose_path}: {e}"}
+                )
+
+        for image_ref in updated_images:
+            try:
+                refresh_image_result(image_ref)
+            except Exception:
+                pass
+
+        update_job(
+            job_id,
+            progress=steps,
+            current_step="Auto-recreate complete",
+            message=f"Processed {len(recreate_results)} compose file(s)"
+        )
+
+    success_count = len(updated_images)
+    finish_job(
+        job_id,
+        "success",
+        f"Bulk pull complete for {label}: {success_count}/{len(images)} images pulled"
+        + (" with auto-recreate" if auto_recreate else "")
+    )
+    log_op(
+        "bulk_pull",
+        label,
+        "success",
+        f"Bulk pull complete for {label}: {success_count}/{len(images)} images pulled"
+    )
+
+def run_stack_recreate(job_id: str, stack_name: str):
+    stacks = summarize_stacks()
+    stack = next((s for s in stacks if s["stack"] == stack_name), None)
+
+    if not stack:
+        finish_job(job_id, "error", f"Stack not found: {stack_name}")
+        log_op("recreate_stack", stack_name, "error", "Stack not found")
+        return
+
+    compose_files = stack.get("compose_files", [])
+    if not compose_files:
+        finish_job(job_id, "error", f"No compose files found for stack {stack_name}")
+        log_op("recreate_stack", stack_name, "error", "No compose files found")
+        return
+
+    with state_lock:
+        if job_id in jobs_state:
+            jobs_state[job_id]["total_steps"] = len(compose_files)
+
+    for idx, compose_path in enumerate(compose_files, start=1):
+        update_job(
+            job_id,
+            progress=idx - 1,
+            current_step=f"Recreating compose file {idx}/{len(compose_files)}",
+            message=compose_path,
+            event={"status": "started", "message": f"Recreating {compose_path}"}
+        )
+        try:
+            r = recreate_compose(compose_path)
+            if r.returncode == 0:
+                log_op("recreate_stack", compose_path, "success", r.stdout or "Done")
+                update_job(
+                    job_id,
+                    progress=idx,
+                    current_step=f"Recreated compose file {idx}/{len(compose_files)}",
+                    message=compose_path,
+                    event={"status": "success", "message": f"Recreated {compose_path}"}
+                )
+            else:
+                log_op("recreate_stack", compose_path, "error", r.stderr)
+                update_job(
+                    job_id,
+                    progress=idx,
+                    current_step=f"Recreate failed for {compose_path}",
+                    message=r.stderr,
+                    event={"status": "error", "message": f"{compose_path}: {r.stderr}"}
+                )
+        except Exception as e:
+            log_op("recreate_stack", compose_path, "error", str(e))
+            update_job(
+                job_id,
+                progress=idx,
+                current_step=f"Recreate failed for {compose_path}",
+                message=str(e),
+                event={"status": "error", "message": f"{compose_path}: {e}"}
+            )
+
+    for image_ref in get_images_for_stack(stack_name):
+        try:
+            refresh_image_result(image_ref)
+        except Exception:
+            pass
+
+    finish_job(job_id, "success", f"Stack recreate complete for {stack_name}")
+    log_op("recreate_stack", stack_name, "success", f"Stack recreate complete for {stack_name}")
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -465,14 +747,14 @@ def api_status():
             "last_check": last_full_check,
             "total": len(check_results),
             "up_to_date": sum(1 for r in check_results.values()
-                               if r["status"] == "up_to_date"),
+                              if r["status"] == "up_to_date"),
             "updates_available": sum(1 for r in check_results.values()
-                                      if r["status"] == "update_available"),
+                                     if r["status"] == "update_available"),
             "unknown": sum(1 for r in check_results.values()
-                            if r["status"] in ("unknown", "registry_error", "not_pulled")),
-            "check_interval_minutes": CHECK_INTERVAL_MINUTES
+                           if r["status"] in ("unknown", "registry_error", "not_pulled")),
+            "check_interval_minutes": CHECK_INTERVAL_MINUTES,
+            "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL
         })
-
 
 @app.route("/api/images")
 def api_images():
@@ -517,6 +799,11 @@ def api_check_single(image_ref):
 
 @app.route("/api/update/<path:image_ref>", methods=["POST"])
 def api_update_image(image_ref):
+    data = request.json or {}
+    auto_recreate = data.get("auto_recreate")
+    if auto_recreate is None:
+        auto_recreate = AUTO_RECREATE_AFTER_PULL
+
     stack = None
     with state_lock:
         existing = check_results.get(image_ref, {})
@@ -529,8 +816,8 @@ def api_update_image(image_ref):
         "pull_image",
         image_ref,
         stack=stack,
-        total_steps=3,
-        meta={"image": image_ref, "compose_files": compose_files}
+        total_steps=4 if auto_recreate else 3,
+        meta={"image": image_ref, "compose_files": compose_files, "auto_recreate": auto_recreate}
     )
 
     log_op("pull", image_ref, "started", f"Pulling {image_ref}")
@@ -552,23 +839,98 @@ def api_update_image(image_ref):
                    message=f"Refreshing status for {image_ref}",
                    event={"status": "info", "message": f"Pull finished for {image_ref}"})
 
-        result = check_image(image_ref)
-        with state_lock:
-            if image_ref in check_results:
-                result["compose_files"] = check_results[image_ref].get("compose_files", [])
-            else:
-                result["compose_files"] = compose_files
-            result["stacks"] = sorted(list({derive_stack_name(p) for p in result["compose_files"]}))
-            check_results[image_ref] = result
+        result = refresh_image_result(image_ref)
+
+        if auto_recreate and result.get("compose_files"):
+            update_job(job_id, progress=3,
+                       current_step="Auto-recreating affected services",
+                       message=f"Processing {len(result.get('compose_files', []))} compose file(s)",
+                       event={"status": "started", "message": "Starting auto-recreate phase"})
+
+            for compose_path in result.get("compose_files", []):
+                services = get_services_for_image(compose_path, image_ref)
+                try:
+                    rr = recreate_compose(compose_path, services=services or None)
+                    if rr.returncode == 0:
+                        log_op("auto_recreate", compose_path, "success", rr.stdout or "Done")
+                        update_job(job_id, event={
+                            "status": "success",
+                            "message": f"Recreated {compose_path} ({', '.join(services) if services else 'full stack'})"
+                        })
+                    else:
+                        log_op("auto_recreate", compose_path, "error", rr.stderr)
+                        update_job(job_id, event={
+                            "status": "error",
+                            "message": f"Recreate failed for {compose_path}: {rr.stderr}"
+                        })
+                except Exception as e:
+                    log_op("auto_recreate", compose_path, "error", str(e))
+                    update_job(job_id, event={
+                        "status": "error",
+                        "message": f"Recreate exception for {compose_path}: {e}"
+                    })
+
+            result = refresh_image_result(image_ref)
 
         log_op("pull", image_ref, "success", "Pulled successfully")
-        finish_job(job_id, "success", f"Pulled {image_ref} successfully")
+        finish_job(
+            job_id,
+            "success",
+            f"Pulled {image_ref} successfully" + (" with auto-recreate" if auto_recreate else "")
+        )
         return jsonify({"status": "success", "result": result, "job_id": job_id})
     except Exception as e:
         log_op("pull", image_ref, "error", str(e))
         finish_job(job_id, "error", str(e))
         return jsonify({"status": "error", "message": str(e), "job_id": job_id}), 500
 
+@app.route("/api/bulk/update", methods=["POST"])
+def api_bulk_update():
+    data = request.json or {}
+    stack_name = data.get("stack")
+    auto_recreate = data.get("auto_recreate")
+    if auto_recreate is None:
+        auto_recreate = AUTO_RECREATE_AFTER_PULL
+
+    target = stack_name or "all"
+    job_id = create_job(
+        "bulk_pull",
+        target,
+        stack=stack_name,
+        total_steps=1,
+        meta={"stack": stack_name, "auto_recreate": auto_recreate}
+    )
+
+    threading.Thread(
+        target=run_bulk_pull,
+        args=(job_id, stack_name, auto_recreate),
+        daemon=True
+    ).start()
+
+    return jsonify({
+        "status": "started",
+        "job_id": job_id,
+        "stack": stack_name,
+        "auto_recreate": auto_recreate
+    })
+
+@app.route("/api/stacks/<stack_name>/recreate", methods=["POST"])
+def api_stack_recreate(stack_name):
+    job_id = create_job(
+        "recreate_stack",
+        stack_name,
+        stack=stack_name,
+        total_steps=1,
+        meta={"stack": stack_name}
+    )
+
+    threading.Thread(
+        target=run_stack_recreate,
+        args=(job_id, stack_name),
+        daemon=True
+    ).start()
+
+    return jsonify({"status": "started", "job_id": job_id, "stack": stack_name})
 
 @app.route("/api/compose/recreate", methods=["POST"])
 def api_compose_recreate():
