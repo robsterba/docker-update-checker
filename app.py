@@ -14,12 +14,42 @@ import yaml
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
+import smtplib
+from email.message import EmailMessage
 
 # ── Config ────────────────────────────────────────────────────────────────────
 COMPOSE_ROOT = os.environ.get("COMPOSE_ROOT", "/compose")
 CHECK_INTERVAL_MINUTES = int(os.environ.get("CHECK_INTERVAL_MINUTES", "60"))
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 AUTO_RECREATE_AFTER_PULL = os.environ.get("AUTO_RECREATE_AFTER_PULL", "false").lower() == "true"
+NOTIFY_ENABLED = os.environ.get("NOTIFY_ENABLED", "false").lower() == "true"
+NOTIFY_BACKEND = os.environ.get("NOTIFY_BACKEND", "").strip().lower()
+
+NOTIFY_WEBHOOK_URL = os.environ.get("NOTIFY_WEBHOOK_URL", "").strip()
+NOTIFY_WEBHOOK_METHOD = os.environ.get("NOTIFY_WEBHOOK_METHOD", "POST").strip().upper()
+NOTIFY_WEBHOOK_TIMEOUT = int(os.environ.get("NOTIFY_WEBHOOK_TIMEOUT", "10"))
+
+NOTIFY_MQTT_HOST = os.environ.get("NOTIFY_MQTT_HOST", "").strip()
+NOTIFY_MQTT_PORT = int(os.environ.get("NOTIFY_MQTT_PORT", "1883"))
+NOTIFY_MQTT_TOPIC = os.environ.get("NOTIFY_MQTT_TOPIC", "").strip()
+NOTIFY_MQTT_USERNAME = os.environ.get("NOTIFY_MQTT_USERNAME", "").strip()
+NOTIFY_MQTT_PASSWORD = os.environ.get("NOTIFY_MQTT_PASSWORD", "").strip()
+NOTIFY_MQTT_RETAIN = os.environ.get("NOTIFY_MQTT_RETAIN", "false").lower() == "true"
+
+NOTIFY_EMAIL_HOST = os.environ.get("NOTIFY_EMAIL_HOST", "").strip()
+NOTIFY_EMAIL_PORT = int(os.environ.get("NOTIFY_EMAIL_PORT", "587"))
+NOTIFY_EMAIL_USERNAME = os.environ.get("NOTIFY_EMAIL_USERNAME", "").strip()
+NOTIFY_EMAIL_PASSWORD = os.environ.get("NOTIFY_EMAIL_PASSWORD", "").strip()
+NOTIFY_EMAIL_FROM = os.environ.get("NOTIFY_EMAIL_FROM", "").strip()
+NOTIFY_EMAIL_TO = os.environ.get("NOTIFY_EMAIL_TO", "").strip()
+NOTIFY_EMAIL_USE_TLS = os.environ.get("NOTIFY_EMAIL_USE_TLS", "true").lower() == "true"
+
+NOTIFY_ON_UPDATES_FOUND = os.environ.get("NOTIFY_ON_UPDATES_FOUND", "true").lower() == "true"
+NOTIFY_ON_PULL_SUCCESS = os.environ.get("NOTIFY_ON_PULL_SUCCESS", "false").lower() == "true"
+NOTIFY_ON_PULL_ERROR = os.environ.get("NOTIFY_ON_PULL_ERROR", "true").lower() == "true"
+NOTIFY_ON_RECREATE_SUCCESS = os.environ.get("NOTIFY_ON_RECREATE_SUCCESS", "false").lower() == "true"
+NOTIFY_ON_RECREATE_ERROR = os.environ.get("NOTIFY_ON_RECREATE_ERROR", "true").lower() == "true"
+NOTIFY_ON_BULK_COMPLETE = os.environ.get("NOTIFY_ON_BULK_COMPLETE", "true").lower() == "true"
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
@@ -465,10 +495,8 @@ def run_full_check(job_id: Optional[str] = None):
     global last_full_check
     log.info("Running full image check...")
 
-    own_job = False
     if not job_id:
         job_id = create_job("full_check", "all", total_steps=4)
-        own_job = True
 
     update_job(job_id, progress=0, current_step="Scanning compose files",
                message="Looking for compose files")
@@ -487,10 +515,7 @@ def run_full_check(job_id: Optional[str] = None):
             progress=1,
             current_step=f"Parsing compose files ({idx}/{total_compose})",
             message=f"Parsing {cf['path']}",
-            event={
-                "status": "info",
-                "message": f"Parsing compose file {cf['path']}"
-            }
+            event={"status": "info", "message": f"Parsing compose file {cf['path']}"}
         )
         for img in parse_images_from_compose(cf["path"]):
             all_images.setdefault(img, []).append(cf["path"])
@@ -515,10 +540,7 @@ def run_full_check(job_id: Optional[str] = None):
                 progress=2,
                 current_step=f"Checking image digests ({idx}/{total_images})",
                 message=f"Checked {idx} of {total_images} images",
-                event={
-                    "status": "info",
-                    "message": f"Checked {img}: {result['status']}"
-                }
+                event={"status": "info", "message": f"Checked {img}: {result['status']}"}
             )
 
     update_job(job_id, progress=3, current_step="Saving results",
@@ -534,6 +556,8 @@ def run_full_check(job_id: Optional[str] = None):
     log_op("check", "all", "success",
            f"Checked {len(results)} images, {updates} updates available")
 
+    notify_updates_found(results)
+
     finish_job(
         job_id,
         status="success",
@@ -547,6 +571,12 @@ def run_bulk_pull(job_id: str, stack_name: Optional[str] = None, auto_recreate: 
     if not docker_client:
         finish_job(job_id, "error", "Docker socket not connected")
         log_op("bulk_pull", label, "error", "Docker socket not connected")
+        notify_bulk_complete(label, "Bulk pull failed: Docker socket not connected", {
+            "stack": stack_name,
+            "success_count": 0,
+            "total_images": 0,
+            "auto_recreate": auto_recreate
+        })
         return
 
     if not images:
@@ -580,6 +610,12 @@ def run_bulk_pull(job_id: str, stack_name: Optional[str] = None, auto_recreate: 
                 affected_compose_files.add(cf)
 
             log_op("bulk_pull", image_ref, "success", f"Pulled {image_ref}")
+            notify_pull_result(
+                image_ref,
+                ok=True,
+                message="Image pulled successfully during bulk job",
+                stacks=result.get("stacks", [])
+            )
             update_job(
                 job_id,
                 progress=idx,
@@ -589,6 +625,7 @@ def run_bulk_pull(job_id: str, stack_name: Optional[str] = None, auto_recreate: 
             )
         except Exception as e:
             log_op("bulk_pull", image_ref, "error", str(e))
+            notify_pull_result(image_ref, ok=False, message=str(e))
             update_job(
                 job_id,
                 progress=idx,
@@ -612,12 +649,19 @@ def run_bulk_pull(job_id: str, stack_name: Optional[str] = None, auto_recreate: 
             for image_ref in updated_images:
                 target_services.extend(get_services_for_image(compose_path, image_ref))
             target_services = sorted(list(set(target_services)))
+            stack = derive_stack_name(compose_path)
 
             try:
                 result = recreate_compose(compose_path, services=target_services or None)
                 if result.returncode == 0:
                     recreate_results.append((compose_path, "success"))
                     log_op("auto_recreate", compose_path, "success", result.stdout or "Done")
+                    notify_recreate_result(
+                        compose_path,
+                        ok=True,
+                        message=result.stdout or "Recreate completed",
+                        stack=stack
+                    )
                     update_job(
                         job_id,
                         event={"status": "success",
@@ -626,6 +670,12 @@ def run_bulk_pull(job_id: str, stack_name: Optional[str] = None, auto_recreate: 
                 else:
                     recreate_results.append((compose_path, "error"))
                     log_op("auto_recreate", compose_path, "error", result.stderr)
+                    notify_recreate_result(
+                        compose_path,
+                        ok=False,
+                        message=result.stderr,
+                        stack=stack
+                    )
                     update_job(
                         job_id,
                         event={"status": "error",
@@ -634,6 +684,12 @@ def run_bulk_pull(job_id: str, stack_name: Optional[str] = None, auto_recreate: 
             except Exception as e:
                 recreate_results.append((compose_path, "error"))
                 log_op("auto_recreate", compose_path, "error", str(e))
+                notify_recreate_result(
+                    compose_path,
+                    ok=False,
+                    message=str(e),
+                    stack=stack
+                )
                 update_job(
                     job_id,
                     event={"status": "error",
@@ -654,18 +710,20 @@ def run_bulk_pull(job_id: str, stack_name: Optional[str] = None, auto_recreate: 
         )
 
     success_count = len(updated_images)
-    finish_job(
-        job_id,
-        "success",
+    summary = (
         f"Bulk pull complete for {label}: {success_count}/{len(images)} images pulled"
         + (" with auto-recreate" if auto_recreate else "")
     )
-    log_op(
-        "bulk_pull",
-        label,
-        "success",
-        f"Bulk pull complete for {label}: {success_count}/{len(images)} images pulled"
-    )
+
+    finish_job(job_id, "success", summary)
+    log_op("bulk_pull", label, "success", summary)
+    notify_bulk_complete(label, summary, {
+        "stack": stack_name,
+        "success_count": success_count,
+        "total_images": len(images),
+        "updated_images": updated_images,
+        "auto_recreate": auto_recreate
+    })
 
 def run_stack_recreate(job_id: str, stack_name: str):
     stacks = summarize_stacks()
@@ -674,12 +732,14 @@ def run_stack_recreate(job_id: str, stack_name: str):
     if not stack:
         finish_job(job_id, "error", f"Stack not found: {stack_name}")
         log_op("recreate_stack", stack_name, "error", "Stack not found")
+        notify_recreate_result(stack_name, ok=False, message="Stack not found", stack=stack_name)
         return
 
     compose_files = stack.get("compose_files", [])
     if not compose_files:
         finish_job(job_id, "error", f"No compose files found for stack {stack_name}")
         log_op("recreate_stack", stack_name, "error", "No compose files found")
+        notify_recreate_result(stack_name, ok=False, message="No compose files found", stack=stack_name)
         return
 
     with state_lock:
@@ -698,6 +758,7 @@ def run_stack_recreate(job_id: str, stack_name: str):
             r = recreate_compose(compose_path)
             if r.returncode == 0:
                 log_op("recreate_stack", compose_path, "success", r.stdout or "Done")
+                notify_recreate_result(compose_path, ok=True, message=r.stdout or "Recreate completed", stack=stack_name)
                 update_job(
                     job_id,
                     progress=idx,
@@ -707,6 +768,7 @@ def run_stack_recreate(job_id: str, stack_name: str):
                 )
             else:
                 log_op("recreate_stack", compose_path, "error", r.stderr)
+                notify_recreate_result(compose_path, ok=False, message=r.stderr, stack=stack_name)
                 update_job(
                     job_id,
                     progress=idx,
@@ -716,6 +778,7 @@ def run_stack_recreate(job_id: str, stack_name: str):
                 )
         except Exception as e:
             log_op("recreate_stack", compose_path, "error", str(e))
+            notify_recreate_result(compose_path, ok=False, message=str(e), stack=stack_name)
             update_job(
                 job_id,
                 progress=idx,
@@ -732,6 +795,174 @@ def run_stack_recreate(job_id: str, stack_name: str):
 
     finish_job(job_id, "success", f"Stack recreate complete for {stack_name}")
     log_op("recreate_stack", stack_name, "success", f"Stack recreate complete for {stack_name}")
+
+def build_notification_payload(event_type: str, title: str, message: str,
+                               status: str = "info", extra: Optional[dict] = None) -> dict:
+    return {
+        "time": datetime.now(timezone.utc).isoformat(),
+        "event_type": event_type,
+        "title": title,
+        "message": message,
+        "status": status,
+        "host": os.uname().nodename,
+        "app": "docker-update-checker",
+        "extra": extra or {}
+    }
+
+
+def notify_webhook(payload: dict):
+    if not NOTIFY_WEBHOOK_URL:
+        raise RuntimeError("NOTIFY_WEBHOOK_URL not configured")
+
+    method = NOTIFY_WEBHOOK_METHOD if NOTIFY_WEBHOOK_METHOD in ("POST", "PUT") else "POST"
+    headers = {"Content-Type": "application/json"}
+
+    if method == "PUT":
+        r = requests.put(NOTIFY_WEBHOOK_URL, json=payload, headers=headers, timeout=NOTIFY_WEBHOOK_TIMEOUT)
+    else:
+        r = requests.post(NOTIFY_WEBHOOK_URL, json=payload, headers=headers, timeout=NOTIFY_WEBHOOK_TIMEOUT)
+
+    r.raise_for_status()
+
+
+def notify_mqtt(payload: dict):
+    if not NOTIFY_MQTT_HOST or not NOTIFY_MQTT_TOPIC:
+        raise RuntimeError("NOTIFY_MQTT_HOST or NOTIFY_MQTT_TOPIC not configured")
+
+    import paho.mqtt.client as mqtt
+
+    client = mqtt.Client()
+    if NOTIFY_MQTT_USERNAME:
+        client.username_pw_set(NOTIFY_MQTT_USERNAME, NOTIFY_MQTT_PASSWORD or None)
+
+    client.connect(NOTIFY_MQTT_HOST, NOTIFY_MQTT_PORT, 10)
+    client.loop_start()
+    result = client.publish(
+        NOTIFY_MQTT_TOPIC,
+        json.dumps(payload),
+        qos=0,
+        retain=NOTIFY_MQTT_RETAIN
+    )
+    result.wait_for_publish()
+    client.loop_stop()
+    client.disconnect()
+
+
+def notify_email(payload: dict):
+    if not all([NOTIFY_EMAIL_HOST, NOTIFY_EMAIL_FROM, NOTIFY_EMAIL_TO]):
+        raise RuntimeError("Email notification settings incomplete")
+
+    msg = EmailMessage()
+    msg["Subject"] = f"[{payload.get('status', 'info').upper()}] {payload.get('title', 'Notification')}"
+    msg["From"] = NOTIFY_EMAIL_FROM
+    msg["To"] = NOTIFY_EMAIL_TO
+
+    body = [
+        payload.get("title", ""),
+        "",
+        payload.get("message", ""),
+        "",
+        f"Event Type: {payload.get('event_type', '')}",
+        f"Status: {payload.get('status', '')}",
+        f"Time: {payload.get('time', '')}",
+        f"Host: {payload.get('host', '')}",
+        "",
+        json.dumps(payload.get("extra", {}), indent=2),
+    ]
+    msg.set_content("\n".join(body))
+
+    with smtplib.SMTP(NOTIFY_EMAIL_HOST, NOTIFY_EMAIL_PORT, timeout=15) as server:
+        if NOTIFY_EMAIL_USE_TLS:
+            server.starttls()
+        if NOTIFY_EMAIL_USERNAME:
+            server.login(NOTIFY_EMAIL_USERNAME, NOTIFY_EMAIL_PASSWORD)
+        server.send_message(msg)
+
+
+def send_notification(event_type: str, title: str, message: str,
+                      status: str = "info", extra: Optional[dict] = None):
+    if not NOTIFY_ENABLED:
+        return
+
+    payload = build_notification_payload(event_type, title, message, status, extra)
+
+    try:
+        if NOTIFY_BACKEND == "webhook":
+            notify_webhook(payload)
+        elif NOTIFY_BACKEND == "mqtt":
+            notify_mqtt(payload)
+        elif NOTIFY_BACKEND == "email":
+            notify_email(payload)
+        else:
+            raise RuntimeError(f"Unsupported NOTIFY_BACKEND: {NOTIFY_BACKEND}")
+
+        log_op("notify", event_type, "success", f"{NOTIFY_BACKEND}: {title}")
+    except Exception as e:
+        log.warning(f"Notification failed: {e}")
+        log_op("notify", event_type, "error", f"{NOTIFY_BACKEND or 'unknown'}: {e}")
+
+def notify_updates_found(results: dict):
+    if not NOTIFY_ON_UPDATES_FOUND:
+        return
+
+    updates = [r for r in results.values() if r["status"] == "update_available"]
+    if not updates:
+        return
+
+    send_notification(
+        event_type="updates_found",
+        title=f"{len(updates)} image update(s) available",
+        message="New container image updates were detected.",
+        status="info",
+        extra={
+            "count": len(updates),
+            "images": [r["image"] for r in updates],
+            "stacks": sorted(list({s for r in updates for s in r.get("stacks", [])}))
+        }
+    )
+
+
+def notify_pull_result(image_ref: str, ok: bool, message: str, stacks: Optional[list] = None):
+    if ok and not NOTIFY_ON_PULL_SUCCESS:
+        return
+    if (not ok) and not NOTIFY_ON_PULL_ERROR:
+        return
+
+    send_notification(
+        event_type="pull_result",
+        title=f"Pull {'succeeded' if ok else 'failed'}: {image_ref}",
+        message=message,
+        status="success" if ok else "error",
+        extra={"image": image_ref, "stacks": stacks or []}
+    )
+
+
+def notify_recreate_result(target: str, ok: bool, message: str, stack: Optional[str] = None):
+    if ok and not NOTIFY_ON_RECREATE_SUCCESS:
+        return
+    if (not ok) and not NOTIFY_ON_RECREATE_ERROR:
+        return
+
+    send_notification(
+        event_type="recreate_result",
+        title=f"Recreate {'succeeded' if ok else 'failed'}: {target}",
+        message=message,
+        status="success" if ok else "error",
+        extra={"target": target, "stack": stack}
+    )
+
+
+def notify_bulk_complete(target: str, message: str, extra: Optional[dict] = None):
+    if not NOTIFY_ON_BULK_COMPLETE:
+        return
+
+    send_notification(
+        event_type="bulk_complete",
+        title=f"Bulk job complete: {target}",
+        message=message,
+        status="success",
+        extra=extra or {}
+    )
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -753,7 +984,9 @@ def api_status():
             "unknown": sum(1 for r in check_results.values()
                            if r["status"] in ("unknown", "registry_error", "not_pulled")),
             "check_interval_minutes": CHECK_INTERVAL_MINUTES,
-            "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL
+            "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
+            "notify_enabled": NOTIFY_ENABLED,
+            "notify_backend": NOTIFY_BACKEND or None
         })
 
 @app.route("/api/images")
@@ -841,6 +1074,13 @@ def api_update_image(image_ref):
 
         result = refresh_image_result(image_ref)
 
+        notify_pull_result(
+            image_ref,
+            ok=True,
+            message="Image pulled successfully",
+            stacks=result.get("stacks", [])
+        )
+
         if auto_recreate and result.get("compose_files"):
             update_job(job_id, progress=3,
                        current_step="Auto-recreating affected services",
@@ -849,6 +1089,7 @@ def api_update_image(image_ref):
 
             for compose_path in result.get("compose_files", []):
                 services = get_services_for_image(compose_path, image_ref)
+                stack_name = derive_stack_name(compose_path)
                 try:
                     rr = recreate_compose(compose_path, services=services or None)
                     if rr.returncode == 0:
@@ -857,18 +1098,36 @@ def api_update_image(image_ref):
                             "status": "success",
                             "message": f"Recreated {compose_path} ({', '.join(services) if services else 'full stack'})"
                         })
+                        notify_recreate_result(
+                            compose_path,
+                            ok=True,
+                            message=rr.stdout or "Recreate completed",
+                            stack=stack_name
+                        )
                     else:
                         log_op("auto_recreate", compose_path, "error", rr.stderr)
                         update_job(job_id, event={
                             "status": "error",
                             "message": f"Recreate failed for {compose_path}: {rr.stderr}"
                         })
+                        notify_recreate_result(
+                            compose_path,
+                            ok=False,
+                            message=rr.stderr,
+                            stack=stack_name
+                        )
                 except Exception as e:
                     log_op("auto_recreate", compose_path, "error", str(e))
                     update_job(job_id, event={
                         "status": "error",
                         "message": f"Recreate exception for {compose_path}: {e}"
                     })
+                    notify_recreate_result(
+                        compose_path,
+                        ok=False,
+                        message=str(e),
+                        stack=stack_name
+                    )
 
             result = refresh_image_result(image_ref)
 
@@ -881,6 +1140,7 @@ def api_update_image(image_ref):
         return jsonify({"status": "success", "result": result, "job_id": job_id})
     except Exception as e:
         log_op("pull", image_ref, "error", str(e))
+        notify_pull_result(image_ref, ok=False, message=str(e), stacks=stacks)
         finish_job(job_id, "error", str(e))
         return jsonify({"status": "error", "message": str(e), "job_id": job_id}), 500
 
@@ -989,18 +1249,27 @@ def api_compose_recreate():
                 refreshed += 1
 
             log_op("recreate", compose_path, "success", r.stdout or "Done")
+            notify_recreate_result(
+                compose_path,
+                ok=True,
+                message=r.stdout or "Recreate completed",
+                stack=stack
+            )
             finish_job(job_id, "success", f"Recreated stack {stack}, refreshed {refreshed} images")
             return jsonify({"status": "success", "output": r.stdout, "job_id": job_id})
         else:
             log_op("recreate", compose_path, "error", r.stderr)
+            notify_recreate_result(compose_path, ok=False, message=r.stderr, stack=stack)
             finish_job(job_id, "error", r.stderr)
             return jsonify({"status": "error", "message": r.stderr, "job_id": job_id}), 500
     except subprocess.TimeoutExpired:
         log_op("recreate", compose_path, "error", "Timed out")
+        notify_recreate_result(compose_path, ok=False, message="Timed out after 300s", stack=stack)
         finish_job(job_id, "error", "Timed out after 300s")
         return jsonify({"status": "error", "message": "Timed out after 300s", "job_id": job_id}), 500
     except Exception as e:
         log_op("recreate", compose_path, "error", str(e))
+        notify_recreate_result(compose_path, ok=False, message=str(e), stack=stack)
         finish_job(job_id, "error", str(e))
         return jsonify({"status": "error", "message": str(e), "job_id": job_id}), 500
 
@@ -1038,6 +1307,20 @@ def api_job(job_id):
         if not job:
             return jsonify({"status": "error", "message": "Job not found"}), 404
         return jsonify(job)
+
+@app.route("/api/notify/test", methods=["POST"])
+def api_notify_test():
+    try:
+        send_notification(
+            event_type="test",
+            title="Docker Update Checker test notification",
+            message="This is a test notification from docker-update-checker.",
+            status="info",
+            extra={"manual_test": True}
+        )
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 scheduler = BackgroundScheduler()

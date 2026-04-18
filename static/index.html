@@ -163,6 +163,7 @@
     <div class="toolbar-left">
       <button class="btn btn-warn" onclick="bulkUpdateAll()">Pull All Updates</button>
       <button class="btn btn-ghost" onclick="loadStacks()">Refresh Stacks</button>
+      <button class="btn btn-ghost" onclick="sendTestNotification()">Test Notification</button>
     </div>
     <div class="toolbar-right">
       <label class="inline-toggle">
@@ -618,6 +619,18 @@ function closeModal(e) {
 async function init() {
   await refreshAll();
   setInterval(refreshAll, 10000);
+}
+
+async function sendTestNotification() {
+  showModal('Sending Test Notification', `<p style="color:var(--muted)">Sending test notification…</p>`);
+  const r = await fetch(`${API}/api/notify/test`, { method: 'POST' });
+  const d = await r.json();
+  if (d.status === 'success') {
+    showModal('Test Notification Sent', `<p style="color:var(--success)">✓ Test notification sent successfully.</p>`);
+  } else {
+    showModal('Test Notification Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message || 'Notification failed')}</p>`);
+  }
+  await refreshAll();
 }
 
 init();

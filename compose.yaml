@@ -19,3 +19,16 @@ services:
       # How often to auto-check (minutes)
       CHECK_INTERVAL_MINUTES: "60"
       LOG_LEVEL: INFO
+      NOTIFY_ENABLED: true
+      NOTIFY_BACKEND: webhook
+      NOTIFY_WEBHOOK_URL: <webhook-url>
+      NOTIFY_WEBHOOK_METHOD: POST
+
+# For MQTT notification, uncomment and configure the following:
+      # NOTIFY_BACKEND: mqtt
+      # NOTIFY_MQTT_HOST: your-mqtt-broker
+      # NOTIFY_MQTT_PORT: 1883
+      # NOTIFY_MQTT_TOPIC: homelab/docker-update-checker/events
+      # NOTIFY_MQTT_USERNAME: 
+      # NOTIFY_MQTT_PASSWORD: 
+      # NOTIFY_MQTT_RETAIN: false
