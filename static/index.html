@@ -72,6 +72,8 @@
   .btn-sm{padding:.3rem .65rem;font-size:.78rem}
   .btn-warn{background:var(--warning);color:#fff}
   .btn-warn:hover:not(:disabled){opacity:.85}
+  .btn-danger{background:var(--error);color:#fff}
+  .btn-danger:hover:not(:disabled){opacity:.88}
 
   .cf-pill,.stack-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
   .stack-pill{font-family:inherit;font-weight:600}
@@ -108,6 +110,13 @@
   .modal-backdrop.open .modal{transform:none}
   .modal-title{font-weight:700;font-size:1rem;margin-bottom:1rem}
   .modal pre{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.75rem;font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--text)}
+
+  .maintenance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.85rem}
+  .maintenance-item{background:var(--surface2);border:1px solid var(--border);border-radius:.65rem;padding:.95rem}
+  .maintenance-title{font-weight:700;font-size:.86rem;margin-bottom:.35rem}
+  .maintenance-text{font-size:.78rem;color:var(--muted);line-height:1.45;margin-bottom:.75rem;min-height:3.35rem}
+  .maintenance-actions{display:flex;gap:.45rem;flex-wrap:wrap}
+  .danger-note{font-size:.76rem;color:var(--error);margin-top:.45rem;line-height:1.4}
 
   @keyframes spin{to{transform:rotate(360deg)}}
   .spin{animation:spin .8s linear infinite}
@@ -187,6 +196,52 @@
     <div class="kpi"><div class="kpi-label">Updates Available</div><div class="kpi-value updates" id="kpiUpdates">—</div></div>
     <div class="kpi"><div class="kpi-label">Unknown / Error</div><div class="kpi-value err" id="kpiErr">—</div></div>
     <div class="kpi"><div class="kpi-label">Stacks</div><div class="kpi-value info" id="kpiStacks">—</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Maintenance</span>
+      <span style="font-size:.78rem;color:var(--muted)">Safe cleanup actions with explicit confirmations</span>
+    </div>
+    <div class="jobs-wrap">
+      <div class="maintenance-grid">
+        <div class="maintenance-item">
+          <div class="maintenance-title">Prune Stopped Containers</div>
+          <div class="maintenance-text">Removes stopped containers only. This is the safest cleanup option and usually a good first step.</div>
+          <div class="maintenance-actions">
+            <button class="btn btn-ghost btn-sm" onclick="pruneContainers()">Run Cleanup</button>
+          </div>
+        </div>
+
+        <div class="maintenance-item">
+          <div class="maintenance-title">Prune Dangling Images</div>
+          <div class="maintenance-text">Removes dangling images only. Tagged images in use are left alone by default.</div>
+          <div class="maintenance-actions">
+            <button class="btn btn-ghost btn-sm" onclick="pruneImages(false)">Dangling Only</button>
+            <button class="btn btn-warn btn-sm" onclick="pruneImages(true)">All Unused</button>
+          </div>
+        </div>
+
+        <div class="maintenance-item">
+          <div class="maintenance-title">System Prune</div>
+          <div class="maintenance-text">Removes stopped containers, unused networks, dangling images, and build cache. Volumes are not included here.</div>
+          <div class="maintenance-actions">
+            <button class="btn btn-warn btn-sm" onclick="pruneSystem()">Run System Prune</button>
+          </div>
+          <div class="danger-note">Use with care on hosts where you keep stopped containers around intentionally.</div>
+        </div>
+
+        <div class="maintenance-item">
+          <div class="maintenance-title">Volume Prune</div>
+          <div class="maintenance-text">Removes unused local volumes. This can delete stored application data if you no longer have containers referencing it.</div>
+          <div class="maintenance-actions">
+            <button class="btn btn-warn btn-sm" onclick="pruneVolumes(false)">Anonymous Only</button>
+            <button class="btn btn-danger btn-sm" onclick="pruneVolumes(true)">All Unused</button>
+          </div>
+          <div class="danger-note">Most destructive cleanup option. Review before using on stateful stacks.</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="grid-2">
@@ -631,6 +686,71 @@ async function sendTestNotification() {
     showModal('Test Notification Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message || 'Notification failed')}</p>`);
   }
   await refreshAll();
+}
+
+async function runPrune(endpoint, title, bodyHtml) {
+  showModal(title, bodyHtml);
+  const r = await fetch(`${API}${endpoint.url}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(endpoint.body || {})
+  });
+  const d = await r.json();
+
+  if (d.status === 'started') {
+    showModal(title, `
+      <p>${bodyHtml}</p>
+      <p style="margin-top:.75rem">Cleanup job started successfully.</p>
+      <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
+    `);
+  } else {
+    showModal('Cleanup Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message || 'Cleanup request failed')}</p>`);
+  }
+  await refreshAll();
+}
+
+async function pruneContainers() {
+  if (!confirm('Remove stopped containers?\n\nThis should not affect running containers.')) return;
+  await runPrune(
+    { url: '/api/prune/containers' },
+    'Container Prune Started',
+    'Removing stopped containers…'
+  );
+}
+
+async function pruneImages(allUnused) {
+  const message = allUnused
+    ? 'Remove all unused images?\n\nThis is broader than dangling-only cleanup and may remove cached images you wanted to keep.'
+    : 'Remove dangling images only?\n\nThis is the safer image cleanup option.';
+  if (!confirm(message)) return;
+
+  await runPrune(
+    { url: '/api/prune/images', body: { all: !!allUnused } },
+    'Image Prune Started',
+    allUnused ? 'Removing all unused images…' : 'Removing dangling images…'
+  );
+}
+
+async function pruneSystem() {
+  if (!confirm('Run system prune?\n\nThis removes stopped containers, unused networks, dangling images, and build cache.\n\nVolumes are not included. Continue?')) return;
+  await runPrune(
+    { url: '/api/prune/system' },
+    'System Prune Started',
+    'Running system prune…'
+  );
+}
+
+async function pruneVolumes(allUnused) {
+  const message = allUnused
+    ? 'Remove ALL unused local volumes?\n\nThis is the most destructive cleanup option and can permanently remove stored application data.'
+    : 'Remove anonymous unused local volumes?\n\nThis can still delete data for stacks you no longer have attached.';
+  if (!confirm(message)) return;
+
+  await runPrune(
+    { url: '/api/prune/volumes', body: { all: !!allUnused } },
+    'Volume Prune Started',
+    allUnused ? 'Removing all unused local volumes…' : 'Removing anonymous unused local volumes…'
+  );
 }
 
 function showModal(title, body) {

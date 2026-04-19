@@ -964,6 +964,118 @@ def notify_bulk_complete(target: str, message: str, extra: Optional[dict] = None
         extra=extra or {}
     )
 
+def run_prune_command(args: list[str], timeout: int = 600) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        args,
+        capture_output=True,
+        text=True,
+        timeout=timeout
+    )
+
+
+def run_prune_job(job_id: str, prune_type: str, include_all: bool = False):
+    if not docker_client:
+        finish_job(job_id, "error", "Docker socket not connected")
+        log_op("prune", prune_type, "error", "Docker socket not connected")
+        return
+
+    cmd = ["docker"]
+    description = ""
+    meta = {"prune_type": prune_type, "include_all": include_all}
+
+    if prune_type == "containers":
+        cmd += ["container", "prune", "-f"]
+        description = "Remove stopped containers"
+    elif prune_type == "images":
+        cmd += ["image", "prune", "-f"]
+        if include_all:
+            cmd.append("-a")
+            description = "Remove all unused images"
+        else:
+            description = "Remove dangling images"
+    elif prune_type == "system":
+        cmd += ["system", "prune", "-f"]
+        description = "Remove stopped containers, unused networks, dangling images, and build cache"
+    elif prune_type == "volumes":
+        cmd += ["volume", "prune", "-f"]
+        if include_all:
+            cmd.append("-a")
+            description = "Remove all unused local volumes"
+        else:
+            description = "Remove anonymous unused local volumes"
+    else:
+        finish_job(job_id, "error", f"Unsupported prune type: {prune_type}")
+        log_op("prune", prune_type, "error", f"Unsupported prune type: {prune_type}")
+        return
+
+    update_job(
+        job_id,
+        progress=0,
+        current_step="Preparing prune",
+        message=description,
+        event={"status": "info", "message": f"Preparing {prune_type} prune"}
+    )
+    log_op("prune", prune_type, "started", description)
+
+    try:
+        update_job(
+            job_id,
+            progress=1,
+            current_step="Running prune command",
+            message=" ".join(cmd),
+            event={"status": "started", "message": f"Running {' '.join(cmd)}"}
+        )
+
+        result = run_prune_command(cmd, timeout=600)
+        output = (result.stdout or "").strip()
+        error_output = (result.stderr or "").strip()
+
+        if result.returncode == 0:
+            final_message = output or f"{description} completed"
+            update_job(
+                job_id,
+                progress=2,
+                current_step="Prune complete",
+                message=final_message,
+                event={"status": "success", "message": final_message}
+            )
+            log_op("prune", prune_type, "success", final_message)
+            finish_job(job_id, "success", final_message)
+        else:
+            final_message = error_output or output or f"{description} failed"
+            update_job(
+                job_id,
+                progress=2,
+                current_step="Prune failed",
+                message=final_message,
+                event={"status": "error", "message": final_message}
+            )
+            log_op("prune", prune_type, "error", final_message)
+            finish_job(job_id, "error", final_message)
+
+    except subprocess.TimeoutExpired:
+        message = "Timed out after 600s"
+        log_op("prune", prune_type, "error", message)
+        update_job(
+            job_id,
+            progress=2,
+            current_step="Prune timed out",
+            message=message,
+            event={"status": "error", "message": message}
+        )
+        finish_job(job_id, "error", message)
+    except Exception as e:
+        message = str(e)
+        log_op("prune", prune_type, "error", message)
+        update_job(
+            job_id,
+            progress=2,
+            current_step="Prune failed",
+            message=message,
+            event={"status": "error", "message": message}
+        )
+        finish_job(job_id, "error", message)
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -1172,6 +1284,93 @@ def api_bulk_update():
         "job_id": job_id,
         "stack": stack_name,
         "auto_recreate": auto_recreate
+    })
+
+@app.route("/api/prune/containers", methods=["POST"])
+def api_prune_containers():
+    job_id = create_job(
+        "prune_containers",
+        "containers",
+        total_steps=2,
+        meta={"prune_type": "containers"}
+    )
+
+    threading.Thread(
+        target=run_prune_job,
+        args=(job_id, "containers", False),
+        daemon=True
+    ).start()
+
+    return jsonify({"status": "started", "job_id": job_id, "prune_type": "containers"})
+
+
+@app.route("/api/prune/images", methods=["POST"])
+def api_prune_images():
+    data = request.json or {}
+    include_all = bool(data.get("all", False))
+
+    job_id = create_job(
+        "prune_images",
+        "images",
+        total_steps=2,
+        meta={"prune_type": "images", "all": include_all}
+    )
+
+    threading.Thread(
+        target=run_prune_job,
+        args=(job_id, "images", include_all),
+        daemon=True
+    ).start()
+
+    return jsonify({
+        "status": "started",
+        "job_id": job_id,
+        "prune_type": "images",
+        "all": include_all
+    })
+
+
+@app.route("/api/prune/system", methods=["POST"])
+def api_prune_system():
+    job_id = create_job(
+        "prune_system",
+        "system",
+        total_steps=2,
+        meta={"prune_type": "system"}
+    )
+
+    threading.Thread(
+        target=run_prune_job,
+        args=(job_id, "system", False),
+        daemon=True
+    ).start()
+
+    return jsonify({"status": "started", "job_id": job_id, "prune_type": "system"})
+
+
+@app.route("/api/prune/volumes", methods=["POST"])
+def api_prune_volumes():
+    data = request.json or {}
+    include_all = bool(data.get("all", False))
+
+    job_id = create_job(
+        "prune_volumes",
+        "volumes",
+        total_steps=2,
+        meta={"prune_type": "volumes", "all": include_all}
+    )
+
+    threading.Thread(
+        target=run_prune_job,
+        args=(job_id, "volumes", include_all),
+        daemon=True
+    ).start()
+
+    return jsonify({
+        "status": "started",
+        "job_id": job_id,
+        "prune_type": "volumes",
+        "all": include_all
     })
 
 @app.route("/api/stacks/<stack_name>/recreate", methods=["POST"])
