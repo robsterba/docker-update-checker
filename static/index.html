@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,16 +14,19 @@
   button{cursor:pointer;border:none;font:inherit;background:none}
   code{font-family:'JetBrains Mono','Fira Mono',monospace}
 
+
   header{background:var(--surface);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100}
   .logo{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
   .logo svg{color:var(--primary)}
   .header-actions{margin-left:auto;display:flex;align-items:center;gap:.5rem}
   main{flex:1;padding:1.5rem;max-width:1280px;margin-inline:auto;width:100%}
 
+
   .toolbar{display:flex;gap:.75rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:1rem}
   .toolbar-left,.toolbar-right{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
   .inline-toggle{display:inline-flex;align-items:center;gap:.45rem;font-size:.82rem;color:var(--muted);padding:.35rem .55rem;border:1px solid var(--border);border-radius:.5rem;background:var(--surface)}
   .inline-toggle input{accent-color:var(--primary)}
+
 
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem}
   .kpi{background:var(--surface);border:1px solid var(--border);border-radius:.625rem;padding:1rem 1.25rem}
@@ -34,6 +37,7 @@
   .kpi-value.err{color:var(--error)}
   .kpi-value.info{color:var(--info)}
 
+
   .grid-2{display:grid;grid-template-columns:1.25fr .95fr;gap:1.5rem;margin-bottom:1.5rem}
   .stack-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:.85rem}
   .stack-card{background:var(--surface2);border:1px solid var(--border);border-radius:.65rem;padding:.9rem}
@@ -42,6 +46,7 @@
   .stack-meta{font-size:.76rem;color:var(--muted);line-height:1.4}
   .stack-badges{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.65rem}
   .stack-actions{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.7rem}
+
 
   .card{background:var(--surface);border:1px solid var(--border);border-radius:.625rem;overflow:hidden;margin-bottom:1.5rem}
   .card-header{padding:.75rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
@@ -54,6 +59,7 @@
   .img-name{font-family:'JetBrains Mono','Fira Mono',monospace;font-size:.8rem;word-break:break-all}
   .stack-col{display:flex;flex-wrap:wrap;gap:.3rem}
 
+
   .badge{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600;white-space:nowrap}
   .badge.up_to_date{background:var(--badge-up);color:var(--success)}
   .badge.update_available{background:var(--badge-update);color:var(--warning)}
@@ -62,6 +68,7 @@
   .badge.running,.badge.started,.badge.info{background:var(--badge-run);color:var(--info)}
   .badge.success{background:var(--badge-up);color:var(--success)}
   .badge.error{background:var(--badge-err);color:var(--error)}
+
 
   .btn{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;border-radius:.5rem;font-size:.82rem;font-weight:500;transition:background .15s,color .15s,opacity .15s;white-space:nowrap}
   .btn:disabled{opacity:.45;cursor:not-allowed}
@@ -73,8 +80,10 @@
   .btn-warn{background:var(--warning);color:#fff}
   .btn-warn:hover:not(:disabled){opacity:.85}
 
+
   .cf-pill,.stack-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
   .stack-pill{font-family:inherit;font-weight:600}
+
 
   .log-list{padding:.5rem 1rem;max-height:300px;overflow-y:auto}
   .log-entry{display:flex;gap:.75rem;align-items:flex-start;padding:.45rem 0;border-bottom:1px solid var(--border);font-size:.8rem}
@@ -85,6 +94,7 @@
   .log-status.success{color:var(--success)}
   .log-status.error{color:var(--error)}
   .log-status.started{color:var(--warning)}
+
 
   .jobs-wrap{padding:.65rem 1rem}
   .job{border:1px solid var(--border);border-radius:.6rem;padding:.75rem .85rem;background:var(--surface2);margin-bottom:.7rem}
@@ -101,6 +111,17 @@
   .job-event{padding:.22rem 0;border-bottom:1px dashed var(--border)}
   .job-event:last-child{border-bottom:none}
 
+  /* Jobs list: fixed height + scrollbar, limited to last N jobs */
+  #jobsList {
+    max-height: 340px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0.5rem;
+    background: var(--surface);
+  }
+
+
   .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .2s}
   .modal-backdrop.open{opacity:1;pointer-events:all}
   .modal{background:var(--surface);border:1px solid var(--border);border-radius:.75rem;padding:1.5rem;max-width:760px;width:92%;max-height:84vh;overflow-y:auto;transform:translateY(12px);transition:transform .2s}
@@ -108,19 +129,24 @@
   .modal-title{font-weight:700;font-size:1rem;margin-bottom:1rem}
   .modal pre{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.75rem;font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--text)}
 
+
   @keyframes spin{to{transform:rotate(360deg)}}
   .spin{animation:spin .8s linear infinite}
 
+
   .theme-btn{padding:.35rem;border-radius:.4rem;color:var(--muted);transition:color .15s,background .15s}
   .theme-btn:hover{background:var(--surface2);color:var(--text)}
+
 
   .filter-bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
   .filter-btn{padding:.3rem .7rem;border-radius:.4rem;font-size:.78rem;border:1px solid var(--border);color:var(--muted);transition:all .15s}
   .filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 
+
   .last-check{font-size:.75rem;color:var(--muted)}
   .empty{padding:3rem 1rem;text-align:center;color:var(--muted)}
   .empty svg{margin-inline:auto;margin-bottom:.75rem;opacity:.4}
+
 
   @media (max-width: 980px){
     .grid-2{grid-template-columns:1fr}
@@ -136,6 +162,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
 
 <header>
   <div class="logo">
@@ -153,487 +180,4 @@
       Check Now
     </button>
     <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle theme">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-    </button>
-  </div>
-</header>
-
-<main>
-  <div class="toolbar">
-    <div class="toolbar-left">
-      <button class="btn btn-warn" onclick="bulkUpdateAll()">Pull All Updates</button>
-      <button class="btn btn-ghost" onclick="loadStacks()">Refresh Stacks</button>
-      <button class="btn btn-ghost" onclick="sendTestNotification()">Test Notification</button>
-    </div>
-    <div class="toolbar-right">
-      <label class="inline-toggle">
-        <input type="checkbox" id="autoRecreateToggle">
-        Auto-recreate after pull
-      </label>
-    </div>
-  </div>
-
-  <div class="kpis">
-    <div class="kpi"><div class="kpi-label">Total Images</div><div class="kpi-value" id="kpiTotal">—</div></div>
-    <div class="kpi"><div class="kpi-label">Up to Date</div><div class="kpi-value ok" id="kpiOk">—</div></div>
-    <div class="kpi"><div class="kpi-label">Updates Available</div><div class="kpi-value updates" id="kpiUpdates">—</div></div>
-    <div class="kpi"><div class="kpi-label">Unknown / Error</div><div class="kpi-value err" id="kpiErr">—</div></div>
-    <div class="kpi"><div class="kpi-label">Stacks</div><div class="kpi-value info" id="kpiStacks">—</div></div>
-  </div>
-
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Stacks</span>
-        <button class="btn btn-ghost btn-sm" onclick="loadStacks()">Refresh</button>
-      </div>
-      <div class="jobs-wrap">
-        <div class="stack-grid" id="stackGrid">
-          <div class="empty" style="padding:1.25rem">Loading stacks…</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Jobs</span>
-        <button class="btn btn-ghost btn-sm" onclick="loadJobs()">Refresh</button>
-      </div>
-      <div class="jobs-wrap" id="jobsList">
-        <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Container Images</span>
-      <div class="filter-bar">
-        <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-        <button class="filter-btn" onclick="setFilter('update_available', this)">Updates</button>
-        <button class="filter-btn" onclick="setFilter('up_to_date', this)">Up to Date</button>
-        <button class="filter-btn" onclick="setFilter('unknown', this)">Unknown</button>
-      </div>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Image</th>
-          <th>Status</th>
-          <th>Stack(s)</th>
-          <th>Checked</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="imageTable">
-        <tr><td colspan="5" class="empty">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-          <div>Loading images…</div>
-        </td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Recent Operations</span>
-      <button class="btn btn-ghost btn-sm" onclick="loadOps()">Refresh</button>
-    </div>
-    <div class="log-list" id="opLog">
-      <div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>
-    </div>
-  </div>
-</main>
-
-<div class="modal-backdrop" id="modalBackdrop" onclick="closeModal(event)">
-  <div class="modal">
-    <div class="modal-title" id="modalTitle"></div>
-    <div id="modalBody"></div>
-    <div style="margin-top:1rem;text-align:right">
-      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button>
-    </div>
-  </div>
-</div>
-
-<script>
-const API = '';
-let allImages = [];
-let allStacks = [];
-let allJobs = [];
-let activeFilter = 'all';
-let checking = false;
-let theme = document.documentElement.getAttribute('data-theme') || 'dark';
-
-function toggleTheme() {
-  theme = theme === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', theme);
-  document.getElementById('themeBtn').innerHTML = theme === 'dark'
-    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
-    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
-}
-
-function setFilter(f, btn) {
-  activeFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderTable(allImages);
-}
-
-function badge(status) {
-  const labels = {
-    up_to_date: '✓ Up to Date',
-    update_available: '↑ Update Available',
-    registry_error: '✗ Registry Error',
-    not_pulled: '? Not Pulled',
-    unknown: '? Unknown',
-    running: '↻ Running',
-    started: '↻ Started',
-    success: '✓ Success',
-    error: '✗ Error',
-    info: '• Info'
-  };
-  return `<span class="badge ${status}">${labels[status] || status}</span>`;
-}
-
-function fmtDate(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-}
-
-function escHtml(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function escAttr(s) {
-  return String(s || '').replace(/'/g,"\\'");
-}
-
-function getAutoRecreate() {
-  return document.getElementById('autoRecreateToggle').checked;
-}
-
-function renderStacks(stacks) {
-  const el = document.getElementById('stackGrid');
-  document.getElementById('kpiStacks').textContent = stacks.length || '0';
-
-  if (!stacks.length) {
-    el.innerHTML = `<div class="empty" style="padding:1.25rem">No stacks found.</div>`;
-    return;
-  }
-
-  el.innerHTML = stacks.map(stack => `
-    <div class="stack-card">
-      <div class="stack-head">
-        <div>
-          <div class="stack-name">${escHtml(stack.stack)}</div>
-          <div class="stack-meta">${stack.total_images} image(s) · Last checked ${fmtDate(stack.last_checked)}</div>
-        </div>
-        ${stack.updates_available > 0 ? badge('update_available') : badge('up_to_date')}
-      </div>
-      <div class="stack-meta">
-        Up to date: ${stack.up_to_date} · Updates: ${stack.updates_available} · Unknown: ${stack.unknown}
-      </div>
-      <div class="stack-badges">
-        ${(stack.compose_files || []).map(cf => `<span class="cf-pill" title="${escHtml(cf)}">${escHtml(cf.split('/').slice(-2).join('/'))}</span>`).join('')}
-      </div>
-      <div class="stack-actions">
-        <button class="btn btn-warn btn-sm" onclick="bulkUpdateStack('${escAttr(stack.stack)}')" ${stack.updates_available > 0 ? '' : 'disabled'}>Pull Stack Updates</button>
-        <button class="btn btn-primary btn-sm" onclick="recreateStack('${escAttr(stack.stack)}')">Recreate Stack</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderJobs(jobs) {
-  const el = document.getElementById('jobsList');
-  if (!jobs.length) {
-    el.innerHTML = `<div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>`;
-    return;
-  }
-
-  el.innerHTML = jobs.map(job => {
-    const pct = Math.max(0, Math.min(100, Math.round(((job.progress || 0) / Math.max(job.total_steps || 1, 1)) * 100)));
-    const events = (job.events || []).slice(0, 8);
-    return `
-      <div class="job">
-        <div class="job-head">
-          <div>
-            <div class="job-title">${escHtml(job.type)} — ${escHtml(job.target)}</div>
-            <div class="job-meta">
-              ${job.stack ? `Stack: ${escHtml(job.stack)} · ` : ''}
-              Started: ${fmtDate(job.started_at)}
-              ${job.finished_at ? ` · Finished: ${fmtDate(job.finished_at)}` : ''}
-            </div>
-          </div>
-          <div>${badge(job.status)}</div>
-        </div>
-        <div class="job-message">${escHtml(job.current_step || '')}${job.message ? ` — ${escHtml(job.message)}` : ''}</div>
-        <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>
-        <div class="job-meta" style="margin-top:.35rem">${job.progress || 0} / ${job.total_steps || 1} step(s)</div>
-        <div class="job-events">
-          <details>
-            <summary>Recent events</summary>
-            <div style="margin-top:.35rem">
-              ${events.length ? events.map(ev => `
-                <div class="job-event">
-                  <strong>${fmtDate(ev.time)}</strong> — ${escHtml(ev.status || 'info')} — ${escHtml(ev.message || '')}
-                </div>
-              `).join('') : '<div class="job-event">No events yet.</div>'}
-            </div>
-          </details>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
-function renderTable(images) {
-  const tbody = document.getElementById('imageTable');
-  let filtered = images;
-  if (activeFilter !== 'all') {
-    if (activeFilter === 'unknown') {
-      filtered = images.filter(i => ['unknown','registry_error','not_pulled'].includes(i.status));
-    } else {
-      filtered = images.filter(i => i.status === activeFilter);
-    }
-  }
-
-  if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-      <div>No images match this filter.</div></td></tr>`;
-    return;
-  }
-
-  const order = { update_available: 0, registry_error: 1, not_pulled: 2, unknown: 3, up_to_date: 4 };
-  filtered.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
-
-  tbody.innerHTML = filtered.map(img => {
-    const stacks = (img.stacks || []).length
-      ? (img.stacks || []).map(s => `<span class="stack-pill">${escHtml(s)}</span>`).join('')
-      : '<span style="color:var(--faint);font-size:.75rem">—</span>';
-
-    const actions = buildActions(img);
-    return `<tr>
-      <td><div class="img-name">${escHtml(img.image)}</div></td>
-      <td>${badge(img.status)}</td>
-      <td><div class="stack-col">${stacks}</div></td>
-      <td style="color:var(--muted);font-size:.78rem">${fmtDate(img.checked_at)}</td>
-      <td><div style="display:flex;gap:.4rem;flex-wrap:wrap">${actions}</div></td>
-    </tr>`;
-  }).join('');
-}
-
-function buildActions(img) {
-  let btns = `<button class="btn btn-ghost btn-sm" onclick="recheckImage('${escAttr(img.image)}')">Re-check</button>`;
-  if (img.status === 'update_available' || img.status === 'not_pulled') {
-    btns += `<button class="btn btn-warn btn-sm" onclick="pullImage('${escAttr(img.image)}')">Pull Update</button>`;
-  }
-  if (img.compose_files && img.compose_files.length) {
-    img.compose_files.forEach(cf => {
-      const lbl = cf.split('/').slice(-2).join('/');
-      btns += `<button class="btn btn-primary btn-sm" onclick="recreate('${escAttr(cf)}')">↻ ${escHtml(lbl)}</button>`;
-    });
-  }
-  return btns;
-}
-
-async function loadStatus() {
-  const r = await fetch(`${API}/api/status`);
-  const d = await r.json();
-  document.getElementById('kpiTotal').textContent = d.total ?? '—';
-  document.getElementById('kpiOk').textContent = d.up_to_date ?? '—';
-  document.getElementById('kpiUpdates').textContent = d.updates_available ?? '—';
-  document.getElementById('kpiErr').textContent = d.unknown ?? '—';
-  document.getElementById('lastCheck').textContent = d.last_check ? `Last check: ${fmtDate(d.last_check)}` : 'Not checked yet';
-  document.getElementById('autoRecreateToggle').checked = !!d.auto_recreate_after_pull;
-}
-
-async function loadImages() {
-  const r = await fetch(`${API}/api/images`);
-  allImages = await r.json();
-  renderTable(allImages);
-}
-
-async function loadStacks() {
-  const r = await fetch(`${API}/api/stacks`);
-  allStacks = await r.json();
-  renderStacks(allStacks);
-}
-
-async function loadJobs() {
-  const r = await fetch(`${API}/api/jobs`);
-  allJobs = await r.json();
-  renderJobs(allJobs);
-}
-
-async function loadOps() {
-  const r = await fetch(`${API}/api/operations`);
-  const ops = await r.json();
-  const el = document.getElementById('opLog');
-  if (!ops.length) { el.innerHTML = `<div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>`; return; }
-  el.innerHTML = ops.map(o => `
-    <div class="log-entry">
-      <span class="log-time">${fmtDate(o.time)}</span>
-      <span class="log-action">${escHtml(o.action)}</span>
-      <span class="log-status ${o.status}">${escHtml(o.status)}</span>
-      <span class="log-msg">${escHtml(o.message)}</span>
-    </div>`).join('');
-}
-
-async function refreshAll() {
-  await Promise.all([loadStatus(), loadImages(), loadStacks(), loadJobs(), loadOps()]);
-}
-
-async function triggerCheck() {
-  if (checking) return;
-  checking = true;
-  const btn = document.getElementById('checkBtn');
-  const icon = document.getElementById('checkIcon');
-  btn.disabled = true;
-  icon.classList.add('spin');
-
-  try {
-    await fetch(`${API}/api/check`, { method: 'POST' });
-    await refreshAll();
-  } finally {
-    setTimeout(() => {
-      checking = false;
-      btn.disabled = false;
-      icon.classList.remove('spin');
-    }, 1200);
-  }
-}
-
-async function recheckImage(imageRef) {
-  showModal('Re-checking…', `<p style="color:var(--muted)">Checking <code>${escHtml(imageRef)}</code>…</p>`);
-  const r = await fetch(`${API}/api/check/${encodeURIComponent(imageRef)}`, { method: 'POST' });
-  const d = await r.json();
-  if (d.status === 'error') {
-    showModal('Check Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p>`);
-  } else {
-    showModal('Check Result', `
-      <p><strong>Image:</strong> <code>${escHtml(d.image)}</code></p>
-      <p style="margin-top:.5rem"><strong>Status:</strong> ${badge(d.status)}</p>
-      <p style="margin-top:.5rem"><strong>Stacks:</strong> ${(d.stacks || []).map(s => `<span class="stack-pill">${escHtml(s)}</span>`).join(' ') || '—'}</p>
-      <p style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Local digest:<br><code>${escHtml(d.local_digest || '—')}</code></p>
-      <p style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Remote digest:<br><code>${escHtml(d.remote_digest || '—')}</code></p>
-      <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
-    `);
-  }
-  await refreshAll();
-}
-
-async function pullImage(imageRef) {
-  showModal('Pulling Image', `<p style="color:var(--muted)">Pulling <code>${escHtml(imageRef)}</code>…<br>This may take a minute.</p>`);
-  const r = await fetch(`${API}/api/update/${encodeURIComponent(imageRef)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ auto_recreate: getAutoRecreate() })
-  });
-  const d = await r.json();
-  if (d.status === 'success') {
-    showModal('Pull Complete', `<p style="color:var(--success)">✓ Image pulled successfully.</p><p style="margin-top:.5rem">New status: ${badge(d.result.status)}</p><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
-  } else {
-    showModal('Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
-  }
-  await refreshAll();
-}
-
-async function recreate(composePath) {
-  if (!confirm(`Run docker compose up -d on:\n${composePath}\n\nThis will recreate updated containers. Continue?`)) return;
-  showModal('Recreating Containers', `<p style="color:var(--muted)">Running <code>docker compose up -d</code>…<br>This may take a moment.</p>`);
-  const r = await fetch(`${API}/api/compose/recreate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ compose_path: composePath })
-  });
-  const d = await r.json();
-  if (d.status === 'success') {
-    showModal('Recreate Complete', `<p style="color:var(--success);margin-bottom:.75rem">✓ Containers recreated successfully.</p><pre>${escHtml(d.output || '')}</pre><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
-  } else {
-    showModal('Recreate Failed', `<p style="color:var(--error);margin-bottom:.75rem">✗ Failed</p><pre>${escHtml(d.message || '')}</pre><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
-  }
-  await refreshAll();
-}
-
-async function bulkUpdateAll() {
-  if (!confirm('Pull all images that have updates or are not yet pulled?')) return;
-  showModal('Bulk Pull Started', `<p style="color:var(--muted)">Starting bulk update for all stacks…</p>`);
-  const r = await fetch(`${API}/api/bulk/update`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ auto_recreate: getAutoRecreate() })
-  });
-  const d = await r.json();
-  showModal('Bulk Pull Started', `
-    <p>Bulk update has started for <strong>all stacks</strong>.</p>
-    <p style="margin-top:.6rem">Auto-recreate: <strong>${d.auto_recreate ? 'enabled' : 'disabled'}</strong></p>
-    <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
-  `);
-  await refreshAll();
-}
-
-async function bulkUpdateStack(stackName) {
-  if (!confirm(`Pull all outdated images for stack "${stackName}"?`)) return;
-  showModal('Stack Bulk Pull Started', `<p style="color:var(--muted)">Starting bulk update for <code>${escHtml(stackName)}</code>…</p>`);
-  const r = await fetch(`${API}/api/bulk/update`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ stack: stackName, auto_recreate: getAutoRecreate() })
-  });
-  const d = await r.json();
-  showModal('Stack Bulk Pull Started', `
-    <p>Bulk update has started for stack <strong>${escHtml(stackName)}</strong>.</p>
-    <p style="margin-top:.6rem">Auto-recreate: <strong>${d.auto_recreate ? 'enabled' : 'disabled'}</strong></p>
-    <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
-  `);
-  await refreshAll();
-}
-
-async function recreateStack(stackName) {
-  if (!confirm(`Recreate all compose files for stack "${stackName}"?`)) return;
-  showModal('Stack Recreate Started', `<p style="color:var(--muted)">Starting recreate for stack <code>${escHtml(stackName)}</code>…</p>`);
-  const r = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/recreate`, {
-    method: 'POST'
-  });
-  const d = await r.json();
-  showModal('Stack Recreate Started', `
-    <p>Recreate has started for stack <strong>${escHtml(stackName)}</strong>.</p>
-    <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
-  `);
-  await refreshAll();
-}
-
-function showModal(title, body) {
-  document.getElementById('modalTitle').textContent = title;
-  document.getElementById('modalBody').innerHTML = body;
-  document.getElementById('modalBackdrop').classList.add('open');
-}
-
-function closeModal(e) {
-  if (!e || e.target === document.getElementById('modalBackdrop'))
-    document.getElementById('modalBackdrop').classList.remove('open');
-}
-
-async function init() {
-  await refreshAll();
-  setInterval(refreshAll, 10000);
-}
-
-async function sendTestNotification() {
-  showModal('Sending Test Notification', `<p style="color:var(--muted)">Sending test notification…</p>`);
-  const r = await fetch(`${API}/api/notify/test`, { method: 'POST' });
-  const d = await r.json();
-  if (d.status === 'success') {
-    showModal('Test Notification Sent', `<p style="color:var(--success)">✓ Test notification sent successfully.</p>`);
-  } else {
-    showModal('Test Notification Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message || 'Notification failed')}</p>`);
-  }
-  await refreshAll();
-}
-
-init();
-</script>
-</body>
-</html>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22
