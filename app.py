@@ -1106,6 +1106,9 @@ def api_images():
     with state_lock:
         return jsonify(list(check_results.values()))
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory('static', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route("/api/check", methods=["POST"])
 def api_check():
