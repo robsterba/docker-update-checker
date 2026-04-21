@@ -17,7 +17,7 @@ services:
       # Path inside container where compose files live
       COMPOSE_ROOT: /compose
       # How often to auto-check (minutes)
-      CHECK_INTERVAL_MINUTES: "60"
+      CHECK_INTERVAL_MINUTES: "180"
       LOG_LEVEL: INFO
       NOTIFY_ENABLED: true
       NOTIFY_BACKEND: webhook
