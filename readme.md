@@ -8,10 +8,12 @@ Right now there is intentionally no automatic updating — this is meant to be s
 
 ## Features
 
-- 🔍 **Recursive compose file scanning** — automatically finds all `docker-compose.yml` / `compose.yml` files under a configurable root directory  
+- 🔍 **Recursive compose file scanning** — automatically finds all `docker-compose.yml`, `compose.yml`, `docker-compose.yaml`, or `compose.yaml` files under a configurable root directory  
 - 🔄 **Digest-based update detection** — compares local `RepoDigests` against the upstream registry manifest digest without pulling the image  
 - 🕐 **Scheduled auto-checks** — configurable interval (default: 60 minutes)  
 - 📦 **Stack grouping** — images are grouped by Compose “stack” (based on directory name) for easier overview and bulk actions  
+- 🌐 **Remote instance aggregation** — connect to other `docker-update-checker` instances and monitor multiple hosts from one dashboard  
+- ✅ **Host selection & health panel** — choose a host, view online/offline status, and inspect last check times across local and remote instances  
 - 🔄 **Bulk update actions**  
   - **Pull All Updates** — pull all outdated images across all stacks  
   - **Pull All (Selected Stack)** — pull all outdated images in a single stack  
@@ -21,6 +23,7 @@ Right now there is intentionally no automatic updating — this is meant to be s
   - Stack filter and summary  
   - Per-image re-check, pull, and compose recreate buttons  
   - Bulk actions for entire stacks  
+  - Live host status badge and remote host selector  
 - 📋 **Operations log** — audit trail of every check, pull, recreate, and bulk job  
 - 🔔 **Notifications** — optional event-driven notifications via:
   - Webhook (e.g. Home Assistant)
@@ -52,7 +55,7 @@ Images defined with `build:` instead of `image:` in a compose file are ignored, 
 
 ## Dashboard
 
-The web UI is available at `http://<your-host>:5000` and refreshes automatically every 30 seconds.
+The web UI is available at `http://<your-host>:5000` and refreshes automatically every 10 seconds.
 
 ### Status Badges
 
@@ -83,15 +86,13 @@ The web UI is available at `http://<your-host>:5000` and refreshes automatically
 
 ```text
 docker-update-checker/
-├── docker-compose.yml       # Deploys the checker itself
-├── .gitignore
-├── README.md
-└── app/
-    ├── Dockerfile
-    ├── requirements.txt
-    ├── app.py               # Flask backend + APScheduler + routes
-    └── static/
-        └── index.html       # Dashboard UI
+├── app.py
+├── compose.yaml             # Compose file for deploying the checker
+├── Dockerfile
+├── requirements.txt
+├── readme.md
+└── static/
+    └── index.html           # Dashboard UI
 ```
 
 Over time, the backend is modularized into:
@@ -115,7 +116,7 @@ git clone https://github.com/robsterba/docker-update-checker.git
 cd docker-update-checker
 ```
 
-### 2. Configure `docker-compose.yml`
+### 2. Configure `compose.yaml`
 
 Edit the volume mount to point to your compose root directory:
 
@@ -141,7 +142,7 @@ http://localhost:5000
 
 ## Configuration
 
-All configuration is done via environment variables in `docker-compose.yml`.
+All configuration is done via environment variables in `compose.yaml`.
 
 ### Core Settings
 
