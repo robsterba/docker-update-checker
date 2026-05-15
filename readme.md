@@ -142,7 +142,7 @@ http://localhost:5000
 
 ## Configuration
 
-All configuration is done via environment variables in `compose.yaml`.
+All configuration is done via environment variables in `compose.yaml`, or by copying `.env.example` to `.env` and customizing values.
 
 ### Core Settings
 
