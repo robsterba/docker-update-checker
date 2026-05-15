@@ -25,6 +25,18 @@
   .toolbar-left,.toolbar-right{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
   .inline-toggle{display:inline-flex;align-items:center;gap:.45rem;font-size:.82rem;color:var(--muted);padding:.35rem .55rem;border:1px solid var(--border);border-radius:.5rem;background:var(--surface)}
   .inline-toggle input{accent-color:var(--primary)}
+  .host-select select{background:transparent;color:inherit;border:none;padding:.2rem .35rem;min-width:10rem;outline:none;font:inherit}
+  .host-status{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;padding:.3rem .65rem;border:1px solid var(--border);border-radius:.5rem;background:var(--surface);color:var(--muted)}
+  .host-status.online{border-color:var(--success);color:var(--success)}
+  .host-status.offline{border-color:var(--error);color:var(--error)}
+  .host-status.unknown{border-color:var(--warning);color:var(--warning)}
+  .card-subtitle{font-size:.82rem;color:var(--muted)}
+  .instance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin-bottom:1.5rem}
+  .instance-card{background:var(--surface2);border:1px solid var(--border);border-radius:.65rem;padding:1rem;display:flex;flex-direction:column;gap:.75rem}
+  .instance-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
+  .instance-card-name{font-weight:700;font-size:.92rem}
+  .instance-card-meta{font-size:.78rem;color:var(--muted);line-height:1.4}
+  .instance-card-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
 
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem}
   .kpi{background:var(--surface);border:1px solid var(--border);border-radius:.625rem;padding:1rem 1.25rem}
@@ -158,6 +170,11 @@
     Docker Update Checker
   </div>
   <div class="header-actions">
+    <label class="inline-toggle host-select">
+      <span>Host</span>
+      <select id="instanceSelect" onchange="selectInstance(this.value)"></select>
+    </label>
+    <span class="host-status unknown" id="instanceHealth">Loading host state…</span>
     <span class="last-check" id="lastCheck">—</span>
     <button class="btn btn-primary btn-sm" id="checkBtn" onclick="triggerCheck()">
       <svg id="checkIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -181,6 +198,7 @@
     <div class="toolbar-left">
       <button class="btn btn-warn" onclick="bulkUpdateAll()">Pull All Updates</button>
       <button class="btn btn-ghost" onclick="loadStacks()">Refresh Stacks</button>
+      <button class="btn btn-ghost" onclick="loadInstances()">Refresh Hosts</button>
       <button class="btn btn-ghost" onclick="sendTestNotification()">Test Notification</button>
     </div>
     <div class="toolbar-right">
@@ -188,6 +206,18 @@
         <input type="checkbox" id="autoRecreateToggle">
         Auto-recreate after pull
       </label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <span class="card-title">Hosts</span>
+        <div class="card-subtitle">Select a host and watch health, last check, and update state.</div>
+      </div>
+    </div>
+    <div class="instance-grid" id="instanceGrid">
+      <div class="empty" style="padding:1.25rem">Loading host status…</div>
     </div>
   </div>
 
@@ -327,9 +357,157 @@ const MAX_JOBS = 30;
 let allImages = [];
 let allStacks = [];
 let allJobs = [];
+let allInstances = [];
+let hostStatuses = {};
+let currentInstance = { id: 'local', name: 'Local host', url: '' };
 let activeFilter = 'all';
 let checking = false;
 let theme = document.documentElement.getAttribute('data-theme') || 'light';
+
+function instancePath(path) {
+  const trimmed = path.replace(/^\/+/, '');
+  if (currentInstance.id === 'local') {
+    return `${API}/api/${trimmed}`;
+  }
+  return `${API}/api/instances/${encodeURIComponent(currentInstance.id)}/${trimmed}`;
+}
+
+function instanceFetch(path, options = {}) {
+  return fetch(instancePath(path), options);
+}
+
+async function safeInstanceFetch(path, options = {}) {
+  try {
+    const response = await instanceFetch(path, options);
+    if (!response.ok) {
+      const message = await response.text();
+      return { __error: `${response.status} ${response.statusText}: ${message}` };
+    }
+    return await response.json();
+  } catch (err) {
+    return { __error: err.message || 'Connection failed' };
+  }
+}
+
+async function fetchInstanceStatus(instance) {
+  try {
+    const response = await fetch(`${API}/api/instances/${encodeURIComponent(instance.id)}/status`);
+    if (!response.ok) {
+      const message = await response.text();
+      return { ok: false, error: `${response.status} ${response.statusText}: ${message}` };
+    }
+    const data = await response.json();
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, error: err.message || 'Connection failed' };
+  }
+}
+
+function setInstanceHealth(status, message) {
+  const badge = document.getElementById('instanceHealth');
+  badge.textContent = message;
+  badge.classList.remove('online', 'offline', 'unknown');
+  badge.classList.add(status);
+}
+
+function renderInstances(instances) {
+  const container = document.getElementById('instanceGrid');
+  if (!instances.length) {
+    container.innerHTML = `<div class="empty" style="padding:1.25rem">No hosts configured.</div>`;
+    return;
+  }
+
+  container.innerHTML = instances.map(inst => {
+    const status = hostStatuses[inst.id];
+    const isSelected = currentInstance.id === inst.id;
+    const state = status?.ok ? 'online' : 'offline';
+    const label = status?.ok ? 'Online' : 'Offline';
+    const details = status?.ok
+      ? `Last check: ${status.data.last_check ? fmtDate(status.data.last_check) : 'unknown'} · ${status.data.updates_available ?? '—'} updates`
+      : `${status?.error ?? 'Unable to reach host'}`;
+
+    return `
+      <div class="instance-card">
+        <div class="instance-card-header">
+          <div>
+            <div class="instance-card-name">${escHtml(inst.name)}</div>
+            <div class="instance-card-meta">${escHtml(inst.description || inst.url || 'No description')}</div>
+          </div>
+          <div class="host-status ${state}">${label}</div>
+        </div>
+        <div class="instance-card-row">
+          <span class="card-subtitle">${escHtml(inst.url || 'Local host')}</span>
+          <span class="card-subtitle">${escHtml(inst.type === 'local' ? 'Local' : 'Remote')}</span>
+        </div>
+        <div class="instance-card-meta">${escHtml(details)}</div>
+        <div class="instance-card-row">
+          <button class="btn btn-ghost btn-sm" onclick="selectInstance('${escAttr(inst.id)}')" ${isSelected ? 'disabled' : ''}>${isSelected ? 'Selected' : 'Select'}</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadInstanceStatuses() {
+  hostStatuses = {};
+  await Promise.all(allInstances.map(async inst => {
+    hostStatuses[inst.id] = await fetchInstanceStatus(inst);
+  }));
+  renderInstances(allInstances);
+}
+
+async function selectInstance(instanceId) {
+  const found = allInstances.find(i => i.id === instanceId);
+  currentInstance = found || allInstances[0] || currentInstance;
+  document.getElementById('instanceSelect').value = currentInstance.id;
+  document.getElementById('hostLabel').textContent = `Host: ${currentInstance.name}`;
+  const status = hostStatuses[currentInstance.id];
+  if (status) {
+    if (status.ok) {
+      setInstanceHealth('online', `Online · Last check ${status.data.last_check ? fmtDate(status.data.last_check) : 'unknown'}`);
+    } else {
+      setInstanceHealth('offline', status.error || 'Unable to reach host');
+    }
+  } else {
+    setInstanceHealth('unknown', 'Checking host...');
+    hostStatuses[currentInstance.id] = await fetchInstanceStatus(currentInstance);
+    const newStatus = hostStatuses[currentInstance.id];
+    setInstanceHealth(newStatus.ok ? 'online' : 'offline', newStatus.ok
+      ? `Online · Last check ${newStatus.data.last_check ? fmtDate(newStatus.data.last_check) : 'unknown'}`
+      : newStatus.error || 'Unable to reach host'
+    );
+  }
+  renderInstances(allInstances);
+  await refreshAll();
+}
+
+async function loadInstances() {
+  try {
+    const r = await fetch(`${API}/api/instances`);
+    allInstances = await r.json();
+    const select = document.getElementById('instanceSelect');
+    select.innerHTML = allInstances.map(inst => `
+      <option value="${escAttr(inst.id)}">${escHtml(inst.name)}</option>
+    `).join('');
+    if (!allInstances.some(i => i.id === currentInstance.id)) {
+      currentInstance = allInstances[0] || currentInstance;
+    }
+    select.value = currentInstance.id;
+    document.getElementById('hostLabel').textContent = `Host: ${currentInstance.name}`;
+    setInstanceHealth('unknown', 'Checking host...');
+    await loadInstanceStatuses();
+    const status = hostStatuses[currentInstance.id];
+    if (status) {
+      if (status.ok) {
+        setInstanceHealth('online', `Online · Last check ${status.data.last_check ? fmtDate(status.data.last_check) : 'unknown'}`);
+      } else {
+        setInstanceHealth('offline', status.error || 'Unable to reach host');
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load instances', err);
+  }
+}
 
 function toggleTheme() {
   theme = theme === 'dark' ? 'light' : 'dark';
@@ -508,38 +686,67 @@ function buildActions(img) {
 }
 
 async function loadStatus() {
-  const r = await fetch(`${API}/api/status`);
-  const d = await r.json();
+  const d = await safeInstanceFetch('/status');
+  if (d.__error) {
+    document.getElementById('kpiTotal').textContent = '—';
+    document.getElementById('kpiOk').textContent = '—';
+    document.getElementById('kpiUpdates').textContent = '—';
+    document.getElementById('kpiErr').textContent = '—';
+    document.getElementById('lastCheck').textContent = d.__error;
+    document.getElementById('autoRecreateToggle').checked = false;
+    setInstanceHealth('offline', `Offline: ${d.__error}`);
+    return;
+  }
   document.getElementById('kpiTotal').textContent = d.total ?? '—';
   document.getElementById('kpiOk').textContent = d.up_to_date ?? '—';
   document.getElementById('kpiUpdates').textContent = d.updates_available ?? '—';
   document.getElementById('kpiErr').textContent = d.unknown ?? '—';
   document.getElementById('lastCheck').textContent = d.last_check ? `Last check: ${fmtDate(d.last_check)}` : 'Not checked yet';
   document.getElementById('autoRecreateToggle').checked = !!d.auto_recreate_after_pull;
+  setInstanceHealth('online', `Connected: ${currentInstance.name}`);
 }
 
 async function loadImages() {
-  const r = await fetch(`${API}/api/images`);
-  allImages = await r.json();
+  const d = await safeInstanceFetch('/images');
+  if (d.__error) {
+    allImages = [];
+    renderTable([]);
+    return;
+  }
+  allImages = d;
   renderTable(allImages);
 }
 
 async function loadStacks() {
-  const r = await fetch(`${API}/api/stacks`);
-  allStacks = await r.json();
+  const d = await safeInstanceFetch('/stacks');
+  if (d.__error) {
+    allStacks = [];
+    renderStacks([]);
+    return;
+  }
+  allStacks = d;
   renderStacks(allStacks);
 }
 
 async function loadJobs() {
-  const r = await fetch(`${API}/api/jobs`);
-  allJobs = await r.json();
+  const d = await safeInstanceFetch('/jobs');
+  if (d.__error) {
+    allJobs = [];
+    renderJobs([]);
+    return;
+  }
+  allJobs = d;
   renderJobs(allJobs);
 }
 
 async function loadOps() {
-  const r = await fetch(`${API}/api/operations`);
-  const ops = await r.json();
+  const d = await safeInstanceFetch('/operations');
   const el = document.getElementById('opLog');
+  if (d.__error) {
+    el.innerHTML = `<div style="padding:.5rem;color:var(--error);font-size:.82rem">Host offline: ${escHtml(d.__error)}</div>`;
+    return;
+  }
+  const ops = d;
   if (!ops.length) {
     el.innerHTML = `<div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>`;
     return;
@@ -566,7 +773,7 @@ async function triggerCheck() {
   icon.classList.add('spin');
 
   try {
-    await fetch(`${API}/api/check`, { method: 'POST' });
+    await instanceFetch('/check', { method: 'POST' });
     await refreshAll();
   } finally {
     setTimeout(() => {
@@ -579,7 +786,7 @@ async function triggerCheck() {
 
 async function recheckImage(imageRef) {
   showModal('Re-checking…', `<p style="color:var(--muted)">Checking <code>${escHtml(imageRef)}</code>…</p>`);
-  const r = await fetch(`${API}/api/check/${encodeURIComponent(imageRef)}`, { method: 'POST' });
+  const r = await instanceFetch(`/check/${encodeURIComponent(imageRef)}`, { method: 'POST' });
   const d = await r.json();
   if (d.status === 'error') {
     showModal('Check Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p>`);
@@ -598,7 +805,7 @@ async function recheckImage(imageRef) {
 
 async function pullImage(imageRef) {
   showModal('Pulling Image', `<p style="color:var(--muted)">Pulling <code>${escHtml(imageRef)}</code>…<br>This may take a minute.</p>`);
-  const r = await fetch(`${API}/api/update/${encodeURIComponent(imageRef)}`, {
+  const r = await instanceFetch(`/update/${encodeURIComponent(imageRef)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ auto_recreate: getAutoRecreate() })
@@ -615,7 +822,7 @@ async function pullImage(imageRef) {
 async function recreate(composePath) {
   if (!confirm(`Run docker compose up -d on:\n${composePath}\n\nThis will recreate updated containers. Continue?`)) return;
   showModal('Recreating Containers', `<p style="color:var(--muted)">Running <code>docker compose up -d</code>…<br>This may take a moment.</p>`);
-  const r = await fetch(`${API}/api/compose/recreate`, {
+  const r = await instanceFetch('/compose/recreate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ compose_path: composePath })
@@ -632,7 +839,7 @@ async function recreate(composePath) {
 async function bulkUpdateAll() {
   if (!confirm('Pull all images that have updates or are not yet pulled?')) return;
   showModal('Bulk Pull Started', `<p style="color:var(--muted)">Starting bulk update for all stacks…</p>`);
-  const r = await fetch(`${API}/api/bulk/update`, {
+  const r = await instanceFetch('/bulk/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ auto_recreate: getAutoRecreate() })
@@ -649,7 +856,7 @@ async function bulkUpdateAll() {
 async function bulkUpdateStack(stackName) {
   if (!confirm(`Pull all outdated images for stack "${stackName}"?`)) return;
   showModal('Stack Bulk Pull Started', `<p style="color:var(--muted)">Starting bulk update for <code>${escHtml(stackName)}</code>…</p>`);
-  const r = await fetch(`${API}/api/bulk/update`, {
+  const r = await instanceFetch('/bulk/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ stack: stackName, auto_recreate: getAutoRecreate() })
@@ -666,7 +873,7 @@ async function bulkUpdateStack(stackName) {
 async function recreateStack(stackName) {
   if (!confirm(`Recreate all compose files for stack "${stackName}"?`)) return;
   showModal('Stack Recreate Started', `<p style="color:var(--muted)">Starting recreate for stack <code>${escHtml(stackName)}</code>…</p>`);
-  const r = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/recreate`, {
+  const r = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/recreate`, {
     method: 'POST'
   });
   const d = await r.json();
@@ -679,7 +886,7 @@ async function recreateStack(stackName) {
 
 async function sendTestNotification() {
   showModal('Sending Test Notification', `<p style="color:var(--muted)">Sending test notification…</p>`);
-  const r = await fetch(`${API}/api/notify/test`, { method: 'POST' });
+  const r = await instanceFetch('/notify/test', { method: 'POST' });
   const d = await r.json();
   if (d.status === 'success') {
     showModal('Test Notification Sent', `<p style="color:var(--success)">✓ Test notification sent successfully.</p>`);
@@ -691,7 +898,7 @@ async function sendTestNotification() {
 
 async function runPrune(endpoint, title, bodyHtml) {
   showModal(title, bodyHtml);
-  const r = await fetch(`${API}${endpoint.url}`, {
+  const r = await instanceFetch(endpoint.url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(endpoint.body || {})
@@ -713,7 +920,7 @@ async function runPrune(endpoint, title, bodyHtml) {
 async function pruneContainers() {
   if (!confirm('Remove stopped containers?\n\nThis should not affect running containers.')) return;
   await runPrune(
-    { url: '/api/prune/containers' },
+    { url: '/prune/containers' },
     'Container Prune Started',
     'Removing stopped containers…'
   );
@@ -726,7 +933,7 @@ async function pruneImages(allUnused) {
   if (!confirm(message)) return;
 
   await runPrune(
-    { url: '/api/prune/images', body: { all: !!allUnused } },
+    { url: '/prune/images', body: { all: !!allUnused } },
     'Image Prune Started',
     allUnused ? 'Removing all unused images…' : 'Removing dangling images…'
   );
@@ -735,7 +942,7 @@ async function pruneImages(allUnused) {
 async function pruneSystem() {
   if (!confirm('Run system prune?\n\nThis removes stopped containers, unused networks, dangling images, and build cache.\n\nVolumes are not included. Continue?')) return;
   await runPrune(
-    { url: '/api/prune/system' },
+    { url: '/prune/system' },
     'System Prune Started',
     'Running system prune…'
   );
@@ -748,7 +955,7 @@ async function pruneVolumes(allUnused) {
   if (!confirm(message)) return;
 
   await runPrune(
-    { url: '/api/prune/volumes', body: { all: !!allUnused } },
+    { url: '/prune/volumes', body: { all: !!allUnused } },
     'Volume Prune Started',
     allUnused ? 'Removing all unused local volumes…' : 'Removing anonymous unused local volumes…'
   );
@@ -767,6 +974,7 @@ function closeModal(e) {
 }
 
 async function init() {
+  await loadInstances();
   await refreshAll();
   setInterval(refreshAll, 10000);
 }

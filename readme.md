@@ -152,6 +152,28 @@ All configuration is done via environment variables in `docker-compose.yml`.
 | `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `AUTO_RECREATE_AFTER_PULL` | `false` | If `true`, automatically recreate affected services after pulling an image |
 
+### Remote Instance Configuration
+
+The dashboard can aggregate status from other `docker-update-checker` instances running on remote hosts.
+
+- Use `REMOTE_INSTANCES` to provide a JSON array of remote hosts.
+- Or use `REMOTE_INSTANCES_FILE` to point to a JSON file such as `remote_instances.example.json`.
+
+Example config entry:
+```json
+{
+  "name": "Homelab Node 1",
+  "url": "http://192.168.1.10:5000",
+  "description": "Checker instance on remote node"
+}
+```
+
+You can also use a simple newline-based list in `REMOTE_INSTANCES` like:
+```text
+node1|http://192.168.1.10:5000
+node2|http://192.168.1.11:5000
+```
+
 ### Notification Settings
 
 Notifications are **disabled by default**. Enable them by setting `NOTIFY_ENABLED=true` and choosing a backend.

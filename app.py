@@ -3,6 +3,8 @@ import json
 import logging
 import threading
 import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -11,7 +13,7 @@ import uuid
 import requests
 import docker
 import yaml
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, Response
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
 import smtplib
@@ -50,6 +52,11 @@ NOTIFY_ON_PULL_ERROR = os.environ.get("NOTIFY_ON_PULL_ERROR", "true").lower() ==
 NOTIFY_ON_RECREATE_SUCCESS = os.environ.get("NOTIFY_ON_RECREATE_SUCCESS", "false").lower() == "true"
 NOTIFY_ON_RECREATE_ERROR = os.environ.get("NOTIFY_ON_RECREATE_ERROR", "true").lower() == "true"
 NOTIFY_ON_BULK_COMPLETE = os.environ.get("NOTIFY_ON_BULK_COMPLETE", "true").lower() == "true"
+
+REMOTE_INSTANCES_CONFIG = os.environ.get("REMOTE_INSTANCES", "").strip()
+REMOTE_INSTANCES_FILE = os.environ.get("REMOTE_INSTANCES_FILE", "").strip()
+TOKEN_CACHE_TTL = int(os.environ.get("TOKEN_CACHE_TTL", "900"))
+REGISTRY_TOKEN_CACHE: dict = {}
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
@@ -175,6 +182,223 @@ def _trim_jobs_locked():
     for job_id in list(jobs_state.keys()):
         if job_id not in keep_ids:
             jobs_state.pop(job_id, None)
+
+
+def get_registry_token(registry: str, repo: str) -> Optional[str]:
+    cache_key = f"{registry}:{repo}"
+    cached = REGISTRY_TOKEN_CACHE.get(cache_key)
+    if cached and cached.get("expires_at", 0) > time.time():
+        return cached["token"]
+
+    token = None
+    try:
+        if registry in ("registry-1.docker.io", "docker.io"):
+            if '/' not in repo:
+                repo = f"library/{repo}"
+            r = requests.get(
+                "https://auth.docker.io/token",
+                params={"service": "registry.docker.io", "scope": f"repository:{repo}:pull"},
+                timeout=15,
+            )
+            r.raise_for_status()
+            token = r.json().get("token")
+        elif registry == "ghcr.io":
+            r = requests.get(
+                "https://ghcr.io/token",
+                params={"service": "ghcr.io", "scope": f"repository:{repo}:pull"},
+                timeout=15,
+            )
+            r.raise_for_status()
+            token = r.json().get("token")
+    except Exception as e:
+        log.debug(f"Token retrieval failed for {registry}/{repo}: {e}")
+        return None
+
+    if token:
+        REGISTRY_TOKEN_CACHE[cache_key] = {
+            "token": token,
+            "expires_at": time.time() + TOKEN_CACHE_TTL,
+        }
+    return token
+
+
+def normalize_remote_instance(entry: dict | str) -> Optional[dict]:
+    if isinstance(entry, str):
+        if '|' in entry:
+            name, url = entry.split('|', 1)
+            entry = {"name": name.strip(), "url": url.strip()}
+        else:
+            entry = {"name": entry.strip(), "url": entry.strip()}
+
+    if not isinstance(entry, dict):
+        return None
+
+    url = str(entry.get("url", "") or "").strip()
+    if not url:
+        return None
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = f"http://{url}"
+
+    name = str(entry.get("name", "") or url).strip()
+    description = str(entry.get("description", "") or "").strip()
+    instance_id = str(entry.get("id", "") or name or url).strip()
+    instance_id = re.sub(r'[^a-z0-9_-]+', '-', instance_id.lower()).strip('-')
+    if not instance_id:
+        return None
+
+    return {
+        "id": instance_id,
+        "name": name,
+        "url": url.rstrip('/'),
+        "description": description,
+        "type": "remote",
+    }
+
+
+def load_remote_instances() -> list[dict]:
+    instances = []
+    sources = []
+
+    if REMOTE_INSTANCES_FILE:
+        try:
+            path = Path(REMOTE_INSTANCES_FILE).expanduser()
+            if path.exists():
+                with open(path, 'r', encoding='utf-8') as f:
+                    sources.append(json.load(f))
+            else:
+                log.warning(f"Remote instances file not found: {path}")
+        except Exception as e:
+            log.warning(f"Unable to load remote instances from {REMOTE_INSTANCES_FILE}: {e}")
+
+    if REMOTE_INSTANCES_CONFIG:
+        try:
+            sources.append(json.loads(REMOTE_INSTANCES_CONFIG))
+        except json.JSONDecodeError:
+            instances_config = [line.strip() for line in REMOTE_INSTANCES_CONFIG.splitlines() if line.strip()]
+            sources.append(instances_config)
+        except Exception as e:
+            log.warning(f"Unable to parse REMOTE_INSTANCES: {e}")
+
+    for source in sources:
+        if isinstance(source, dict):
+            source = [source]
+        if not isinstance(source, list):
+            continue
+        for item in source:
+            normalized = normalize_remote_instance(item)
+            if normalized:
+                instances.append(normalized)
+
+    unique = {}
+    for instance in instances:
+        unique[instance["id"]] = instance
+    return list(unique.values())
+
+
+def get_all_instances() -> list[dict]:
+    instances = [{
+        "id": "local",
+        "name": "Local host",
+        "url": "",
+        "description": "The Docker host running this service",
+        "type": "local",
+    }]
+    instances.extend(load_remote_instances())
+    return instances
+
+
+def get_instance(instance_id: str) -> Optional[dict]:
+    if instance_id == "local":
+        return {
+            "id": "local",
+            "name": "Local host",
+            "url": "",
+            "description": "The Docker host running this service",
+            "type": "local",
+        }
+    for instance in load_remote_instances():
+        if instance["id"] == instance_id:
+            return instance
+    return None
+
+
+def proxy_remote_request(instance_id: str, proxy_path: str) -> Response:
+    instance = get_instance(instance_id)
+    if not instance or instance.get("type") != "remote":
+        return jsonify({"status": "error", "message": "Instance not found or not remote"}), 404
+
+    allowed_prefixes = (
+        "status",
+        "images",
+        "stacks",
+        "jobs",
+        "operations",
+        "check",
+        "update",
+        "bulk",
+        "prune",
+        "compose",
+        "notify",
+    )
+    if not any(proxy_path.startswith(prefix) for prefix in allowed_prefixes):
+        return jsonify({"status": "error", "message": "Unsupported proxy path"}), 400
+
+    remote_url = f"{instance['url']}/api/{proxy_path}"
+    try:
+        payload = request.get_json(silent=True)
+        params = request.args.to_dict(flat=True)
+        response = requests.request(
+            request.method,
+            remote_url,
+            json=payload if payload is not None else None,
+            params=params,
+            timeout=15,
+        )
+        return Response(response.content, status=response.status_code,
+                        content_type=response.headers.get("Content-Type", "application/json"))
+    except requests.exceptions.RequestException as e:
+        log.warning(f"Remote proxy failed for {instance_id}:{proxy_path}: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 502
+
+
+def proxy_local_request(proxy_path: str) -> Response:
+    if proxy_path == "status":
+        return api_status()
+    if proxy_path == "images":
+        return api_images()
+    if proxy_path == "stacks":
+        return api_stacks()
+    if proxy_path == "jobs":
+        return api_jobs()
+    if proxy_path == "operations":
+        return api_operations()
+    if proxy_path == "check":
+        return api_check()
+    if proxy_path.startswith("check/"):
+        return api_check_single(proxy_path[len("check/"):])
+    if proxy_path.startswith("update/"):
+        return api_update_image(proxy_path[len("update/"):])
+    if proxy_path == "bulk/update":
+        return api_bulk_update()
+    if proxy_path.startswith("stacks/") and proxy_path.endswith("/recreate"):
+        stack_name = proxy_path[len("stacks/"):-len("/recreate")]
+        return api_stack_recreate(stack_name)
+    if proxy_path == "compose/recreate":
+        return api_compose_recreate()
+    if proxy_path.startswith("prune/"):
+        prune_type = proxy_path.split("/", 1)[1]
+        if prune_type == "containers":
+            return api_prune_containers()
+        if prune_type == "images":
+            return api_prune_images()
+        if prune_type == "system":
+            return api_prune_system()
+        if prune_type == "volumes":
+            return api_prune_volumes()
+    if proxy_path == "notify/test":
+        return api_notify_test()
+
+    return jsonify({"status": "error", "message": "Unsupported local proxy path"}), 400
 
 
 def summarize_stacks() -> list[dict]:
@@ -413,34 +637,18 @@ def get_remote_digest(image_ref: str) -> Optional[str]:
         "application/vnd.oci.image.index.v1+json"
     )
     try:
+        headers = {"Accept": accept}
+        token = get_registry_token(registry, repo)
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
         if registry in ("registry-1.docker.io", "docker.io"):
-            # Official single-name images (redis, nginx, etc.) need library/ prefix
             if '/' not in repo:
                 repo = f"library/{repo}"
-            r = requests.get(
-                f"https://auth.docker.io/token"
-                f"?service=registry.docker.io&scope=repository:{repo}:pull",
-                timeout=15,
-            )
-            r.raise_for_status()
-            token = r.json().get("token")
-            headers = {"Authorization": f"Bearer {token}", "Accept": accept}
             url = f"https://registry-1.docker.io/v2/{repo}/manifests/{tag}"
-
         elif registry == "ghcr.io":
-            # GHCR anonymous token auth
-            r = requests.get(
-                f"https://ghcr.io/token?service=ghcr.io&scope=repository:{repo}:pull",
-                timeout=15,
-            )
-            r.raise_for_status()
-            token = r.json().get("token")
-            headers = {"Authorization": f"Bearer {token}", "Accept": accept}
             url = f"https://ghcr.io/v2/{repo}/manifests/{tag}"
-
         else:
-            # Generic registry fallback (Quay, private registries, etc.)
-            headers = {"Accept": accept}
             url = f"https://{registry}/v2/{repo}/manifests/{tag}"
 
         r2 = requests.head(url, headers=headers, timeout=15)
@@ -522,26 +730,50 @@ def run_full_check(job_id: Optional[str] = None):
 
     results = {}
     images = list(all_images.items())
-    total_images = max(len(images), 1)
+    total_images = len(images)
+    progress_base = 2
 
-    update_job(job_id, progress=2,
+    update_job(job_id, progress=progress_base,
                current_step="Checking image digests",
-               message=f"Checking {len(images)} images")
+               message=f"Checking {total_images} images")
 
-    for idx, (img, paths) in enumerate(images, start=1):
-        result = check_image(img)
-        result["compose_files"] = paths
-        result["stacks"] = sorted(list({derive_stack_name(p) for p in paths}))
-        results[img] = result
+    if total_images > 0:
+        with ThreadPoolExecutor(max_workers=min(10, total_images)) as executor:
+            future_map = {
+                executor.submit(check_image, img): (img, paths)
+                for img, paths in images
+            }
+            completed = 0
+            for future in as_completed(future_map):
+                img, paths = future_map[future]
+                try:
+                    result = future.result()
+                except Exception as exc:
+                    log.warning(f"Image check failed for {img}: {exc}")
+                    result = {
+                        "image": img,
+                        "status": "unknown",
+                        "local_digest": None,
+                        "remote_digest": None,
+                        "checked_at": datetime.now(timezone.utc).isoformat()
+                    }
+                result["compose_files"] = paths
+                result["stacks"] = sorted(list({derive_stack_name(p) for p in paths}))
+                results[img] = result
+                completed += 1
 
-        if idx == 1 or idx == total_images or idx % 5 == 0:
-            update_job(
-                job_id,
-                progress=2,
-                current_step=f"Checking image digests ({idx}/{total_images})",
-                message=f"Checked {idx} of {total_images} images",
-                event={"status": "info", "message": f"Checked {img}: {result['status']}"}
-            )
+                if completed == 1 or completed == total_images or completed % 5 == 0:
+                    update_job(
+                        job_id,
+                        progress=progress_base,
+                        current_step=f"Checking image digests ({completed}/{total_images})",
+                        message=f"Checked {completed} of {total_images} images",
+                        event={"status": "info", "message": f"Checked {img}: {result['status']}"}
+                    )
+    else:
+        update_job(job_id, progress=progress_base,
+                   current_step="Checking image digests",
+                   message="No images found")
 
     update_job(job_id, progress=3, current_step="Saving results",
                message="Updating in-memory state")
@@ -1100,6 +1332,19 @@ def api_status():
             "notify_enabled": NOTIFY_ENABLED,
             "notify_backend": NOTIFY_BACKEND or None
         })
+
+
+@app.route("/api/instances")
+def api_instances():
+    return jsonify(get_all_instances())
+
+
+@app.route("/api/instances/<instance_id>/<path:proxy_path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+def api_instance_proxy(instance_id, proxy_path):
+    if instance_id == "local":
+        return proxy_local_request(proxy_path)
+    return proxy_remote_request(instance_id, proxy_path)
+
 
 @app.route("/api/images")
 def api_images():
