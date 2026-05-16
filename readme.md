@@ -34,7 +34,8 @@ Right now there is intentionally no automatic updating — this is meant to be s
   - Pull success / failure
   - Recreate success / failure
   - Bulk job completion  
-- 🌙 **Dark / light mode** toggle  
+- 🌙 **Dark / light mode** toggle — preserves your last selected theme across browser reloads
+- 💾 **Persistent UI preferences** — auto-recreate and theme selections are remembered in the dashboard
 - 🧪 **Test notification** — send a test notification from the UI to validate your configuration  
 
 ---

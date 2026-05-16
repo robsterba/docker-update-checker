@@ -6,8 +6,8 @@
 <title>Docker Update Checker</title>
 <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 <style>
-  :root,[data-theme="light"]{--bg:#f7f6f2;--surface:#ffffff;--surface2:#f3f0ec;--border:#d4d1ca;--text:#28251d;--muted:#7a7974;--faint:#bab9b4;--primary:#01696f;--primary-h:#0c4e54;--success:#437a22;--warning:#da7101;--error:#a12c7b;--info:#006494;--badge-up:rgba(67,122,34,.15);--badge-update:rgba(218,113,1,.15);--badge-err:rgba(161,44,123,.15);--badge-unk:rgba(122,121,116,.15);--badge-run:rgba(0,100,148,.12)}
-  [data-theme="dark"]{--bg:#171614;--surface:#1c1b19;--surface2:#22211f;--border:#393836;--text:#cdccca;--muted:#797876;--faint:#5a5957;--primary:#4f98a3;--primary-h:#227f8b;--success:#6daa45;--warning:#fdab43;--error:#d163a7;--info:#5591c7;--badge-up:rgba(109,170,69,.15);--badge-update:rgba(253,171,67,.15);--badge-err:rgba(209,99,167,.15);--badge-unk:rgba(90,89,87,.2);--badge-run:rgba(85,145,199,.14)}
+  :root,[data-theme="light"]{--bg:#f4f7fb;--surface:#ffffff;--surface2:#f0f4f8;--border:#d7dfe9;--text:#0f172a;--muted:#475569;--faint:#94a3b8;--primary:#1e3a8a;--primary-h:#1e40af;--success:#0f766e;--warning:#ea580c;--error:#dc2626;--info:#0f5469;--badge-up:rgba(14,165,233,.12);--badge-update:rgba(248,113,113,.14);--badge-err:rgba(220,38,38,.12);--badge-unk:rgba(100,116,139,.15);--badge-run:rgba(30,58,138,.12)}
+  [data-theme="dark"]{--bg:#0f172a;--surface:#111827;--surface2:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--faint:#cbd5e1;--primary:#60a5fa;--primary-h:#3b82f6;--success:#2dd4bf;--warning:#fb923c;--error:#ef4444;--info:#38bdf8;--badge-up:rgba(96,165,250,.16);--badge-update:rgba(248,113,113,.18);--badge-err:rgba(239,68,68,.18);--badge-unk:rgba(148,163,184,.18);--badge-run:rgba(96,165,250,.14)}
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html{font-family:'Inter',system-ui,sans-serif;font-size:15px;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
   body{min-height:100dvh;display:flex;flex-direction:column}
@@ -137,6 +137,11 @@
   .theme-btn{padding:.35rem;border-radius:.4rem;color:var(--muted);transition:color .15s,background .15s}
   .theme-btn:hover{background:var(--surface2);color:var(--text)}
 
+  .notification{position:fixed;top:16px;right:16px;padding:.85rem 1rem;border-radius:.75rem;box-shadow:0 18px 60px rgba(0,0,0,.16);font-size:.95rem;display:none;align-items:center;gap:.5rem;z-index:900}
+  .notification.show{display:flex}
+  .notification.info{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+  .notification.success{background:rgba(96,165,250,.14);color:var(--primary);border:1px solid rgba(96,165,250,.3)}
+
   .filter-bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
   .filter-btn{padding:.3rem .7rem;border-radius:.4rem;font-size:.78rem;border:1px solid var(--border);color:var(--muted);transition:all .15s}
   .filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
@@ -203,7 +208,7 @@
     </div>
     <div class="toolbar-right">
       <label class="inline-toggle">
-        <input type="checkbox" id="autoRecreateToggle">
+        <input type="checkbox" id="autoRecreateToggle" onchange="onAutoRecreateToggle()">
         Auto-recreate after pull
       </label>
     </div>
@@ -341,6 +346,7 @@
   </div>
 </main>
 
+<div class="notification" id="toastNotification"></div>
 <div class="modal-backdrop" id="modalBackdrop" onclick="closeModal(event)">
   <div class="modal">
     <div class="modal-title" id="modalTitle"></div>
@@ -362,7 +368,33 @@ let hostStatuses = {};
 let currentInstance = { id: 'local', name: 'Local host', url: '' };
 let activeFilter = 'all';
 let checking = false;
-let theme = document.documentElement.getAttribute('data-theme') || 'light';
+let theme = 'light';
+const STORAGE_THEME_KEY = 'docker-update-checker-theme';
+const STORAGE_AUTO_RECREATE_KEY = 'docker-update-checker-auto-recreate';
+
+function getStoredTheme() {
+  return localStorage.getItem(STORAGE_THEME_KEY);
+}
+
+function setStoredTheme(value) {
+  localStorage.setItem(STORAGE_THEME_KEY, value);
+}
+
+function getStoredAutoRecreate() {
+  const value = localStorage.getItem(STORAGE_AUTO_RECREATE_KEY);
+  if (value === null) return null;
+  return value === 'true';
+}
+
+function setStoredAutoRecreate(value) {
+  localStorage.setItem(STORAGE_AUTO_RECREATE_KEY, value ? 'true' : 'false');
+}
+
+function buildThemeIcon(mode) {
+  return mode === 'dark'
+    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+}
 
 function instancePath(path) {
   const trimmed = path.replace(/^\/+/, '');
@@ -512,9 +544,51 @@ async function loadInstances() {
 function toggleTheme() {
   theme = theme === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', theme);
-  document.getElementById('themeBtn').innerHTML = theme === 'dark'
-    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
-    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+  document.getElementById('themeBtn').innerHTML = buildThemeIcon(theme);
+  setStoredTheme(theme);
+  showToast(`Theme switched to ${theme}`);
+}
+
+function loadTheme() {
+  const stored = getStoredTheme();
+  theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('themeBtn').innerHTML = buildThemeIcon(theme);
+}
+
+async function syncAutoRecreateSetting(value) {
+  try {
+    const r = await instanceFetch('/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_recreate: value })
+    });
+    if (!r.ok) {
+      console.warn('Failed to sync auto-recreate setting', await r.text());
+      return;
+    }
+    await r.json();
+  } catch (err) {
+    console.warn('Failed to sync auto-recreate setting', err);
+  }
+}
+
+function showToast(message, type = 'success') {
+  const toast = document.getElementById('toastNotification');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.className = `notification ${type} show`;
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => {
+    toast.className = 'notification';
+  }, 2500);
+}
+
+function onAutoRecreateToggle() {
+  const value = getAutoRecreate();
+  setStoredAutoRecreate(value);
+  syncAutoRecreateSetting(value);
+  showToast(`Auto-recreate ${value ? 'enabled' : 'disabled'}`);
 }
 
 function setFilter(f, btn) {
@@ -693,7 +767,8 @@ async function loadStatus() {
     document.getElementById('kpiUpdates').textContent = '—';
     document.getElementById('kpiErr').textContent = '—';
     document.getElementById('lastCheck').textContent = d.__error;
-    document.getElementById('autoRecreateToggle').checked = false;
+    const storedValue = getStoredAutoRecreate();
+    document.getElementById('autoRecreateToggle').checked = storedValue !== null ? storedValue : false;
     setInstanceHealth('offline', `Offline: ${d.__error}`);
     return;
   }
@@ -702,7 +777,10 @@ async function loadStatus() {
   document.getElementById('kpiUpdates').textContent = d.updates_available ?? '—';
   document.getElementById('kpiErr').textContent = d.unknown ?? '—';
   document.getElementById('lastCheck').textContent = d.last_check ? `Last check: ${fmtDate(d.last_check)}` : 'Not checked yet';
-  document.getElementById('autoRecreateToggle').checked = !!d.auto_recreate_after_pull;
+  const storedValue = getStoredAutoRecreate();
+  document.getElementById('autoRecreateToggle').checked = storedValue !== null
+    ? storedValue
+    : !!d.auto_recreate_after_pull;
   setInstanceHealth('online', `Connected: ${currentInstance.name}`);
 }
 
@@ -974,6 +1052,11 @@ function closeModal(e) {
 }
 
 async function init() {
+  loadTheme();
+  const storedValue = getStoredAutoRecreate();
+  if (storedValue !== null) {
+    document.getElementById('autoRecreateToggle').checked = storedValue;
+  }
   await loadInstances();
   await refreshAll();
   setInterval(refreshAll, 10000);

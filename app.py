@@ -339,6 +339,7 @@ def proxy_remote_request(instance_id: str, proxy_path: str) -> Response:
         "prune",
         "compose",
         "notify",
+        "config",
     )
     if not any(proxy_path.startswith(prefix) for prefix in allowed_prefixes):
         return jsonify({"status": "error", "message": "Unsupported proxy path"}), 400
@@ -372,6 +373,8 @@ def proxy_local_request(proxy_path: str) -> Response:
         return api_jobs()
     if proxy_path == "operations":
         return api_operations()
+    if proxy_path == "config":
+        return api_config()
     if proxy_path == "check":
         return api_check()
     if proxy_path.startswith("check/"):
@@ -1337,6 +1340,28 @@ def api_status():
 @app.route("/api/instances")
 def api_instances():
     return jsonify(get_all_instances())
+
+
+@app.route("/api/config", methods=["GET", "POST"])
+def api_config():
+    global AUTO_RECREATE_AFTER_PULL
+
+    if request.method == "GET":
+        return jsonify({"auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL})
+
+    data = request.get_json(silent=True) or {}
+    if "auto_recreate" not in data:
+        return jsonify({"status": "error", "message": "Missing auto_recreate"}), 400
+
+    auto_recreate = data["auto_recreate"]
+    if isinstance(auto_recreate, str):
+        auto_recreate = auto_recreate.strip().lower() == "true"
+    elif not isinstance(auto_recreate, bool):
+        return jsonify({"status": "error", "message": "auto_recreate must be true or false"}), 400
+
+    AUTO_RECREATE_AFTER_PULL = auto_recreate
+    log_op("config", "auto_recreate", "success", f"Set auto_recreate_after_pull={AUTO_RECREATE_AFTER_PULL}")
+    return jsonify({"auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL})
 
 
 @app.route("/api/instances/<instance_id>/<path:proxy_path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
