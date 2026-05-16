@@ -265,6 +265,7 @@ def load_remote_instances() -> list[dict]:
             if path.exists():
                 with open(path, 'r', encoding='utf-8') as f:
                     sources.append(json.load(f))
+                log.info(f"Loaded remote instances from {path}")
             else:
                 log.warning(f"Remote instances file not found: {path}")
         except Exception as e:
@@ -273,9 +274,11 @@ def load_remote_instances() -> list[dict]:
     if REMOTE_INSTANCES_CONFIG:
         try:
             sources.append(json.loads(REMOTE_INSTANCES_CONFIG))
+            log.info("Loaded remote instances from REMOTE_INSTANCES env var")
         except json.JSONDecodeError:
             instances_config = [line.strip() for line in REMOTE_INSTANCES_CONFIG.splitlines() if line.strip()]
             sources.append(instances_config)
+            log.info(f"Loaded {len(instances_config)} remote instances from newline-delimited REMOTE_INSTANCES env var")
         except Exception as e:
             log.warning(f"Unable to parse REMOTE_INSTANCES: {e}")
 
@@ -292,6 +295,7 @@ def load_remote_instances() -> list[dict]:
     unique = {}
     for instance in instances:
         unique[instance["id"]] = instance
+    log.info(f"Total remote instances loaded: {len(list(unique.values()))}")
     return list(unique.values())
 
 
