@@ -27,6 +27,7 @@
   .inline-toggle input{accent-color:var(--primary)}
   .host-select select{background:transparent;color:inherit;border:none;padding:.2rem .35rem;min-width:10rem;outline:none;font:inherit}
   .host-status{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;padding:.3rem .65rem;border:1px solid var(--border);border-radius:.5rem;background:var(--surface);color:var(--muted)}
+  .host-label{font-size:.82rem;color:var(--muted);padding:.25rem .55rem;border:1px solid var(--border);border-radius:.5rem;background:var(--surface)}
   .host-status.online{border-color:var(--success);color:var(--success)}
   .host-status.offline{border-color:var(--error);color:var(--error)}
   .host-status.unknown{border-color:var(--warning);color:var(--warning)}
@@ -179,6 +180,7 @@
       <span>Host</span>
       <select id="instanceSelect" onchange="selectInstance(this.value)"></select>
     </label>
+    <span class="host-label" id="hostLabel">Host: Local host</span>
     <span class="host-status unknown" id="instanceHealth">Loading host state…</span>
     <span class="last-check" id="lastCheck">—</span>
     <button class="btn btn-primary btn-sm" id="checkBtn" onclick="triggerCheck()">
