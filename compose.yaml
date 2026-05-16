@@ -1,5 +1,6 @@
 services:
   update-checker:
+    image: docker-update-checker
     build: .
     container_name: docker-update-checker
     restart: unless-stopped
