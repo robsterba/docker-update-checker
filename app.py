@@ -1,13 +1,14 @@
 import os
 import json
 import logging
+import socket
 import threading
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 import re
 import uuid
 import requests
@@ -19,44 +20,79 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import smtplib
 from email.message import EmailMessage
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def get_env(key: str, default: str = "") -> str:
+    return os.environ.get(key, default)
+
+
+def get_bool_env(key: str, default: bool = False) -> bool:
+    value = os.environ.get(key)
+    if value is None:
+        return default
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+def get_int_env(key: str, default: int = 0) -> int:
+    try:
+        return int(os.environ.get(key, default))
+    except (TypeError, ValueError):
+        return default
+
+
+def read_dotenv(dotenv_path: Path) -> dict[str, str]:
+    env: dict[str, str] = {}
+    if not dotenv_path.exists():
+        return env
+
+    with dotenv_path.open(encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            env[key.strip()] = value.strip().strip('"').strip("'")
+    return env
+
+
 # ── Config ────────────────────────────────────────────────────────────────────
-COMPOSE_ROOT = os.environ.get("COMPOSE_ROOT", "/compose")
-CHECK_INTERVAL_MINUTES = int(os.environ.get("CHECK_INTERVAL_MINUTES", "60"))
-LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
-AUTO_RECREATE_AFTER_PULL = os.environ.get("AUTO_RECREATE_AFTER_PULL", "false").lower() == "true"
-NOTIFY_ENABLED = os.environ.get("NOTIFY_ENABLED", "false").lower() == "true"
-NOTIFY_BACKEND = os.environ.get("NOTIFY_BACKEND", "").strip().lower()
+COMPOSE_ROOT = get_env("COMPOSE_ROOT", "/compose")
+CHECK_INTERVAL_MINUTES = get_int_env("CHECK_INTERVAL_MINUTES", 60)
+LOG_LEVEL = get_env("LOG_LEVEL", "INFO")
+AUTO_RECREATE_AFTER_PULL = get_bool_env("AUTO_RECREATE_AFTER_PULL", False)
+NOTIFY_ENABLED = get_bool_env("NOTIFY_ENABLED", False)
+NOTIFY_BACKEND = get_env("NOTIFY_BACKEND", "").strip().lower()
 
-NOTIFY_WEBHOOK_URL = os.environ.get("NOTIFY_WEBHOOK_URL", "").strip()
-NOTIFY_WEBHOOK_METHOD = os.environ.get("NOTIFY_WEBHOOK_METHOD", "POST").strip().upper()
-NOTIFY_WEBHOOK_TIMEOUT = int(os.environ.get("NOTIFY_WEBHOOK_TIMEOUT", "10"))
+NOTIFY_WEBHOOK_URL = get_env("NOTIFY_WEBHOOK_URL", "").strip()
+NOTIFY_WEBHOOK_METHOD = get_env("NOTIFY_WEBHOOK_METHOD", "POST").strip().upper()
+NOTIFY_WEBHOOK_TIMEOUT = get_int_env("NOTIFY_WEBHOOK_TIMEOUT", 10)
 
-NOTIFY_MQTT_HOST = os.environ.get("NOTIFY_MQTT_HOST", "").strip()
-NOTIFY_MQTT_PORT = int(os.environ.get("NOTIFY_MQTT_PORT", "1883"))
-NOTIFY_MQTT_TOPIC = os.environ.get("NOTIFY_MQTT_TOPIC", "").strip()
-NOTIFY_MQTT_USERNAME = os.environ.get("NOTIFY_MQTT_USERNAME", "").strip()
-NOTIFY_MQTT_PASSWORD = os.environ.get("NOTIFY_MQTT_PASSWORD", "").strip()
-NOTIFY_MQTT_RETAIN = os.environ.get("NOTIFY_MQTT_RETAIN", "false").lower() == "true"
+NOTIFY_MQTT_HOST = get_env("NOTIFY_MQTT_HOST", "").strip()
+NOTIFY_MQTT_PORT = get_int_env("NOTIFY_MQTT_PORT", 1883)
+NOTIFY_MQTT_TOPIC = get_env("NOTIFY_MQTT_TOPIC", "").strip()
+NOTIFY_MQTT_USERNAME = get_env("NOTIFY_MQTT_USERNAME", "").strip()
+NOTIFY_MQTT_PASSWORD = get_env("NOTIFY_MQTT_PASSWORD", "").strip()
+NOTIFY_MQTT_RETAIN = get_bool_env("NOTIFY_MQTT_RETAIN", False)
 
-NOTIFY_EMAIL_HOST = os.environ.get("NOTIFY_EMAIL_HOST", "").strip()
-NOTIFY_EMAIL_PORT = int(os.environ.get("NOTIFY_EMAIL_PORT", "587"))
-NOTIFY_EMAIL_USERNAME = os.environ.get("NOTIFY_EMAIL_USERNAME", "").strip()
-NOTIFY_EMAIL_PASSWORD = os.environ.get("NOTIFY_EMAIL_PASSWORD", "").strip()
-NOTIFY_EMAIL_FROM = os.environ.get("NOTIFY_EMAIL_FROM", "").strip()
-NOTIFY_EMAIL_TO = os.environ.get("NOTIFY_EMAIL_TO", "").strip()
-NOTIFY_EMAIL_USE_TLS = os.environ.get("NOTIFY_EMAIL_USE_TLS", "true").lower() == "true"
+NOTIFY_EMAIL_HOST = get_env("NOTIFY_EMAIL_HOST", "").strip()
+NOTIFY_EMAIL_PORT = get_int_env("NOTIFY_EMAIL_PORT", 587)
+NOTIFY_EMAIL_USERNAME = get_env("NOTIFY_EMAIL_USERNAME", "").strip()
+NOTIFY_EMAIL_PASSWORD = get_env("NOTIFY_EMAIL_PASSWORD", "").strip()
+NOTIFY_EMAIL_FROM = get_env("NOTIFY_EMAIL_FROM", "").strip()
+NOTIFY_EMAIL_TO = get_env("NOTIFY_EMAIL_TO", "").strip()
+NOTIFY_EMAIL_USE_TLS = get_bool_env("NOTIFY_EMAIL_USE_TLS", True)
 
-NOTIFY_ON_UPDATES_FOUND = os.environ.get("NOTIFY_ON_UPDATES_FOUND", "true").lower() == "true"
-NOTIFY_ON_PULL_SUCCESS = os.environ.get("NOTIFY_ON_PULL_SUCCESS", "false").lower() == "true"
-NOTIFY_ON_PULL_ERROR = os.environ.get("NOTIFY_ON_PULL_ERROR", "true").lower() == "true"
-NOTIFY_ON_RECREATE_SUCCESS = os.environ.get("NOTIFY_ON_RECREATE_SUCCESS", "false").lower() == "true"
-NOTIFY_ON_RECREATE_ERROR = os.environ.get("NOTIFY_ON_RECREATE_ERROR", "true").lower() == "true"
-NOTIFY_ON_BULK_COMPLETE = os.environ.get("NOTIFY_ON_BULK_COMPLETE", "true").lower() == "true"
+NOTIFY_ON_UPDATES_FOUND = get_bool_env("NOTIFY_ON_UPDATES_FOUND", True)
+NOTIFY_ON_PULL_SUCCESS = get_bool_env("NOTIFY_ON_PULL_SUCCESS", False)
+NOTIFY_ON_PULL_ERROR = get_bool_env("NOTIFY_ON_PULL_ERROR", True)
+NOTIFY_ON_RECREATE_SUCCESS = get_bool_env("NOTIFY_ON_RECREATE_SUCCESS", False)
+NOTIFY_ON_RECREATE_ERROR = get_bool_env("NOTIFY_ON_RECREATE_ERROR", True)
+NOTIFY_ON_BULK_COMPLETE = get_bool_env("NOTIFY_ON_BULK_COMPLETE", True)
 
-REMOTE_INSTANCES_CONFIG = os.environ.get("REMOTE_INSTANCES", "").strip()
-REMOTE_INSTANCES_FILE = os.environ.get("REMOTE_INSTANCES_FILE", "").strip()
-TOKEN_CACHE_TTL = int(os.environ.get("TOKEN_CACHE_TTL", "900"))
-REGISTRY_TOKEN_CACHE: dict = {}
+REMOTE_INSTANCES_CONFIG = get_env("REMOTE_INSTANCES", "").strip()
+REMOTE_INSTANCES_FILE = get_env("REMOTE_INSTANCES_FILE", "").strip()
+TOKEN_CACHE_TTL = get_int_env("TOKEN_CACHE_TTL", 900)
+REGISTRY_TOKEN_CACHE: dict[str, dict[str, Any]] = {}
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
@@ -77,23 +113,127 @@ except Exception as e:
 
 # ── In-memory state ───────────────────────────────────────────────────────────
 state_lock = threading.Lock()
-check_results: dict = {}
+check_results: dict[str, dict[str, Any]] = {}
 last_full_check: Optional[str] = None
-operations_log: list = []
-jobs_state: dict = {}
+
+
+class OperationLog:
+    def __init__(self, max_entries: int = 200):
+        self._entries: list[dict[str, Any]] = []
+        self.max_entries = max_entries
+
+    def log(self, action: str, target: str, status: str, message: str) -> None:
+        entry = {
+            "time": datetime.now(timezone.utc).isoformat(),
+            "action": action,
+            "target": target,
+            "status": status,
+            "message": message,
+        }
+        with state_lock:
+            self._entries.insert(0, entry)
+            if len(self._entries) > self.max_entries:
+                self._entries.pop()
+
+    def latest(self, limit: int = 50) -> list[dict[str, Any]]:
+        with state_lock:
+            return self._entries[:limit]
+
+
+class JobManager:
+    def __init__(self, max_entries: int = 100):
+        self.jobs_state: dict[str, dict[str, Any]] = {}
+        self.max_entries = max_entries
+
+    def create_job(self, job_type: str, target: str, stack: Optional[str] = None,
+                   total_steps: int = 1, meta: Optional[dict[str, Any]] = None) -> str:
+        job_id = str(uuid.uuid4())
+        job = {
+            "job_id": job_id,
+            "type": job_type,
+            "target": target,
+            "stack": stack,
+            "status": "running",
+            "progress": 0,
+            "total_steps": max(total_steps, 1),
+            "current_step": "Starting",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+            "message": "",
+            "meta": meta or {},
+            "events": [],
+        }
+        with state_lock:
+            self.jobs_state[job_id] = job
+            self._trim_jobs_locked()
+        return job_id
+
+    def update_job(self, job_id: str, progress: Optional[int] = None,
+                   current_step: Optional[str] = None,
+                   message: Optional[str] = None,
+                   event: Optional[dict[str, Any]] = None,
+                   status: Optional[str] = None) -> None:
+        with state_lock:
+            job = self.jobs_state.get(job_id)
+            if not job:
+                return
+            if progress is not None:
+                job["progress"] = max(0, min(progress, job["total_steps"]))
+            if current_step is not None:
+                job["current_step"] = current_step
+            if message is not None:
+                job["message"] = message
+            if status is not None:
+                job["status"] = status
+            if event:
+                entry = {
+                    "time": datetime.now(timezone.utc).isoformat(),
+                    **event,
+                }
+                job["events"].insert(0, entry)
+                if len(job["events"]) > 100:
+                    job["events"].pop()
+
+    def finish_job(self, job_id: str, status: str = "success", message: str = "") -> None:
+        with state_lock:
+            job = self.jobs_state.get(job_id)
+            if not job:
+                return
+            job["status"] = status
+            job["progress"] = job["total_steps"]
+            job["message"] = message or job.get("message", "")
+            job["finished_at"] = datetime.now(timezone.utc).isoformat()
+            job["events"].insert(0, {
+                "time": job["finished_at"],
+                "status": status,
+                "message": job["message"] or f"Job finished with status: {status}",
+            })
+            if len(job["events"]) > 100:
+                job["events"].pop()
+            self._trim_jobs_locked()
+
+    def _trim_jobs_locked(self) -> None:
+        if len(self.jobs_state) <= self.max_entries:
+            return
+        ordered = sorted(
+            self.jobs_state.items(),
+            key=lambda kv: kv[1].get("started_at", ""),
+            reverse=True,
+        )
+        keep_ids = {job_id for job_id, _ in ordered[: self.max_entries]}
+        for job_id in list(self.jobs_state.keys()):
+            if job_id not in keep_ids:
+                self.jobs_state.pop(job_id, None)
+
+
+operations_log = OperationLog()
+job_manager = JobManager()
+jobs_state = job_manager.jobs_state
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def log_op(action, target, status, message):
-    entry = {
-        "time": datetime.now(timezone.utc).isoformat(),
-        "action": action, "target": target,
-        "status": status, "message": message
-    }
-    with state_lock:
-        operations_log.insert(0, entry)
-        if len(operations_log) > 200:
-            operations_log.pop()
+def log_op(action: str, target: str, status: str, message: str) -> None:
+    operations_log.log(action, target, status, message)
 
 def derive_stack_name(compose_path: str) -> str:
     p = Path(compose_path)
@@ -101,87 +241,20 @@ def derive_stack_name(compose_path: str) -> str:
 
 
 def create_job(job_type: str, target: str, stack: Optional[str] = None,
-               total_steps: int = 1, meta: Optional[dict] = None) -> str:
-    job_id = str(uuid.uuid4())
-    job = {
-        "job_id": job_id,
-        "type": job_type,
-        "target": target,
-        "stack": stack,
-        "status": "running",
-        "progress": 0,
-        "total_steps": max(total_steps, 1),
-        "current_step": "Starting",
-        "started_at": datetime.now(timezone.utc).isoformat(),
-        "finished_at": None,
-        "message": "",
-        "meta": meta or {},
-        "events": []
-    }
-    with state_lock:
-        jobs_state[job_id] = job
-        _trim_jobs_locked()
-    return job_id
+               total_steps: int = 1, meta: Optional[dict[str, Any]] = None) -> str:
+    return job_manager.create_job(job_type, target, stack, total_steps, meta)
 
 
 def update_job(job_id: str, progress: Optional[int] = None,
                current_step: Optional[str] = None,
                message: Optional[str] = None,
-               event: Optional[dict] = None,
-               status: Optional[str] = None):
-    with state_lock:
-        job = jobs_state.get(job_id)
-        if not job:
-            return
-        if progress is not None:
-            job["progress"] = max(0, min(progress, job["total_steps"]))
-        if current_step is not None:
-            job["current_step"] = current_step
-        if message is not None:
-            job["message"] = message
-        if status is not None:
-            job["status"] = status
-        if event:
-            entry = {
-                "time": datetime.now(timezone.utc).isoformat(),
-                **event
-            }
-            job["events"].insert(0, entry)
-            if len(job["events"]) > 100:
-                job["events"].pop()
+               event: Optional[dict[str, Any]] = None,
+               status: Optional[str] = None) -> None:
+    job_manager.update_job(job_id, progress, current_step, message, event, status)
 
 
-def finish_job(job_id: str, status: str = "success", message: str = ""):
-    with state_lock:
-        job = jobs_state.get(job_id)
-        if not job:
-            return
-        job["status"] = status
-        job["progress"] = job["total_steps"]
-        job["message"] = message or job.get("message", "")
-        job["finished_at"] = datetime.now(timezone.utc).isoformat()
-        job["events"].insert(0, {
-            "time": job["finished_at"],
-            "status": status,
-            "message": job["message"] or f"Job finished with status: {status}"
-        })
-        if len(job["events"]) > 100:
-            job["events"].pop()
-        _trim_jobs_locked()
-
-
-def _trim_jobs_locked():
-    if len(jobs_state) <= 100:
-        return
-    ordered = sorted(
-        jobs_state.items(),
-        key=lambda kv: kv[1].get("started_at", ""),
-        reverse=True
-    )
-    keep_ids = {job_id for job_id, _ in ordered[:100]}
-    for job_id in list(jobs_state.keys()):
-        if job_id not in keep_ids:
-            jobs_state.pop(job_id, None)
+def finish_job(job_id: str, status: str = "success", message: str = "") -> None:
+    job_manager.finish_job(job_id, status, message)
 
 
 def get_registry_token(registry: str, repo: str) -> Optional[str]:
@@ -491,16 +564,7 @@ def resolve_env_vars(value: str, env: dict) -> str:
 
 def parse_images_from_compose(path: str) -> list[str]:
     try:
-        # Load .env file from same directory if present
-        env = {}
-        env_file = Path(path).parent / ".env"
-        if env_file.exists():
-            with open(env_file) as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        k, _, v = line.partition('=')
-                        env[k.strip()] = v.strip().strip('"').strip("'")
+        env = read_dotenv(Path(path).parent / ".env")
 
         with open(path) as f:
             data = yaml.safe_load(f)
@@ -522,6 +586,11 @@ def parse_images_from_compose(path: str) -> list[str]:
             if '@sha256:' in img:
                 img = img.split('@')[0]
 
+            # Skip docker-update-checker image (built locally on each system)
+            if 'docker-update-checker' in img:
+                log.debug(f"Skipping docker-update-checker image: {img}")
+                continue
+
             images.append(img)
 
         return list(set(images))
@@ -531,15 +600,7 @@ def parse_images_from_compose(path: str) -> list[str]:
 
 def get_services_for_image(compose_path: str, image_ref: str) -> list[str]:
     try:
-        env = {}
-        env_file = Path(compose_path).parent / ".env"
-        if env_file.exists():
-            with open(env_file) as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        k, _, v = line.partition('=')
-                        env[k.strip()] = v.strip().strip('"').strip("'")
+        env = read_dotenv(Path(compose_path).parent / ".env")
 
         with open(compose_path) as f:
             data = yaml.safe_load(f) or {}
@@ -1036,14 +1097,14 @@ def run_stack_recreate(job_id: str, stack_name: str):
     log_op("recreate_stack", stack_name, "success", f"Stack recreate complete for {stack_name}")
 
 def build_notification_payload(event_type: str, title: str, message: str,
-                               status: str = "info", extra: Optional[dict] = None) -> dict:
+                               status: str = "info", extra: Optional[dict] = None) -> dict[str, Any]:
     return {
         "time": datetime.now(timezone.utc).isoformat(),
         "event_type": event_type,
         "title": title,
         "message": message,
         "status": status,
-        "host": os.uname().nodename,
+        "host": socket.gethostname(),
         "app": "docker-update-checker",
         "extra": extra or {}
     }
@@ -1757,8 +1818,7 @@ def api_compose_files():
 
 @app.route("/api/operations")
 def api_operations():
-    with state_lock:
-        return jsonify(operations_log[:50])
+    return jsonify(operations_log.latest(50))
 
 @app.route("/api/stacks")
 def api_stacks():
