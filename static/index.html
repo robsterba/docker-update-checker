@@ -57,6 +57,15 @@
   .stack-badges{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.65rem}
   .stack-actions{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.7rem}
 
+  .dropdown{position:relative;display:inline-block}
+  .dropdown-btn{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;border-radius:.5rem;font-size:.82rem;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:background .15s;cursor:pointer}
+  .dropdown-btn:hover{background:var(--surface2)}
+  .dropdown-menu{position:absolute;top:100%;right:0;margin-top:.35rem;background:var(--surface);border:1px solid var(--border);border-radius:.5rem;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:50;min-width:180px;overflow:hidden}
+  .dropdown-menu.hidden{display:none}
+  .dropdown-menu-item{display:block;width:100%;text-align:left;padding:.5rem .85rem;font-size:.82rem;color:var(--text);background:none;border:none;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border)}
+  .dropdown-menu-item:last-child{border-bottom:none}
+  .dropdown-menu-item:hover{background:var(--surface2)}
+
   .card{background:var(--surface);border:1px solid var(--border);border-radius:.625rem;overflow:hidden;margin-bottom:1.5rem}
   .card-header{padding:.75rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap}
   .card-title{font-weight:600;font-size:.95rem}
@@ -207,6 +216,20 @@
       <button class="btn btn-ghost" onclick="loadStacks()">Refresh Stacks</button>
       <button class="btn btn-ghost" onclick="loadInstances()">Refresh Hosts</button>
       <button class="btn btn-ghost" onclick="sendTestNotification()">Test Notification</button>
+      <div class="dropdown">
+        <button class="dropdown-btn" onclick="toggleToolsMenu(event)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+          Tools
+        </button>
+        <div class="dropdown-menu hidden" id="toolsMenu">
+          <button class="dropdown-menu-item" onclick="pruneContainers()">Prune Containers</button>
+          <button class="dropdown-menu-item" onclick="pruneImages(false)">Prune Dangling Images</button>
+          <button class="dropdown-menu-item" onclick="pruneImages(true)">Prune All Unused Images</button>
+          <button class="dropdown-menu-item" onclick="pruneSystem()">System Prune</button>
+          <button class="dropdown-menu-item" onclick="pruneVolumes(false)">Prune Anonymous Volumes</button>
+          <button class="dropdown-menu-item" onclick="pruneVolumes(true)">Prune All Unused Volumes</button>
+        </div>
+      </div>
     </div>
     <div class="toolbar-right">
       <label class="inline-toggle">
@@ -236,51 +259,7 @@
     <div class="kpi"><div class="kpi-label">Stacks</div><div class="kpi-value info" id="kpiStacks">—</div></div>
   </div>
 
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Maintenance</span>
-      <span style="font-size:.78rem;color:var(--muted)">Safe cleanup actions with explicit confirmations</span>
-    </div>
-    <div class="jobs-wrap">
-      <div class="maintenance-grid">
-        <div class="maintenance-item">
-          <div class="maintenance-title">Prune Stopped Containers</div>
-          <div class="maintenance-text">Removes stopped containers only. This is the safest cleanup option and usually a good first step.</div>
-          <div class="maintenance-actions">
-            <button class="btn btn-ghost btn-sm" onclick="pruneContainers()">Run Cleanup</button>
-          </div>
-        </div>
 
-        <div class="maintenance-item">
-          <div class="maintenance-title">Prune Dangling Images</div>
-          <div class="maintenance-text">Removes dangling images only. Tagged images in use are left alone by default.</div>
-          <div class="maintenance-actions">
-            <button class="btn btn-ghost btn-sm" onclick="pruneImages(false)">Dangling Only</button>
-            <button class="btn btn-warn btn-sm" onclick="pruneImages(true)">All Unused</button>
-          </div>
-        </div>
-
-        <div class="maintenance-item">
-          <div class="maintenance-title">System Prune</div>
-          <div class="maintenance-text">Removes stopped containers, unused networks, dangling images, and build cache. Volumes are not included here.</div>
-          <div class="maintenance-actions">
-            <button class="btn btn-warn btn-sm" onclick="pruneSystem()">Run System Prune</button>
-          </div>
-          <div class="danger-note">Use with care on hosts where you keep stopped containers around intentionally.</div>
-        </div>
-
-        <div class="maintenance-item">
-          <div class="maintenance-title">Volume Prune</div>
-          <div class="maintenance-text">Removes unused local volumes. This can delete stored application data if you no longer have containers referencing it.</div>
-          <div class="maintenance-actions">
-            <button class="btn btn-warn btn-sm" onclick="pruneVolumes(false)">Anonymous Only</button>
-            <button class="btn btn-danger btn-sm" onclick="pruneVolumes(true)">All Unused</button>
-          </div>
-          <div class="danger-note">Most destructive cleanup option. Review before using on stateful stacks.</div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <div class="grid-2">
     <div class="card">
@@ -391,6 +370,19 @@ function getStoredAutoRecreate() {
 function setStoredAutoRecreate(value) {
   localStorage.setItem(STORAGE_AUTO_RECREATE_KEY, value ? 'true' : 'false');
 }
+
+function toggleToolsMenu(event) {
+  event.stopPropagation();
+  const menu = document.getElementById('toolsMenu');
+  menu.classList.toggle('hidden');
+}
+
+document.addEventListener('click', function() {
+  const menu = document.getElementById('toolsMenu');
+  if (menu && !menu.classList.contains('hidden')) {
+    menu.classList.add('hidden');
+  }
+});
 
 function buildThemeIcon(mode) {
   return mode === 'dark'
