@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import logging
 import socket
@@ -101,6 +102,8 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder="static")
+# When running app.py as a script, alias __main__ to app so route imports work consistently.
+sys.modules["app"] = sys.modules[__name__]
 CORS(app)
 
 docker_client: Optional[docker.DockerClient] = None
