@@ -24,10 +24,10 @@ services:
       LOG_LEVEL: INFO
       # Remote instance discovery — uncomment to enable
       REMOTE_INSTANCES_FILE: /app/remote_instances.json
-      NOTIFY_ENABLED: true
-      NOTIFY_BACKEND: webhook
-      NOTIFY_WEBHOOK_URL: ${NOTIFY_WEBHOOK_URL}
-      NOTIFY_WEBHOOK_METHOD: POST
+      #NOTIFY_ENABLED: true
+      #NOTIFY_BACKEND: webhook
+      #NOTIFY_WEBHOOK_URL: ${NOTIFY_WEBHOOK_URL}
+      #NOTIFY_WEBHOOK_METHOD: POST
 
 # For MQTT notification, uncomment and configure the following:
       # NOTIFY_BACKEND: mqtt
