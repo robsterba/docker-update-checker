@@ -35,6 +35,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
     - `NOTIFY_ON_BULK_COMPLETE`
   - `/api/notify/test` endpoint and UI **Test Notification** button
 
+- **Backend refactor and API extraction**
+  - `app.py` refactored to delegate responsibilities across new modules:
+    - `config.py` for configuration loading
+    - `docker_utils.py` for compose scanning, image checks, and Docker compose operations
+    - `jobs.py` for background job state and operation logging
+    - `notifier.py` for webhook/MQTT/email notification delivery
+    - `api.py` for Flask route handlers
+  - Eliminated monolithic route handling inside `app.py`
+  - `/api/*` endpoints are now centralized in `api.py` for cleaner separation of concerns
+
 - **Bulk update actions**
   - **Pull All Updates** — pull all outdated images across all stacks
   - **Pull All (Selected Stack)** — pull all outdated images in a single stack

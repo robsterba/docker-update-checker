@@ -88,6 +88,11 @@ The web UI is available at `http://<your-host>:5000` and refreshes automatically
 ```text
 docker-update-checker/
 ├── app.py
+├── api.py                   # Flask API route handlers
+├── config.py                # environment parsing and configuration
+├── docker_utils.py          # Docker and compose helpers
+├── jobs.py                  # job state, progress tracking, and operation log
+├── notifier.py              # notification backends (webhook, MQTT, email)
 ├── compose.yaml             # Compose file for deploying the checker
 ├── Dockerfile
 ├── requirements.txt
@@ -96,10 +101,12 @@ docker-update-checker/
     └── index.html           # Dashboard UI
 ```
 
-Over time, the backend is modularized into:
-- services (compose parsing, image checking, Docker operations, notifications)
-- job management and state tracking
-- notification dispatchers (webhook, MQTT, email)
+The backend is now modularized into:
+- `config.py` for runtime configuration and environment variables
+- `docker_utils.py` for compose scanning, image checks, and Docker compose operations
+- `jobs.py` for background job tracking and operation logging
+- `notifier.py` for webhook, MQTT, and email notification delivery
+- `api.py` for the Flask route handlers and HTTP API surface
 
 ---
 
