@@ -444,30 +444,30 @@ def proxy_remote_request(instance_id: str, proxy_path: str) -> Response:
 
 def proxy_local_request(proxy_path: str) -> Response:
     if proxy_path == "status":
-        return api_status()
+        return api.api_status()
     if proxy_path == "images":
-        return api_images()
+        return api.api_images()
     if proxy_path == "stacks":
-        return api_stacks()
+        return api.api_stacks()
     if proxy_path == "jobs":
-        return api_jobs()
+        return api.api_jobs()
     if proxy_path == "operations":
-        return api_operations()
+        return api.api_operations()
     if proxy_path == "config":
-        return api_config()
+        return api.api_config()
     if proxy_path == "check":
-        return api_check()
+        return api.api_check()
     if proxy_path.startswith("check/"):
-        return api_check_single(proxy_path[len("check/"):])
+        return api.api_check_single(proxy_path[len("check/"):])
     if proxy_path.startswith("update/"):
-        return api_update_image(proxy_path[len("update/"):])
+        return api.api_update_image(proxy_path[len("update/"):])
     if proxy_path == "bulk/update":
-        return api_bulk_update()
+        return api.api_bulk_update()
     if proxy_path.startswith("stacks/") and proxy_path.endswith("/recreate"):
         stack_name = proxy_path[len("stacks/"):-len("/recreate")]
-        return api_stack_recreate(stack_name)
+        return api.api_stack_recreate(stack_name)
     if proxy_path == "compose/recreate":
-        return api_compose_recreate()
+        return api.api_compose_recreate()
     if proxy_path.startswith("prune/"):
         prune_type = proxy_path.split("/", 1)[1]
         if prune_type == "containers":

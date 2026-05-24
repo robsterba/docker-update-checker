@@ -14,6 +14,7 @@ Right now there is intentionally no automatic updating — this is meant to be s
 - 📦 **Stack grouping** — images are grouped by Compose “stack” (based on directory name) for easier overview and bulk actions  
 - 🌐 **Remote instance aggregation** — connect to other `docker-update-checker` instances and monitor multiple hosts from one dashboard  
 - ✅ **Host selection & health panel** — choose a host, view online/offline status, and inspect last check times across local and remote instances  
+- 🧩 **Modular backend architecture** — the backend is split across `app.py`, `api.py`, `config.py`, `docker_utils.py`, `jobs.py`, and `notifier.py` for cleaner separation of concerns and easier remote deployment  
 - 🔄 **Bulk update actions**  
   - **Pull All Updates** — pull all outdated images across all stacks  
   - **Pull All (Selected Stack)** — pull all outdated images in a single stack  
@@ -108,6 +109,8 @@ The backend is now modularized into:
 - `notifier.py` for webhook, MQTT, and email notification delivery
 - `api.py` for the Flask route handlers and HTTP API surface
 
+`app.py` boots the Flask app, initializes the scheduler, and imports `api` to register HTTP routes.
+
 ---
 
 ## Quick Start
@@ -145,6 +148,8 @@ docker compose up -d --build
 ```text
 http://localhost:5000
 ```
+
+If you deploy this service to multiple nodes, make sure each node is built and restarted with the latest source changes. Remote instances are aggregated via `REMOTE_INSTANCES` or `REMOTE_INSTANCES_FILE`, and each node must expose its local API on port `5000`.
 
 ---
 
