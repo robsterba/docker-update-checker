@@ -1,5 +1,5 @@
 from flask import send_from_directory, jsonify, request, Response
-import app
+import app as app_module
 from app import *
 
 
@@ -13,20 +13,20 @@ def index():
 
 @app.route("/api/status")
 def api_status():
-    with app.state_lock:
+    with app_module.state_lock:
         return jsonify({
-            "last_check": app.last_full_check,
-            "total": len(app.check_results),
-            "up_to_date": sum(1 for r in app.check_results.values()
+            "last_check": app_module.last_full_check,
+            "total": len(app_module.check_results),
+            "up_to_date": sum(1 for r in app_module.check_results.values()
                               if r["status"] == "up_to_date"),
-            "updates_available": sum(1 for r in app.check_results.values()
+            "updates_available": sum(1 for r in app_module.check_results.values()
                                      if r["status"] == "update_available"),
-            "unknown": sum(1 for r in app.check_results.values()
+            "unknown": sum(1 for r in app_module.check_results.values()
                            if r["status"] in ("unknown", "registry_error", "not_pulled")),
-            "check_interval_minutes": app.CHECK_INTERVAL_MINUTES,
-            "auto_recreate_after_pull": app.AUTO_RECREATE_AFTER_PULL,
-            "notify_enabled": app.NOTIFY_ENABLED,
-            "notify_backend": app.NOTIFY_BACKEND or None
+            "check_interval_minutes": app_module.CHECK_INTERVAL_MINUTES,
+            "auto_recreate_after_pull": app_module.AUTO_RECREATE_AFTER_PULL,
+            "notify_enabled": app_module.NOTIFY_ENABLED,
+            "notify_backend": app_module.NOTIFY_BACKEND or None
         })
 
 
