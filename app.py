@@ -21,79 +21,41 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import smtplib
 from email.message import EmailMessage
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def get_env(key: str, default: str = "") -> str:
-    return os.environ.get(key, default)
-
-
-def get_bool_env(key: str, default: bool = False) -> bool:
-    value = os.environ.get(key)
-    if value is None:
-        return default
-    return str(value).strip().lower() in ("1", "true", "yes", "on")
-
-
-def get_int_env(key: str, default: int = 0) -> int:
-    try:
-        return int(os.environ.get(key, default))
-    except (TypeError, ValueError):
-        return default
-
-
-def read_dotenv(dotenv_path: Path) -> dict[str, str]:
-    env: dict[str, str] = {}
-    if not dotenv_path.exists():
-        return env
-
-    with dotenv_path.open(encoding="utf-8") as handle:
-        for line in handle:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            env[key.strip()] = value.strip().strip('"').strip("'")
-    return env
-
-
-# ── Config ────────────────────────────────────────────────────────────────────
-COMPOSE_ROOT = get_env("COMPOSE_ROOT", "/compose")
-CHECK_INTERVAL_MINUTES = get_int_env("CHECK_INTERVAL_MINUTES", 60)
-LOG_LEVEL = get_env("LOG_LEVEL", "INFO")
-AUTO_RECREATE_AFTER_PULL = get_bool_env("AUTO_RECREATE_AFTER_PULL", False)
-NOTIFY_ENABLED = get_bool_env("NOTIFY_ENABLED", False)
-NOTIFY_BACKEND = get_env("NOTIFY_BACKEND", "").strip().lower()
-
-NOTIFY_WEBHOOK_URL = get_env("NOTIFY_WEBHOOK_URL", "").strip()
-NOTIFY_WEBHOOK_METHOD = get_env("NOTIFY_WEBHOOK_METHOD", "POST").strip().upper()
-NOTIFY_WEBHOOK_TIMEOUT = get_int_env("NOTIFY_WEBHOOK_TIMEOUT", 10)
-
-NOTIFY_MQTT_HOST = get_env("NOTIFY_MQTT_HOST", "").strip()
-NOTIFY_MQTT_PORT = get_int_env("NOTIFY_MQTT_PORT", 1883)
-NOTIFY_MQTT_TOPIC = get_env("NOTIFY_MQTT_TOPIC", "").strip()
-NOTIFY_MQTT_USERNAME = get_env("NOTIFY_MQTT_USERNAME", "").strip()
-NOTIFY_MQTT_PASSWORD = get_env("NOTIFY_MQTT_PASSWORD", "").strip()
-NOTIFY_MQTT_RETAIN = get_bool_env("NOTIFY_MQTT_RETAIN", False)
-
-NOTIFY_EMAIL_HOST = get_env("NOTIFY_EMAIL_HOST", "").strip()
-NOTIFY_EMAIL_PORT = get_int_env("NOTIFY_EMAIL_PORT", 587)
-NOTIFY_EMAIL_USERNAME = get_env("NOTIFY_EMAIL_USERNAME", "").strip()
-NOTIFY_EMAIL_PASSWORD = get_env("NOTIFY_EMAIL_PASSWORD", "").strip()
-NOTIFY_EMAIL_FROM = get_env("NOTIFY_EMAIL_FROM", "").strip()
-NOTIFY_EMAIL_TO = get_env("NOTIFY_EMAIL_TO", "").strip()
-NOTIFY_EMAIL_USE_TLS = get_bool_env("NOTIFY_EMAIL_USE_TLS", True)
-
-NOTIFY_ON_UPDATES_FOUND = get_bool_env("NOTIFY_ON_UPDATES_FOUND", True)
-NOTIFY_ON_PULL_SUCCESS = get_bool_env("NOTIFY_ON_PULL_SUCCESS", False)
-NOTIFY_ON_PULL_ERROR = get_bool_env("NOTIFY_ON_PULL_ERROR", True)
-NOTIFY_ON_RECREATE_SUCCESS = get_bool_env("NOTIFY_ON_RECREATE_SUCCESS", False)
-NOTIFY_ON_RECREATE_ERROR = get_bool_env("NOTIFY_ON_RECREATE_ERROR", True)
-NOTIFY_ON_BULK_COMPLETE = get_bool_env("NOTIFY_ON_BULK_COMPLETE", True)
-
-REMOTE_INSTANCES_CONFIG = get_env("REMOTE_INSTANCES", "").strip()
-REMOTE_INSTANCES_FILE = get_env("REMOTE_INSTANCES_FILE", "").strip()
-TOKEN_CACHE_TTL = get_int_env("TOKEN_CACHE_TTL", 900)
-REGISTRY_TOKEN_CACHE: dict[str, dict[str, Any]] = {}
+# ── Import configuration from config.py (single source of truth) ──────────────
+from config import (
+    COMPOSE_ROOT,
+    CHECK_INTERVAL_MINUTES,
+    LOG_LEVEL,
+    AUTO_RECREATE_AFTER_PULL,
+    NOTIFY_ENABLED,
+    NOTIFY_BACKEND,
+    NOTIFY_WEBHOOK_URL,
+    NOTIFY_WEBHOOK_METHOD,
+    NOTIFY_WEBHOOK_TIMEOUT,
+    NOTIFY_MQTT_HOST,
+    NOTIFY_MQTT_PORT,
+    NOTIFY_MQTT_TOPIC,
+    NOTIFY_MQTT_USERNAME,
+    NOTIFY_MQTT_PASSWORD,
+    NOTIFY_MQTT_RETAIN,
+    NOTIFY_EMAIL_HOST,
+    NOTIFY_EMAIL_PORT,
+    NOTIFY_EMAIL_USERNAME,
+    NOTIFY_EMAIL_PASSWORD,
+    NOTIFY_EMAIL_FROM,
+    NOTIFY_EMAIL_TO,
+    NOTIFY_EMAIL_USE_TLS,
+    NOTIFY_ON_UPDATES_FOUND,
+    NOTIFY_ON_PULL_SUCCESS,
+    NOTIFY_ON_PULL_ERROR,
+    NOTIFY_ON_RECREATE_SUCCESS,
+    NOTIFY_ON_RECREATE_ERROR,
+    NOTIFY_ON_BULK_COMPLETE,
+    REMOTE_INSTANCES_CONFIG,
+    REMOTE_INSTANCES_FILE,
+    TOKEN_CACHE_TTL,
+    REGISTRY_TOKEN_CACHE,
+)
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),
@@ -443,43 +405,174 @@ def proxy_remote_request(instance_id: str, proxy_path: str) -> Response:
 
 
 def proxy_local_request(proxy_path: str) -> Response:
+    # Map proxy paths to the actual functions in app module
     if proxy_path == "status":
-        return api.api_status()
+        with state_lock:
+            return jsonify({
+                "last_check": last_full_check,
+                "total": len(check_results),
+                "up_to_date": sum(1 for r in check_results.values()
+                                  if r["status"] == "up_to_date"),
+                "updates_available": sum(1 for r in check_results.values()
+                                         if r["status"] == "update_available"),
+                "unknown": sum(1 for r in check_results.values()
+                               if r["status"] in ("unknown", "registry_error", "not_pulled")),
+                "check_interval_minutes": CHECK_INTERVAL_MINUTES,
+                "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
+                "notify_enabled": NOTIFY_ENABLED,
+                "notify_backend": NOTIFY_BACKEND or None
+            })
     if proxy_path == "images":
-        return api.api_images()
+        with state_lock:
+            return jsonify(list(check_results.values()))
     if proxy_path == "stacks":
-        return api.api_stacks()
+        return jsonify(summarize_stacks())
     if proxy_path == "jobs":
-        return api.api_jobs()
+        with state_lock:
+            jobs = sorted(
+                jobs_state.values(),
+                key=lambda j: j.get("started_at", ""),
+                reverse=True
+            )
+            return jsonify(jobs[:30])
     if proxy_path == "operations":
-        return api.api_operations()
+        return jsonify(operations_log.latest(50))
     if proxy_path == "config":
-        return api.api_config()
+        return jsonify({"auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL})
     if proxy_path == "check":
-        return api.api_check()
+        job_id = create_job("full_check", "all", total_steps=4)
+        threading.Thread(target=run_full_check, args=(job_id,), daemon=True).start()
+        return jsonify({"status": "started", "job_id": job_id})
     if proxy_path.startswith("check/"):
-        return api.api_check_single(proxy_path[len("check/"):])
+        image_ref = proxy_path[len("check/"):]
+        job_id = create_job("check_image", image_ref, total_steps=2, meta={"image": image_ref})
+        update_job(job_id, progress=0, current_step="Checking image", message=f"Checking {image_ref}")
+        try:
+            result = check_image(image_ref)
+            with state_lock:
+                if image_ref in check_results:
+                    result["compose_files"] = check_results[image_ref].get("compose_files", [])
+                else:
+                    result["compose_files"] = []
+                result["stacks"] = sorted(list({derive_stack_name(p) for p in result["compose_files"]}))
+                check_results[image_ref] = result
+
+            log_op("check", image_ref, "success", f"Status: {result['status']}")
+            update_job(job_id,
+                       progress=1,
+                       current_step="Check complete",
+                       message=f"Status: {result['status']}",
+                       event={"status": "success", "message": f"{image_ref}: {result['status']}"})
+            finish_job(job_id, "success", f"{image_ref}: {result['status']}")
+            return jsonify({"job_id": job_id, **result})
+        except Exception as e:
+            log_op("check", image_ref, "error", str(e))
+            finish_job(job_id, "error", str(e))
+            return jsonify({"status": "error", "message": str(e), "job_id": job_id}), 500
     if proxy_path.startswith("update/"):
-        return api.api_update_image(proxy_path[len("update/"):])
+        return api_update_image(proxy_path[len("update/"):])
     if proxy_path == "bulk/update":
-        return api.api_bulk_update()
+        data = request.get_json(silent=True) or {}
+        stack_name = data.get("stack")
+        auto_recreate = data.get("auto_recreate", AUTO_RECREATE_AFTER_PULL)
+        target = stack_name or "all"
+        job_id = create_job("bulk_pull", target, stack=stack_name, total_steps=1,
+                          meta={"stack": stack_name, "auto_recreate": auto_recreate})
+        threading.Thread(target=run_bulk_pull, args=(job_id, stack_name, auto_recreate), daemon=True).start()
+        return jsonify({"status": "started", "job_id": job_id, "stack": stack_name, "auto_recreate": auto_recreate})
     if proxy_path.startswith("stacks/") and proxy_path.endswith("/recreate"):
         stack_name = proxy_path[len("stacks/"):-len("/recreate")]
-        return api.api_stack_recreate(stack_name)
+        job_id = create_job("recreate_stack", stack_name, stack=stack_name, total_steps=1, meta={"stack": stack_name})
+        threading.Thread(target=run_stack_recreate, args=(job_id, stack_name), daemon=True).start()
+        return jsonify({"status": "started", "job_id": job_id, "stack": stack_name})
     if proxy_path == "compose/recreate":
-        return api.api_compose_recreate()
+        data = request.get_json(silent=True) or {}
+        compose_path = data.get("compose_path")
+        if not compose_path:
+            return jsonify({"status": "error", "message": "compose_path required"}), 400
+        compose_file = Path(compose_path)
+        if not compose_file.exists():
+            return jsonify({"status": "error", "message": "File not found"}), 404
+        stack = derive_stack_name(str(compose_file))
+        job_id = create_job("recreate_stack", compose_path, stack=stack, total_steps=3, meta={"compose_path": compose_path})
+        log_op("recreate", compose_path, "started", "Running docker compose up -d")
+        update_job(job_id, progress=0, current_step="Preparing recreate", message=f"Preparing recreate for {compose_path}")
+        try:
+            update_job(job_id, progress=1, current_step="Running docker compose",
+                       message=f"docker compose up -d for {compose_path}",
+                       event={"status": "started", "message": f"Recreate started for stack {stack}"})
+            r = subprocess.run(
+                ["docker", "compose", "-f", str(compose_file), "up", "-d", "--remove-orphans"],
+                capture_output=True, text=True, timeout=300,
+                cwd=str(compose_file.parent)
+            )
+            if r.returncode == 0:
+                update_job(job_id, progress=2, current_step="Refreshing stack state",
+                           message=f"Refreshing image state for {stack}")
+                refreshed = 0
+                related_images = []
+                with state_lock:
+                    for image_ref, item in check_results.items():
+                        if compose_path in (item.get("compose_files") or []):
+                            related_images.append(image_ref)
+                for image_ref in related_images:
+                    result = check_image(image_ref)
+                    with state_lock:
+                        existing = check_results.get(image_ref, {})
+                        result["compose_files"] = existing.get("compose_files", [])
+                        result["stacks"] = sorted(list({derive_stack_name(p) for p in result["compose_files"]}))
+                        check_results[image_ref] = result
+                    refreshed += 1
+                log_op("recreate", compose_path, "success", r.stdout or "Done")
+                notify_recreate_result(compose_path, ok=True, message=r.stdout or "Recreate completed", stack=stack)
+                finish_job(job_id, "success", f"Recreated stack {stack}, refreshed {refreshed} images")
+                return jsonify({"status": "success", "output": r.stdout, "job_id": job_id})
+            else:
+                log_op("recreate", compose_path, "error", r.stderr)
+                notify_recreate_result(compose_path, ok=False, message=r.stderr, stack=stack)
+                finish_job(job_id, "error", r.stderr)
+                return jsonify({"status": "error", "message": r.stderr, "job_id": job_id}), 500
+        except subprocess.TimeoutExpired:
+            log_op("recreate", compose_path, "error", "Timed out")
+            notify_recreate_result(compose_path, ok=False, message="Timed out after 300s", stack=stack)
+            finish_job(job_id, "error", "Timed out after 300s")
+            return jsonify({"status": "error", "message": "Timed out after 300s", "job_id": job_id}), 500
+        except Exception as e:
+            log_op("recreate", compose_path, "error", str(e))
+            notify_recreate_result(compose_path, ok=False, message=str(e), stack=stack)
+            finish_job(job_id, "error", str(e))
+            return jsonify({"status": "error", "message": str(e), "job_id": job_id}), 500
     if proxy_path.startswith("prune/"):
         prune_type = proxy_path.split("/", 1)[1]
+        include_all = False
         if prune_type == "containers":
-            return api_prune_containers()
-        if prune_type == "images":
-            return api_prune_images()
-        if prune_type == "system":
-            return api_prune_system()
-        if prune_type == "volumes":
-            return api_prune_volumes()
+            job_id = create_job("prune_containers", "containers", total_steps=2, meta={"prune_type": "containers"})
+        elif prune_type == "images":
+            data = request.get_json(silent=True) or {}
+            include_all = bool(data.get("all", False))
+            job_id = create_job("prune_images", "images", total_steps=2, meta={"prune_type": "images", "all": include_all})
+        elif prune_type == "system":
+            job_id = create_job("prune_system", "system", total_steps=2, meta={"prune_type": "system"})
+        elif prune_type == "volumes":
+            data = request.get_json(silent=True) or {}
+            include_all = bool(data.get("all", False))
+            job_id = create_job("prune_volumes", "volumes", total_steps=2, meta={"prune_type": "volumes", "all": include_all})
+        else:
+            return jsonify({"status": "error", "message": "Unsupported prune type"}), 400
+        threading.Thread(target=run_prune_job, args=(job_id, prune_type, include_all), daemon=True).start()
+        return jsonify({"status": "started", "job_id": job_id, "prune_type": prune_type, "all": include_all})
     if proxy_path == "notify/test":
-        return api_notify_test()
+        try:
+            send_notification(
+                event_type="test",
+                title="Docker Update Checker test notification",
+                message="This is a test notification from docker-update-checker.",
+                status="info",
+                extra={"manual_test": True}
+            )
+            return jsonify({"status": "success"})
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 500
 
     return jsonify({"status": "error", "message": "Unsupported local proxy path"}), 400
 

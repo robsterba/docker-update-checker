@@ -1,6 +1,48 @@
 from flask import send_from_directory, jsonify, request, Response
+import threading
 import app as app_module
-from app import *
+
+# Import everything from app that api.py needs
+from app import (
+    app,
+    state_lock,
+    check_results,
+    last_full_check,
+    operations_log,
+    job_manager,
+    jobs_state,
+    docker_client,
+    AUTO_RECREATE_AFTER_PULL,
+    NOTIFY_ENABLED,
+    NOTIFY_BACKEND,
+    CHECK_INTERVAL_MINUTES,
+    # Functions
+    get_all_instances,
+    proxy_local_request,
+    proxy_remote_request,
+    log_op,
+    derive_stack_name,
+    create_job,
+    update_job,
+    finish_job,
+    run_full_check,
+    get_services_for_image,
+    recreate_compose,
+    refresh_image_result,
+    get_images_for_stack,
+    get_outdated_images,
+    summarize_stacks,
+    find_compose_files,
+    parse_images_from_compose,
+    check_image,
+    run_bulk_pull,
+    run_stack_recreate,
+    run_prune_job,
+    notify_pull_result,
+    notify_recreate_result,
+    notify_bulk_complete,
+    send_notification,
+)
 
 
 # ── Routes (moved from app.py) ─────────────────────────────────────────────────
@@ -13,20 +55,20 @@ def index():
 
 @app.route("/api/status")
 def api_status():
-    with app_module.state_lock:
+    with state_lock:
         return jsonify({
-            "last_check": app_module.last_full_check,
-            "total": len(app_module.check_results),
-            "up_to_date": sum(1 for r in app_module.check_results.values()
+            "last_check": last_full_check,
+            "total": len(check_results),
+            "up_to_date": sum(1 for r in check_results.values()
                               if r["status"] == "up_to_date"),
-            "updates_available": sum(1 for r in app_module.check_results.values()
+            "updates_available": sum(1 for r in check_results.values()
                                      if r["status"] == "update_available"),
-            "unknown": sum(1 for r in app_module.check_results.values()
+            "unknown": sum(1 for r in check_results.values()
                            if r["status"] in ("unknown", "registry_error", "not_pulled")),
-            "check_interval_minutes": app_module.CHECK_INTERVAL_MINUTES,
-            "auto_recreate_after_pull": app_module.AUTO_RECREATE_AFTER_PULL,
-            "notify_enabled": app_module.NOTIFY_ENABLED,
-            "notify_backend": app_module.NOTIFY_BACKEND or None
+            "check_interval_minutes": CHECK_INTERVAL_MINUTES,
+            "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
+            "notify_enabled": NOTIFY_ENABLED,
+            "notify_backend": NOTIFY_BACKEND or None
         })
 
 
@@ -37,8 +79,6 @@ def api_instances():
 
 @app.route("/api/config", methods=["GET", "POST"])
 def api_config():
-    global AUTO_RECREATE_AFTER_PULL
-
     if request.method == "GET":
         return jsonify({"auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL})
 
@@ -52,9 +92,11 @@ def api_config():
     elif not isinstance(auto_recreate, bool):
         return jsonify({"status": "error", "message": "auto_recreate must be true or false"}), 400
 
-    AUTO_RECREATE_AFTER_PULL = auto_recreate
-    log_op("config", "auto_recreate", "success", f"Set auto_recreate_after_pull={AUTO_RECREATE_AFTER_PULL}")
-    return jsonify({"auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL})
+    # Note: AUTO_RECREATE_AFTER_PULL is imported from app module, so we need to update it there
+    # Since it's a module-level variable in app, we can access it via app_module
+    app_module.AUTO_RECREATE_AFTER_PULL = auto_recreate
+    log_op("config", "auto_recreate", "success", f"Set auto_recreate_after_pull={auto_recreate}")
+    return jsonify({"auto_recreate_after_pull": auto_recreate})
 
 
 @app.route("/api/instances/<instance_id>/<path:proxy_path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
