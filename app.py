@@ -17,7 +17,6 @@ import docker
 import yaml
 from flask import Flask, jsonify, request, send_from_directory, Response
 from flask_cors import CORS
-from flask_talisman import Talisman
 from apscheduler.schedulers.background import BackgroundScheduler
 import smtplib
 from email.message import EmailMessage
@@ -85,23 +84,6 @@ app = Flask(__name__, static_folder="static")
 # When running app.py as a script, alias __main__ to app so route imports work consistently.
 sys.modules["app"] = sys.modules[__name__]
 CORS(app)
-
-# ── Security Headers ──────────────────────────────────────────────────────────
-# Add security headers via Talisman
-Talisman(
-    app,
-    force_https=False,  # Set to True if behind HTTPS reverse proxy
-    strict_transport_security=True,
-    session_cookie_secure=True,
-    content_security_policy={
-        'default-src': "'self'",
-        'script-src': "'self' 'unsafe-inline'",
-        'style-src': "'self' 'unsafe-inline'",
-        'img-src': "'self' data:",
-        'connect-src': "'self'"
-    },
-    content_security_policy_nonce_in=['script-src']
-)
 
 # ── Startup Validation ────────────────────────────────────────────────────────
 # Validate COMPOSE_ROOT exists and is readable
