@@ -53,6 +53,17 @@ def index():
     return send_from_directory("static", "index.html")
 
 
+@app.route("/health")
+def health():
+    """Health check endpoint for monitoring."""
+    docker_connected = docker_client is not None
+    return jsonify({
+        "status": "ok",
+        "docker_connected": docker_connected,
+        "version": "1.0.0"
+    }), 200
+
+
 @app.route("/api/status")
 def api_status():
     with state_lock:

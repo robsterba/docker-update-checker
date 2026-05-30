@@ -248,7 +248,19 @@ Notifications are **disabled by default**. Enable them by setting `NOTIFY_ENABLE
 | `/var/run/docker.sock` | `/var/run/docker.sock` | Docker API access for image pulls and compose operations |
 | `/opt/docker` *(your path)* | `/compose` | Directory scanned recursively for compose files |
 
-> **Note:** The Docker socket is mounted `:ro` (read-only) by default. If `docker compose up -d` recreate operations fail with a permission error, change it to `:rw` in `docker-compose.yml`.
+> **⚠️ Docker Socket Permissions - Security Consideration**
+> 
+> The Docker socket is mounted **read-only (`:ro`)** by default in `compose.yaml`. This is more secure but has limitations:
+> 
+> | Mount Mode | Can Pull Images | Can Run `docker compose up -d` | Security |
+> |---|---|---|---|
+> | `:ro` (read-only) | ✅ Yes | ❌ No - will fail with permission error | **More secure** |
+> | `:rw` (read-write) | ✅ Yes | ✅ Yes | Less secure |
+> 
+> **Recommendation:** 
+> - Use `:ro` if you only need to **check for updates** and **pull images** (the app can still pull images via the Docker SDK with read-only socket)
+> - Use `:rw` if you need **automatic service recreation** (`docker compose up -d`)
+> - For maximum security: Keep as `:ro` and manually recreate containers after pulling updates via the dashboard
 
 ---
 

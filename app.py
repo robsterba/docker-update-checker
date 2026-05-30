@@ -17,6 +17,7 @@ import docker
 import yaml
 from flask import Flask, jsonify, request, send_from_directory, Response
 from flask_cors import CORS
+from flask_talisman import Talisman
 from apscheduler.schedulers.background import BackgroundScheduler
 import smtplib
 from email.message import EmailMessage
@@ -84,6 +85,34 @@ app = Flask(__name__, static_folder="static")
 # When running app.py as a script, alias __main__ to app so route imports work consistently.
 sys.modules["app"] = sys.modules[__name__]
 CORS(app)
+
+# ── Security Headers ──────────────────────────────────────────────────────────
+# Add security headers via Talisman
+Talisman(
+    app,
+    force_https=False,  # Set to True if behind HTTPS reverse proxy
+    strict_transport_security=True,
+    session_cookie_secure=True,
+    content_security_policy={
+        'default-src': "'self'",
+        'script-src': "'self' 'unsafe-inline'",
+        'style-src': "'self' 'unsafe-inline'",
+        'img-src': "'self' data:",
+        'connect-src': "'self'"
+    },
+    content_security_policy_nonce_in=['script-src']
+)
+
+# ── Startup Validation ────────────────────────────────────────────────────────
+# Validate COMPOSE_ROOT exists and is readable
+compose_root_path = Path(COMPOSE_ROOT)
+if not compose_root_path.exists():
+    log.warning(f"COMPOSE_ROOT '{COMPOSE_ROOT}' does not exist. No compose files will be found.")
+elif not compose_root_path.is_dir():
+    log.error(f"COMPOSE_ROOT '{COMPOSE_ROOT}' is not a directory.")
+    sys.exit(1)
+else:
+    log.info(f"COMPOSE_ROOT set to: {COMPOSE_ROOT}")
 
 # Note: docker_client is imported from docker_utils above
 # Docker socket connection is initialized in docker_utils.py
