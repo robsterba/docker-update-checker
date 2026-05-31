@@ -784,16 +784,26 @@ LOW PRIORITY (10+):
 
 | Commit | Message | Changes |
 |--------|---------|---------|
+| `9567381` | Fix: Medium priority issues - imports cleanup, constants, token cache | +82, -35 lines |
+| `0ba8232` | Fix: Add missing NOTIFY_ENABLED and NOTIFY_BACKEND imports | +2 lines |
+| `3638ae4` | Fix: Add back sys.modules alias for Flask route registration | +3 lines |
 | `7eee956` | Fix: Remove redundant wrapper functions in app.py | -36 lines |
 | `0292c9a` | Fix: Resolve circular imports between app.py and api.py | +1021, -366 lines |
 
-**Total**: 2 commits, +985/-402 lines (net +583 lines, mostly due to moving notification functions to notifier.py)
+**Total**: 5 commits, +1083/-444 lines
+
+### Medium Priority Issues Resolved
+- **MR-003**: Clean up duplicate/unnecessary imports in api.py
+- **MR-006**: Add token cache cleanup for REGISTRY_TOKEN_CACHE
+- **MR-007**: Replace magic numbers/strings with constants
 
 ### Files Modified
-- `app.py` - Removed duplicates, cleaned imports
-- `api.py` - Updated to import from canonical modules
-- `jobs.py` - Added shared state (state_lock, check_results, last_full_check)
-- `notifier.py` - Added notification helper functions
+- `app.py` - Removed duplicates, cleaned imports, added constants
+- `api.py` - Updated to import from canonical modules, cleaned up unused imports
+- `config.py` - Added constants and cleanup_token_cache function
+- `jobs.py` - Added shared state, using constants
+- `docker_utils.py` - Using status constants
+- `notifier.py` - Using status constants
 - `Code Review - Findings and Issues.md` - This document
 
 ---
@@ -805,8 +815,17 @@ The following issues from this code review have been **RESOLVED** and pushed to 
 | ID | Issue | Status | Commit |
 |----|-------|--------|--------|
 | CR-001 | Circular Import Problem | ✅ RESOLVED | `0292c9a` |
-| CR-002 | Duplicate Functions Across Modules | ✅ RESOLVED | `0292c9a` |
+| CR-002 | Duplicate Functions Across Modules | ✅ RESOLVED | `0292c9a`, `7eee956` |
 | CR-003 | Inconsistent State Management | ✅ RESOLVED | `0292c9a` |
+| CR-004 | Missing Input Validation | ⏳ BACKLOG | - |
+| CR-005 | Docker Socket Initialization | ⏳ BACKLOG | - |
+| MR-001 | Thread Safety Issues | ⏳ BACKLOG | - |
+| MR-002 | Inefficient Compose File Parsing | ⏳ BACKLOG | - |
+| MR-003 | Duplicate Imports in api.py | ✅ RESOLVED | `9567381` |
+| MR-004 | Inconsistent Error Handling | ⏳ BACKLOG | - |
+| MR-005 | Inconsistent Subprocess Timeouts | ⏳ BACKLOG | - |
+| MR-006 | Memory Leak in REGISTRY_TOKEN_CACHE | ✅ RESOLVED | `9567381` |
+| MR-007 | Magic Numbers and Strings | ✅ RESOLVED | `9567381` |
 
 ---
 
