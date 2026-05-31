@@ -81,6 +81,9 @@ log = logging.getLogger(__name__)
 app = Flask(__name__, static_folder="static")
 CORS(app)
 
+# Fix for circular imports - allows api.py to import from app
+sys.modules["app"] = sys.modules[__name__]
+
 # ── Startup Validation ────────────────────────────────────────────────────────
 # Validate COMPOSE_ROOT exists and is readable
 compose_root_path = Path(COMPOSE_ROOT)
