@@ -30,6 +30,12 @@ from config import (
     REMOTE_INSTANCES_FILE,
     TOKEN_CACHE_TTL,
     REGISTRY_TOKEN_CACHE,
+    # Status constants
+    STATUS_UP_TO_DATE,
+    STATUS_UPDATE_AVAILABLE,
+    STATUS_REGISTRY_ERROR,
+    STATUS_NOT_PULLED,
+    STATUS_UNKNOWN,
 )
 
 # ── Import from canonical modules ────────────────────────────────────────────
@@ -259,11 +265,11 @@ def proxy_local_request(proxy_path: str) -> Response:
                 "last_check": last_full_check,
                 "total": len(check_results),
                 "up_to_date": sum(1 for r in check_results.values()
-                                  if r["status"] == "up_to_date"),
+                                  if r["status"] == STATUS_UP_TO_DATE),
                 "updates_available": sum(1 for r in check_results.values()
-                                         if r["status"] == "update_available"),
+                                         if r["status"] == STATUS_UPDATE_AVAILABLE),
                 "unknown": sum(1 for r in check_results.values()
-                               if r["status"] in ("unknown", "registry_error", "not_pulled")),
+                               if r["status"] in (STATUS_UNKNOWN, STATUS_REGISTRY_ERROR, STATUS_NOT_PULLED)),
                 "check_interval_minutes": CHECK_INTERVAL_MINUTES,
                 "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
                 "notify_enabled": NOTIFY_ENABLED,
@@ -466,9 +472,9 @@ def summarize_stacks() -> list[dict]:
             })
             stack["total_images"] += 1
 
-            if item["status"] == "update_available":
+            if item["status"] == STATUS_UPDATE_AVAILABLE:
                 stack["updates_available"] += 1
-            elif item["status"] == "up_to_date":
+            elif item["status"] == STATUS_UP_TO_DATE:
                 stack["up_to_date"] += 1
             else:
                 stack["unknown"] += 1
@@ -514,7 +520,7 @@ def get_outdated_images(stack_name: Optional[str] = None) -> list[str]:
 
     images = []
     for item in items:
-        if item.get("status") not in ("update_available", "not_pulled"):
+        if item.get("status") not in (STATUS_UPDATE_AVAILABLE, STATUS_NOT_PULLED):
             continue
         if stack_name and stack_name not in (item.get("stacks") or []):
             continue
@@ -970,6 +976,10 @@ import api
 scheduler = BackgroundScheduler()
 scheduler.add_job(run_full_check, "interval",
                   minutes=CHECK_INTERVAL_MINUTES, id="full_check")
+# Clean up expired registry tokens every hour to prevent memory leaks
+from config import cleanup_token_cache
+scheduler.add_job(cleanup_token_cache, "interval",
+                  hours=1, id="token_cache_cleanup")
 scheduler.start()
 
 threading.Thread(

@@ -2,6 +2,25 @@ import os
 import time
 import logging
 
+# ── Constants ─────────────────────────────────────────────────────────────────
+
+# Job/Operation log limits
+OPERATION_LOG_MAX_ENTRIES = 200
+JOB_MAX_ENTRIES = 100
+JOB_EVENTS_MAX_ENTRIES = 100
+
+# Status strings for image check results
+STATUS_UP_TO_DATE = "up_to_date"
+STATUS_UPDATE_AVAILABLE = "update_available"
+STATUS_REGISTRY_ERROR = "registry_error"
+STATUS_NOT_PULLED = "not_pulled"
+STATUS_UNKNOWN = "unknown"
+
+# Default timeout values (in seconds)
+DEFAULT_COMPOSE_TIMEOUT = 300  # 5 minutes
+DEFAULT_PRUNE_TIMEOUT = 600    # 10 minutes
+DEFAULT_DOCKER_TIMEOUT = 300   # 5 minutes
+
 def get_env(key: str, default: str = "") -> str:
     return os.environ.get(key, default)
 
@@ -58,6 +77,23 @@ REMOTE_INSTANCES_CONFIG = get_env("REMOTE_INSTANCES", "").strip()
 REMOTE_INSTANCES_FILE = get_env("REMOTE_INSTANCES_FILE", "").strip()
 TOKEN_CACHE_TTL = get_int_env("TOKEN_CACHE_TTL", 900)
 REGISTRY_TOKEN_CACHE: dict[str, dict[str, object]] = {}
+
+
+def cleanup_token_cache() -> int:
+    """Remove expired tokens from the registry token cache.
+    
+    Returns:
+        Number of tokens removed from the cache.
+    """
+    now = time.time()
+    expired_keys = [
+        key for key, value in REGISTRY_TOKEN_CACHE.items()
+        if value.get("expires_at", 0) < now
+    ]
+    for key in expired_keys:
+        REGISTRY_TOKEN_CACHE.pop(key, None)
+    return len(expired_keys)
+
 
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL),

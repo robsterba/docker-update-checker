@@ -24,6 +24,7 @@ from config import (
     NOTIFY_EMAIL_FROM,
     NOTIFY_EMAIL_TO,
     NOTIFY_EMAIL_USE_TLS,
+    STATUS_UPDATE_AVAILABLE,
 )
 
 
@@ -162,7 +163,7 @@ def notify_updates_found(results: dict) -> None:
     if not NOTIFY_ON_UPDATES_FOUND:
         return
 
-    updates = [r for r in results.values() if r["status"] == "update_available"]
+    updates = [r for r in results.values() if r["status"] == STATUS_UPDATE_AVAILABLE]
     if not updates:
         return
 

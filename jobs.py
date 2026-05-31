@@ -3,6 +3,12 @@ import threading
 import uuid
 from typing import Any, Dict, Optional
 
+from config import (
+    OPERATION_LOG_MAX_ENTRIES,
+    JOB_MAX_ENTRIES,
+    JOB_EVENTS_MAX_ENTRIES,
+)
+
 # Single source of truth for the state lock
 state_lock = threading.Lock()
 
@@ -12,7 +18,7 @@ last_full_check: Optional[str] = None
 
 
 class OperationLog:
-    def __init__(self, max_entries: int = 200):
+    def __init__(self, max_entries: int = OPERATION_LOG_MAX_ENTRIES):
         self._entries: list[dict[str, Any]] = []
         self.max_entries = max_entries
 
@@ -35,7 +41,7 @@ class OperationLog:
 
 
 class JobManager:
-    def __init__(self, max_entries: int = 100):
+    def __init__(self, max_entries: int = JOB_MAX_ENTRIES):
         self.jobs_state: dict[str, dict[str, Any]] = {}
         self.max_entries = max_entries
 
@@ -85,7 +91,7 @@ class JobManager:
                     **event,
                 }
                 job["events"].insert(0, entry)
-                if len(job["events"]) > 100:
+                if len(job["events"]) > JOB_EVENTS_MAX_ENTRIES:
                     job["events"].pop()
 
     def finish_job(self, job_id: str, status: str = "success", message: str = "") -> None:
@@ -102,7 +108,7 @@ class JobManager:
                 "status": status,
                 "message": job["message"] or f"Job finished with status: {status}",
             })
-            if len(job["events"]) > 100:
+            if len(job["events"]) > JOB_EVENTS_MAX_ENTRIES:
                 job["events"].pop()
             self._trim_jobs_locked()
 

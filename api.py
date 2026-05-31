@@ -1,7 +1,7 @@
 from flask import send_from_directory, jsonify, request, Response
 import threading
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # Import Flask app and configuration
 from app import (
@@ -29,26 +29,11 @@ from jobs import (
     check_results,
     last_full_check,
     operations_log,
-    job_manager,
     jobs_state,
     log_op,
-    create_job,
-    update_job,
-    finish_job,
 )
-from notifier import (
-    send_notification,
-    notify_pull_result,
-    notify_recreate_result,
-    notify_bulk_complete,
-)
-from docker_utils import (
-    find_compose_files,
-    parse_images_from_compose,
-    get_services_for_image,
-    recreate_compose,
-    check_image,
-)
+
+from docker_utils import find_compose_files
 from config import NOTIFY_ENABLED, NOTIFY_BACKEND
 
 

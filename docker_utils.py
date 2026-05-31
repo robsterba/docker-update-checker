@@ -11,7 +11,16 @@ import docker
 import requests
 import yaml
 
-from config import REGISTRY_TOKEN_CACHE, TOKEN_CACHE_TTL, COMPOSE_ROOT
+from config import (
+    REGISTRY_TOKEN_CACHE,
+    TOKEN_CACHE_TTL,
+    COMPOSE_ROOT,
+    STATUS_UP_TO_DATE,
+    STATUS_UPDATE_AVAILABLE,
+    STATUS_REGISTRY_ERROR,
+    STATUS_NOT_PULLED,
+    STATUS_UNKNOWN,
+)
 
 log = logging.getLogger(__name__)
 
@@ -243,15 +252,15 @@ def check_image(image_ref: str) -> dict:
     now = datetime.now(timezone.utc).isoformat()
 
     if local is None and remote is None:
-        status = "unknown"
+        status = STATUS_UNKNOWN
     elif local is None:
-        status = "not_pulled"
+        status = STATUS_NOT_PULLED
     elif remote is None:
-        status = "registry_error"
+        status = STATUS_REGISTRY_ERROR
     elif local == remote:
-        status = "up_to_date"
+        status = STATUS_UP_TO_DATE
     else:
-        status = "update_available"
+        status = STATUS_UPDATE_AVAILABLE
 
     return {
         "image": image_ref, "status": status,
