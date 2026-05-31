@@ -17,9 +17,10 @@ STATUS_NOT_PULLED = "not_pulled"
 STATUS_UNKNOWN = "unknown"
 
 # Default timeout values (in seconds)
-DEFAULT_COMPOSE_TIMEOUT = 300  # 5 minutes
-DEFAULT_PRUNE_TIMEOUT = 600    # 10 minutes
-DEFAULT_DOCKER_TIMEOUT = 300   # 5 minutes
+DEFAULT_COMPOSE_TIMEOUT = 300     # 5 minutes - for docker compose up/down
+DEFAULT_PRUNE_TIMEOUT = 600       # 10 minutes - for docker prune operations
+DEFAULT_REGISTRY_TIMEOUT = 15     # 15 seconds - for registry API calls
+DEFAULT_PROXY_TIMEOUT = 15         # 15 seconds - for remote instance proxy requests
 
 def get_env(key: str, default: str = "") -> str:
     return os.environ.get(key, default)

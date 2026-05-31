@@ -20,6 +20,8 @@ from config import (
     STATUS_REGISTRY_ERROR,
     STATUS_NOT_PULLED,
     STATUS_UNKNOWN,
+    DEFAULT_COMPOSE_TIMEOUT,
+    DEFAULT_REGISTRY_TIMEOUT,
 )
 
 log = logging.getLogger(__name__)
@@ -126,7 +128,7 @@ def find_compose_files() -> list[dict]:
 
 
 def recreate_compose(compose_path: str, services: Optional[list[str]] = None,
-                     remove_orphans: bool = True, timeout: int = 300) -> subprocess.CompletedProcess:
+                     remove_orphans: bool = True, timeout: int = DEFAULT_COMPOSE_TIMEOUT) -> subprocess.CompletedProcess:
     compose_file = Path(compose_path)
     cmd = ["docker", "compose", "-f", str(compose_file), "up", "-d"]
 
@@ -174,7 +176,7 @@ def get_registry_token(registry: str, repo: str) -> Optional[str]:
             r = requests.get(
                 "https://auth.docker.io/token",
                 params={"service": "registry.docker.io", "scope": f"repository:{repo}:pull"},
-                timeout=15,
+                timeout=DEFAULT_REGISTRY_TIMEOUT,
             )
             r.raise_for_status()
             token = r.json().get("token")
@@ -182,7 +184,7 @@ def get_registry_token(registry: str, repo: str) -> Optional[str]:
             r = requests.get(
                 "https://ghcr.io/token",
                 params={"service": "ghcr.io", "scope": f"repository:{repo}:pull"},
-                timeout=15,
+                timeout=DEFAULT_REGISTRY_TIMEOUT,
             )
             r.raise_for_status()
             token = r.json().get("token")
@@ -221,7 +223,7 @@ def get_remote_digest(image_ref: str) -> Optional[str]:
         else:
             url = f"https://{registry}/v2/{repo}/manifests/{tag}"
 
-        r2 = requests.head(url, headers=headers, timeout=15)
+        r2 = requests.head(url, headers=headers, timeout=DEFAULT_REGISTRY_TIMEOUT)
         r2.raise_for_status()
         return (
             r2.headers.get("Docker-Content-Digest")

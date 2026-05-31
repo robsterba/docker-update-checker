@@ -36,6 +36,10 @@ from config import (
     STATUS_REGISTRY_ERROR,
     STATUS_NOT_PULLED,
     STATUS_UNKNOWN,
+    # Timeout constants
+    DEFAULT_COMPOSE_TIMEOUT,
+    DEFAULT_PRUNE_TIMEOUT,
+    DEFAULT_PROXY_TIMEOUT,
 )
 
 # ── Import from canonical modules ────────────────────────────────────────────
@@ -248,7 +252,7 @@ def proxy_remote_request(instance_id: str, proxy_path: str) -> Response:
             remote_url,
             json=payload if payload is not None else None,
             params=params,
-            timeout=15,
+            timeout=DEFAULT_PROXY_TIMEOUT,
         )
         return Response(response.content, status=response.status_code,
                         content_type=response.headers.get("Content-Type", "application/json"))
@@ -356,7 +360,7 @@ def proxy_local_request(proxy_path: str) -> Response:
                        event={"status": "started", "message": f"Recreate started for stack {stack}"})
             r = subprocess.run(
                 ["docker", "compose", "-f", str(compose_file), "up", "-d", "--remove-orphans"],
-                capture_output=True, text=True, timeout=300,
+                capture_output=True, text=True, timeout=DEFAULT_COMPOSE_TIMEOUT,
                 cwd=str(compose_file.parent)
             )
             if r.returncode == 0:
@@ -857,7 +861,7 @@ def run_stack_recreate(job_id: str, stack_name: str):
     finish_job(job_id, "success", f"Stack recreate complete for {stack_name}")
     log_op("recreate_stack", stack_name, "success", f"Stack recreate complete for {stack_name}")
 
-def run_prune_command(args: list[str], timeout: int = 600) -> subprocess.CompletedProcess:
+def run_prune_command(args: list[str], timeout: int = DEFAULT_PRUNE_TIMEOUT) -> subprocess.CompletedProcess:
     return subprocess.run(
         args,
         capture_output=True,
@@ -919,7 +923,7 @@ def run_prune_job(job_id: str, prune_type: str, include_all: bool = False):
             event={"status": "started", "message": f"Running {' '.join(cmd)}"}
         )
 
-        result = run_prune_command(cmd, timeout=600)
+        result = run_prune_command(cmd, timeout=DEFAULT_PRUNE_TIMEOUT)
         output = (result.stdout or "").strip()
         error_output = (result.stderr or "").strip()
 
