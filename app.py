@@ -481,26 +481,6 @@ def summarize_stacks() -> list[dict]:
         key=lambda s: (-s["updates_available"], s["stack"])
     )
 
-def find_compose_files() -> list[dict]:
-    return docker_utils.find_compose_files()
-
-
-def resolve_env_vars(value: str, env: dict) -> str:
-    return docker_utils.resolve_env_vars(value, env)
-
-
-def parse_images_from_compose(path: str) -> list[str]:
-    return docker_utils.parse_images_from_compose(path)
-
-def get_services_for_image(compose_path: str, image_ref: str) -> list[str]:
-    return docker_utils.get_services_for_image(compose_path, image_ref)
-
-
-def recreate_compose(compose_path: str, services: Optional[list[str]] = None,
-                     remove_orphans: bool = True, timeout: int = 300) -> subprocess.CompletedProcess:
-    return docker_utils.recreate_compose(compose_path, services, remove_orphans, timeout)
-
-
 def refresh_image_result(image_ref: str):
     result = check_image(image_ref)
     with state_lock:
@@ -535,22 +515,6 @@ def get_outdated_images(stack_name: Optional[str] = None) -> list[str]:
             continue
         images.append(item["image"])
     return sorted(list(set(images)))
-
-
-def parse_image_ref(image_ref: str) -> tuple[str, str, str]:
-    return docker_utils.parse_image_ref(image_ref)
-
-
-def get_remote_digest(image_ref: str) -> Optional[str]:
-    return docker_utils.get_remote_digest(image_ref)
-
-
-def get_local_digest(image_ref: str) -> Optional[str]:
-    return docker_utils.get_local_digest(image_ref)
-
-
-def check_image(image_ref: str) -> dict:
-    return docker_utils.check_image(image_ref)
 
 
 def run_full_check(job_id: Optional[str] = None):
