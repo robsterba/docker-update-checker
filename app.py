@@ -3,62 +3,60 @@ import sys
 import json
 import logging
 import socket
-import threading
 import subprocess
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 import re
-import uuid
 import requests
 import docker
 import yaml
 from flask import Flask, jsonify, request, send_from_directory, Response
 from flask_cors import CORS
 from apscheduler.schedulers.background import BackgroundScheduler
-import smtplib
-from email.message import EmailMessage
 
-# ── Import configuration from config.py (single source of truth) ──────────────
+# ── Import configuration from config.py ──────────────────────────────────────
 from config import (
     COMPOSE_ROOT,
     CHECK_INTERVAL_MINUTES,
     LOG_LEVEL,
     AUTO_RECREATE_AFTER_PULL,
-    NOTIFY_ENABLED,
-    NOTIFY_BACKEND,
-    NOTIFY_WEBHOOK_URL,
-    NOTIFY_WEBHOOK_METHOD,
-    NOTIFY_WEBHOOK_TIMEOUT,
-    NOTIFY_MQTT_HOST,
-    NOTIFY_MQTT_PORT,
-    NOTIFY_MQTT_TOPIC,
-    NOTIFY_MQTT_USERNAME,
-    NOTIFY_MQTT_PASSWORD,
-    NOTIFY_MQTT_RETAIN,
-    NOTIFY_EMAIL_HOST,
-    NOTIFY_EMAIL_PORT,
-    NOTIFY_EMAIL_USERNAME,
-    NOTIFY_EMAIL_PASSWORD,
-    NOTIFY_EMAIL_FROM,
-    NOTIFY_EMAIL_TO,
-    NOTIFY_EMAIL_USE_TLS,
-    NOTIFY_ON_UPDATES_FOUND,
-    NOTIFY_ON_PULL_SUCCESS,
-    NOTIFY_ON_PULL_ERROR,
-    NOTIFY_ON_RECREATE_SUCCESS,
-    NOTIFY_ON_RECREATE_ERROR,
-    NOTIFY_ON_BULK_COMPLETE,
     REMOTE_INSTANCES_CONFIG,
     REMOTE_INSTANCES_FILE,
     TOKEN_CACHE_TTL,
     REGISTRY_TOKEN_CACHE,
 )
 
+# ── Import from canonical modules ────────────────────────────────────────────
+from jobs import (
+    state_lock,
+    check_results,
+    last_full_check,
+    operations_log,
+    job_manager,
+    jobs_state,
+    log_op,
+    create_job,
+    update_job,
+    finish_job,
+    set_last_full_check,
+    get_check_results,
+    get_last_full_check,
+    get_jobs_state,
+)
+from notifier import (
+    send_notification,
+    notify_updates_found,
+    notify_pull_result,
+    notify_recreate_result,
+    notify_bulk_complete,
+    build_notification_payload,
+)
+
 # ── Import Docker utilities from docker_utils.py ───────────────────────────────
-import docker_utils
 from docker_utils import (
     docker_client,
     read_dotenv,
@@ -81,8 +79,6 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder="static")
-# When running app.py as a script, alias __main__ to app so route imports work consistently.
-sys.modules["app"] = sys.modules[__name__]
 CORS(app)
 
 # ── Startup Validation ────────────────────────────────────────────────────────
@@ -99,150 +95,11 @@ else:
 # Note: docker_client is imported from docker_utils above
 # Docker socket connection is initialized in docker_utils.py
 
-# ── In-memory state ───────────────────────────────────────────────────────────
-state_lock = threading.Lock()
-check_results: dict[str, dict[str, Any]] = {}
-last_full_check: Optional[str] = None
-
-
-class OperationLog:
-    def __init__(self, max_entries: int = 200):
-        self._entries: list[dict[str, Any]] = []
-        self.max_entries = max_entries
-
-    def log(self, action: str, target: str, status: str, message: str) -> None:
-        entry = {
-            "time": datetime.now(timezone.utc).isoformat(),
-            "action": action,
-            "target": target,
-            "status": status,
-            "message": message,
-        }
-        with state_lock:
-            self._entries.insert(0, entry)
-            if len(self._entries) > self.max_entries:
-                self._entries.pop()
-
-    def latest(self, limit: int = 50) -> list[dict[str, Any]]:
-        with state_lock:
-            return self._entries[:limit]
-
-
-class JobManager:
-    def __init__(self, max_entries: int = 100):
-        self.jobs_state: dict[str, dict[str, Any]] = {}
-        self.max_entries = max_entries
-
-    def create_job(self, job_type: str, target: str, stack: Optional[str] = None,
-                   total_steps: int = 1, meta: Optional[dict[str, Any]] = None) -> str:
-        job_id = str(uuid.uuid4())
-        job = {
-            "job_id": job_id,
-            "type": job_type,
-            "target": target,
-            "stack": stack,
-            "status": "running",
-            "progress": 0,
-            "total_steps": max(total_steps, 1),
-            "current_step": "Starting",
-            "started_at": datetime.now(timezone.utc).isoformat(),
-            "finished_at": None,
-            "message": "",
-            "meta": meta or {},
-            "events": [],
-        }
-        with state_lock:
-            self.jobs_state[job_id] = job
-            self._trim_jobs_locked()
-        return job_id
-
-    def update_job(self, job_id: str, progress: Optional[int] = None,
-                   current_step: Optional[str] = None,
-                   message: Optional[str] = None,
-                   event: Optional[dict[str, Any]] = None,
-                   status: Optional[str] = None) -> None:
-        with state_lock:
-            job = self.jobs_state.get(job_id)
-            if not job:
-                return
-            if progress is not None:
-                job["progress"] = max(0, min(progress, job["total_steps"]))
-            if current_step is not None:
-                job["current_step"] = current_step
-            if message is not None:
-                job["message"] = message
-            if status is not None:
-                job["status"] = status
-            if event:
-                entry = {
-                    "time": datetime.now(timezone.utc).isoformat(),
-                    **event,
-                }
-                job["events"].insert(0, entry)
-                if len(job["events"]) > 100:
-                    job["events"].pop()
-
-    def finish_job(self, job_id: str, status: str = "success", message: str = "") -> None:
-        with state_lock:
-            job = self.jobs_state.get(job_id)
-            if not job:
-                return
-            job["status"] = status
-            job["progress"] = job["total_steps"]
-            job["message"] = message or job.get("message", "")
-            job["finished_at"] = datetime.now(timezone.utc).isoformat()
-            job["events"].insert(0, {
-                "time": job["finished_at"],
-                "status": status,
-                "message": job["message"] or f"Job finished with status: {status}",
-            })
-            if len(job["events"]) > 100:
-                job["events"].pop()
-            self._trim_jobs_locked()
-
-    def _trim_jobs_locked(self) -> None:
-        if len(self.jobs_state) <= self.max_entries:
-            return
-        ordered = sorted(
-            self.jobs_state.items(),
-            key=lambda kv: kv[1].get("started_at", ""),
-            reverse=True,
-        )
-        keep_ids = {job_id for job_id, _ in ordered[: self.max_entries]}
-        for job_id in list(self.jobs_state.keys()):
-            if job_id not in keep_ids:
-                self.jobs_state.pop(job_id, None)
-
-
-operations_log = OperationLog()
-job_manager = JobManager()
-jobs_state = job_manager.jobs_state
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
-def log_op(action: str, target: str, status: str, message: str) -> None:
-    operations_log.log(action, target, status, message)
 
 def derive_stack_name(compose_path: str) -> str:
     p = Path(compose_path)
     return p.parent.name or "default"
-
-
-def create_job(job_type: str, target: str, stack: Optional[str] = None,
-               total_steps: int = 1, meta: Optional[dict[str, Any]] = None) -> str:
-    return job_manager.create_job(job_type, target, stack, total_steps, meta)
-
-
-def update_job(job_id: str, progress: Optional[int] = None,
-               current_step: Optional[str] = None,
-               message: Optional[str] = None,
-               event: Optional[dict[str, Any]] = None,
-               status: Optional[str] = None) -> None:
-    job_manager.update_job(job_id, progress, current_step, message, event, status)
-
-
-def finish_job(job_id: str, status: str = "success", message: str = "") -> None:
-    job_manager.finish_job(job_id, status, message)
 
 
 def normalize_remote_instance(entry: dict | str) -> Optional[dict]:
@@ -1024,174 +881,6 @@ def run_stack_recreate(job_id: str, stack_name: str):
 
     finish_job(job_id, "success", f"Stack recreate complete for {stack_name}")
     log_op("recreate_stack", stack_name, "success", f"Stack recreate complete for {stack_name}")
-
-def build_notification_payload(event_type: str, title: str, message: str,
-                               status: str = "info", extra: Optional[dict] = None) -> dict[str, Any]:
-    return {
-        "time": datetime.now(timezone.utc).isoformat(),
-        "event_type": event_type,
-        "title": title,
-        "message": message,
-        "status": status,
-        "host": socket.gethostname(),
-        "app": "docker-update-checker",
-        "extra": extra or {}
-    }
-
-
-def notify_webhook(payload: dict):
-    if not NOTIFY_WEBHOOK_URL:
-        raise RuntimeError("NOTIFY_WEBHOOK_URL not configured")
-
-    method = NOTIFY_WEBHOOK_METHOD if NOTIFY_WEBHOOK_METHOD in ("POST", "PUT") else "POST"
-    headers = {"Content-Type": "application/json"}
-
-    if method == "PUT":
-        r = requests.put(NOTIFY_WEBHOOK_URL, json=payload, headers=headers, timeout=NOTIFY_WEBHOOK_TIMEOUT)
-    else:
-        r = requests.post(NOTIFY_WEBHOOK_URL, json=payload, headers=headers, timeout=NOTIFY_WEBHOOK_TIMEOUT)
-
-    r.raise_for_status()
-
-
-def notify_mqtt(payload: dict):
-    if not NOTIFY_MQTT_HOST or not NOTIFY_MQTT_TOPIC:
-        raise RuntimeError("NOTIFY_MQTT_HOST or NOTIFY_MQTT_TOPIC not configured")
-
-    import paho.mqtt.client as mqtt
-
-    client = mqtt.Client()
-    if NOTIFY_MQTT_USERNAME:
-        client.username_pw_set(NOTIFY_MQTT_USERNAME, NOTIFY_MQTT_PASSWORD or None)
-
-    client.connect(NOTIFY_MQTT_HOST, NOTIFY_MQTT_PORT, 10)
-    client.loop_start()
-    result = client.publish(
-        NOTIFY_MQTT_TOPIC,
-        json.dumps(payload),
-        qos=0,
-        retain=NOTIFY_MQTT_RETAIN
-    )
-    result.wait_for_publish()
-    client.loop_stop()
-    client.disconnect()
-
-
-def notify_email(payload: dict):
-    if not all([NOTIFY_EMAIL_HOST, NOTIFY_EMAIL_FROM, NOTIFY_EMAIL_TO]):
-        raise RuntimeError("Email notification settings incomplete")
-
-    msg = EmailMessage()
-    msg["Subject"] = f"[{payload.get('status', 'info').upper()}] {payload.get('title', 'Notification')}"
-    msg["From"] = NOTIFY_EMAIL_FROM
-    msg["To"] = NOTIFY_EMAIL_TO
-
-    body = [
-        payload.get("title", ""),
-        "",
-        payload.get("message", ""),
-        "",
-        f"Event Type: {payload.get('event_type', '')}",
-        f"Status: {payload.get('status', '')}",
-        f"Time: {payload.get('time', '')}",
-        f"Host: {payload.get('host', '')}",
-        "",
-        json.dumps(payload.get("extra", {}), indent=2),
-    ]
-    msg.set_content("\n".join(body))
-
-    with smtplib.SMTP(NOTIFY_EMAIL_HOST, NOTIFY_EMAIL_PORT, timeout=15) as server:
-        if NOTIFY_EMAIL_USE_TLS:
-            server.starttls()
-        if NOTIFY_EMAIL_USERNAME:
-            server.login(NOTIFY_EMAIL_USERNAME, NOTIFY_EMAIL_PASSWORD)
-        server.send_message(msg)
-
-
-def send_notification(event_type: str, title: str, message: str,
-                      status: str = "info", extra: Optional[dict] = None):
-    if not NOTIFY_ENABLED:
-        return
-
-    payload = build_notification_payload(event_type, title, message, status, extra)
-
-    try:
-        if NOTIFY_BACKEND == "webhook":
-            notify_webhook(payload)
-        elif NOTIFY_BACKEND == "mqtt":
-            notify_mqtt(payload)
-        elif NOTIFY_BACKEND == "email":
-            notify_email(payload)
-        else:
-            raise RuntimeError(f"Unsupported NOTIFY_BACKEND: {NOTIFY_BACKEND}")
-
-        log_op("notify", event_type, "success", f"{NOTIFY_BACKEND}: {title}")
-    except Exception as e:
-        log.warning(f"Notification failed: {e}")
-        log_op("notify", event_type, "error", f"{NOTIFY_BACKEND or 'unknown'}: {e}")
-
-def notify_updates_found(results: dict):
-    if not NOTIFY_ON_UPDATES_FOUND:
-        return
-
-    updates = [r for r in results.values() if r["status"] == "update_available"]
-    if not updates:
-        return
-
-    send_notification(
-        event_type="updates_found",
-        title=f"{len(updates)} image update(s) available",
-        message="New container image updates were detected.",
-        status="info",
-        extra={
-            "count": len(updates),
-            "images": [r["image"] for r in updates],
-            "stacks": sorted(list({s for r in updates for s in r.get("stacks", [])}))
-        }
-    )
-
-
-def notify_pull_result(image_ref: str, ok: bool, message: str, stacks: Optional[list] = None):
-    if ok and not NOTIFY_ON_PULL_SUCCESS:
-        return
-    if (not ok) and not NOTIFY_ON_PULL_ERROR:
-        return
-
-    send_notification(
-        event_type="pull_result",
-        title=f"Pull {'succeeded' if ok else 'failed'}: {image_ref}",
-        message=message,
-        status="success" if ok else "error",
-        extra={"image": image_ref, "stacks": stacks or []}
-    )
-
-
-def notify_recreate_result(target: str, ok: bool, message: str, stack: Optional[str] = None):
-    if ok and not NOTIFY_ON_RECREATE_SUCCESS:
-        return
-    if (not ok) and not NOTIFY_ON_RECREATE_ERROR:
-        return
-
-    send_notification(
-        event_type="recreate_result",
-        title=f"Recreate {'succeeded' if ok else 'failed'}: {target}",
-        message=message,
-        status="success" if ok else "error",
-        extra={"target": target, "stack": stack}
-    )
-
-
-def notify_bulk_complete(target: str, message: str, extra: Optional[dict] = None):
-    if not NOTIFY_ON_BULK_COMPLETE:
-        return
-
-    send_notification(
-        event_type="bulk_complete",
-        title=f"Bulk job complete: {target}",
-        message=message,
-        status="success",
-        extra=extra or {}
-    )
 
 def run_prune_command(args: list[str], timeout: int = 600) -> subprocess.CompletedProcess:
     return subprocess.run(

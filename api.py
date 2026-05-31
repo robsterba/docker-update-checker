@@ -1,48 +1,55 @@
 from flask import send_from_directory, jsonify, request, Response
 import threading
-import app as app_module
+from pathlib import Path
+from typing import Any, Optional
 
-# Import everything from app that api.py needs
+# Import Flask app and configuration
 from app import (
     app,
+    docker_client,
+    AUTO_RECREATE_AFTER_PULL,
+    CHECK_INTERVAL_MINUTES,
+    get_all_instances,
+    proxy_local_request,
+    proxy_remote_request,
+    derive_stack_name,
+    run_full_check,
+    refresh_image_result,
+    get_images_for_stack,
+    get_outdated_images,
+    summarize_stacks,
+    run_bulk_pull,
+    run_stack_recreate,
+    run_prune_job,
+)
+
+# Import from canonical modules
+from jobs import (
     state_lock,
     check_results,
     last_full_check,
     operations_log,
     job_manager,
     jobs_state,
-    docker_client,
-    AUTO_RECREATE_AFTER_PULL,
-    NOTIFY_ENABLED,
-    NOTIFY_BACKEND,
-    CHECK_INTERVAL_MINUTES,
-    # Functions
-    get_all_instances,
-    proxy_local_request,
-    proxy_remote_request,
     log_op,
-    derive_stack_name,
     create_job,
     update_job,
     finish_job,
-    run_full_check,
-    get_services_for_image,
-    recreate_compose,
-    refresh_image_result,
-    get_images_for_stack,
-    get_outdated_images,
-    summarize_stacks,
-    find_compose_files,
-    parse_images_from_compose,
-    check_image,
-    run_bulk_pull,
-    run_stack_recreate,
-    run_prune_job,
+)
+from notifier import (
+    send_notification,
     notify_pull_result,
     notify_recreate_result,
     notify_bulk_complete,
-    send_notification,
 )
+from docker_utils import (
+    find_compose_files,
+    parse_images_from_compose,
+    get_services_for_image,
+    recreate_compose,
+    check_image,
+)
+from config import NOTIFY_ENABLED, NOTIFY_BACKEND
 
 
 # ── Routes (moved from app.py) ─────────────────────────────────────────────────
@@ -103,9 +110,10 @@ def api_config():
     elif not isinstance(auto_recreate, bool):
         return jsonify({"status": "error", "message": "auto_recreate must be true or false"}), 400
 
-    # Note: AUTO_RECREATE_AFTER_PULL is imported from app module, so we need to update it there
-    # Since it's a module-level variable in app, we can access it via app_module
-    app_module.AUTO_RECREATE_AFTER_PULL = auto_recreate
+    # Update the module-level variable in config
+    # Since all imports reference the same module, this updates it globally
+    import config
+    config.AUTO_RECREATE_AFTER_PULL = auto_recreate
     log_op("config", "auto_recreate", "success", f"Set auto_recreate_after_pull={auto_recreate}")
     return jsonify({"auto_recreate_after_pull": auto_recreate})
 

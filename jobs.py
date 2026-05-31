@@ -1,9 +1,14 @@
 from datetime import datetime, timezone
 import threading
 import uuid
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
+# Single source of truth for the state lock
 state_lock = threading.Lock()
+
+# Shared application state
+check_results: Dict[str, Dict[str, Any]] = {}
+last_full_check: Optional[str] = None
 
 
 class OperationLog:
@@ -118,6 +123,27 @@ class JobManager:
 operations_log = OperationLog()
 job_manager = JobManager()
 jobs_state = job_manager.jobs_state
+
+# Helper function for backward compatibility
+def get_jobs_state():
+    """Get the jobs_state dictionary."""
+    return jobs_state
+
+
+def get_check_results():
+    """Get the check_results dictionary."""
+    return check_results
+
+
+def get_last_full_check():
+    """Get the last_full_check timestamp."""
+    return last_full_check
+
+
+def set_last_full_check(value: str):
+    """Set the last_full_check timestamp."""
+    global last_full_check
+    last_full_check = value
 
 
 def log_op(action: str, target: str, status: str, message: str) -> None:
