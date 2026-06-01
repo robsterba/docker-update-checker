@@ -44,6 +44,9 @@ def get_int_env(key: str, default: int = 0) -> int:
 # Registry API rate limiting (in seconds)
 REGISTRY_DELAY_SECONDS = get_int_env("REGISTRY_DELAY_SECONDS", 0)
 
+# Notification throttling (in seconds, 0 = disabled)
+NOTIFY_MAX_FREQUENCY = get_int_env("NOTIFY_MAX_FREQUENCY", 0)
+
 
 # ── Config ────────────────────────────────────────────────────────────────────
 COMPOSE_ROOT = get_env("COMPOSE_ROOT", "/compose")

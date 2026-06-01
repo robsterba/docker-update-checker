@@ -1,8 +1,10 @@
 import json
 import logging
+import time
 import requests
 import smtplib
 import socket
+import threading
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from typing import Any, Optional
@@ -24,8 +26,13 @@ from config import (
     NOTIFY_EMAIL_FROM,
     NOTIFY_EMAIL_TO,
     NOTIFY_EMAIL_USE_TLS,
+    NOTIFY_MAX_FREQUENCY,
     STATUS_UPDATE_AVAILABLE,
 )
+
+# Notification throttling state
+_throttle_lock = threading.Lock()
+_last_notification_time = 0.0
 
 
 def notify_webhook(payload: dict):
@@ -137,6 +144,16 @@ def send_notification(
     
     if not NOTIFY_ENABLED:
         return
+
+    # Apply notification throttling if configured
+    if NOTIFY_MAX_FREQUENCY > 0:
+        global _last_notification_time
+        with _throttle_lock:
+            elapsed = time.time() - _last_notification_time
+            if elapsed < NOTIFY_MAX_FREQUENCY:
+                log.debug(f"Notification throttled: {title} (elapsed: {elapsed:.1f}s < {NOTIFY_MAX_FREQUENCY}s)")
+                return
+            _last_notification_time = time.time()
 
     payload = build_notification_payload(event_type, title, message, status, extra)
 

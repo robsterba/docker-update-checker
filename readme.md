@@ -196,6 +196,7 @@ Notifications are **disabled by default**. Enable them by setting `NOTIFY_ENABLE
 |---|---|---|
 | `NOTIFY_ENABLED` | `false` | Enable notifications (`true` or `false`) |
 | `NOTIFY_BACKEND` | *(empty)* | Notification backend: `webhook`, `mqtt`, or `email` |
+| `NOTIFY_MAX_FREQUENCY` | `0` | Throttle notifications (seconds between sends, `0` = disabled) |
 
 #### Webhook Notifications
 
