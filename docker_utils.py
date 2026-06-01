@@ -3,6 +3,7 @@ import re
 import json
 import logging
 import subprocess
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -22,9 +23,25 @@ from config import (
     STATUS_UNKNOWN,
     DEFAULT_COMPOSE_TIMEOUT,
     DEFAULT_REGISTRY_TIMEOUT,
+    REGISTRY_DELAY_SECONDS,
 )
 
 log = logging.getLogger(__name__)
+
+# Rate limiting lock and tracking
+_registry_lock = threading.Lock()
+_last_registry_request = 0.0
+
+
+def _rate_limit_registry():
+    """Apply rate limiting between registry API requests."""
+    global _last_registry_request
+    if REGISTRY_DELAY_SECONDS > 0:
+        elapsed = time.time() - _last_registry_request
+        if elapsed < REGISTRY_DELAY_SECONDS:
+            time.sleep(REGISTRY_DELAY_SECONDS - elapsed)
+        with _registry_lock:
+            _last_registry_request = time.time()
 
 
 docker_client: Optional[docker.DockerClient] = None
@@ -168,6 +185,9 @@ def get_registry_token(registry: str, repo: str) -> Optional[str]:
     if cached and cached.get("expires_at", 0) > time.time():
         return cached["token"]
 
+    # Apply rate limiting before making registry API call
+    _rate_limit_registry()
+
     token = None
     try:
         if registry in ("registry-1.docker.io", "docker.io"):
@@ -178,6 +198,14 @@ def get_registry_token(registry: str, repo: str) -> Optional[str]:
                 params={"service": "registry.docker.io", "scope": f"repository:{repo}:pull"},
                 timeout=DEFAULT_REGISTRY_TIMEOUT,
             )
+            # Handle 401/403 errors for Docker Hub rate limiting or auth issues
+            if r.status_code in (401, 403):
+                log.warning(
+                    f"Docker Hub authentication error for {repo}. "
+                    f"Mount /root/.docker/config.json to authenticate. "
+                    f"Status: {r.status_code}"
+                )
+                return None
             r.raise_for_status()
             token = r.json().get("token")
         elif registry == "ghcr.io":
@@ -186,8 +214,18 @@ def get_registry_token(registry: str, repo: str) -> Optional[str]:
                 params={"service": "ghcr.io", "scope": f"repository:{repo}:pull"},
                 timeout=DEFAULT_REGISTRY_TIMEOUT,
             )
+            # Handle GitHub auth errors
+            if r.status_code in (401, 403):
+                log.warning(
+                    f"GitHub Container Registry authentication error for {repo}. "
+                    f"Status: {r.status_code}"
+                )
+                return None
             r.raise_for_status()
             token = r.json().get("token")
+    except requests.exceptions.Timeout:
+        log.warning(f"Token retrieval timeout for {registry}/{repo}")
+        return None
     except Exception as e:
         log.debug(f"Token retrieval failed for {registry}/{repo}: {e}")
         return None
@@ -201,6 +239,9 @@ def get_registry_token(registry: str, repo: str) -> Optional[str]:
 
 
 def get_remote_digest(image_ref: str) -> Optional[str]:
+    # Apply rate limiting before making registry API call
+    _rate_limit_registry()
+
     registry, repo, tag = parse_image_ref(image_ref)
     accept = (
         "application/vnd.docker.distribution.manifest.v2+json,"
@@ -224,11 +265,23 @@ def get_remote_digest(image_ref: str) -> Optional[str]:
             url = f"https://{registry}/v2/{repo}/manifests/{tag}"
 
         r2 = requests.head(url, headers=headers, timeout=DEFAULT_REGISTRY_TIMEOUT)
+        
+        # Handle 401/403 errors gracefully
+        if r2.status_code in (401, 403):
+            log.warning(
+                f"Docker Hub authentication error for {image_ref}. "
+                f"Mount /root/.docker/config.json to authenticate."
+            )
+            return None
+        
         r2.raise_for_status()
         return (
             r2.headers.get("Docker-Content-Digest")
             or r2.headers.get("Etag", "").strip('"')
         )
+    except requests.exceptions.Timeout:
+        log.warning(f"Remote digest timeout for {image_ref}")
+        return None
     except Exception as e:
         log.warning(f"Remote digest failed for {image_ref}: {e}")
         return None

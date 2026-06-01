@@ -22,6 +22,9 @@ DEFAULT_PRUNE_TIMEOUT = 600       # 10 minutes - for docker prune operations
 DEFAULT_REGISTRY_TIMEOUT = 15     # 15 seconds - for registry API calls
 DEFAULT_PROXY_TIMEOUT = 15         # 15 seconds - for remote instance proxy requests
 
+# Registry API rate limiting (in seconds)
+REGISTRY_DELAY_SECONDS = get_int_env("REGISTRY_DELAY_SECONDS", 0)
+
 def get_env(key: str, default: str = "") -> str:
     return os.environ.get(key, default)
 
