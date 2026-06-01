@@ -1,3 +1,4 @@
+import os
 import time
 import re
 import json
@@ -135,12 +136,19 @@ def get_services_for_image(compose_path: str, image_ref: str) -> list[str]:
 
 
 def find_compose_files() -> list[dict]:
+    """Find all compose files, without following symlinks for security."""
     root = Path(COMPOSE_ROOT)
     files = []
-    for pattern in ("docker-compose.yml", "docker-compose.yaml",
-                    "compose.yml", "compose.yaml"):
-        for p in root.rglob(pattern, recurse_symlinks=False):
-            files.append({"path": str(p), "project": p.parent.name})
+    patterns = ("docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml")
+    
+    # Use os.walk with followlinks=False for cross-version compatibility
+    # (recurse_symlinks was added in Python 3.12, but we need to support older versions)
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        for filename in filenames:
+            if filename in patterns:
+                full_path = Path(dirpath) / filename
+                files.append({"path": str(full_path), "project": Path(dirpath).name})
+    
     return files
 
 
