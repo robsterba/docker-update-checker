@@ -13,3 +13,6 @@ venv/
 .idea/
 .DS_Store
 .env
+
+# Markdown files - notes and updates
+*.md
