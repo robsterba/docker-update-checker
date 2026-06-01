@@ -15,8 +15,6 @@ from app import (
     derive_stack_name,
     run_full_check,
     refresh_image_result,
-    get_images_for_stack,
-    get_outdated_images,
     summarize_stacks,
     run_bulk_pull,
     run_stack_recreate,
@@ -31,9 +29,21 @@ from jobs import (
     operations_log,
     jobs_state,
     log_op,
+    create_job,
+    update_job,
+    finish_job,
 )
 
-from docker_utils import find_compose_files
+from docker_utils import (
+    find_compose_files,
+    get_services_for_image,
+    recreate_compose,
+)
+from notifier import (
+    send_notification,
+    notify_pull_result,
+    notify_recreate_result,
+)
 from config import NOTIFY_ENABLED, NOTIFY_BACKEND
 
 
