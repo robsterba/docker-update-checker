@@ -139,7 +139,7 @@ def find_compose_files() -> list[dict]:
     files = []
     for pattern in ("docker-compose.yml", "docker-compose.yaml",
                     "compose.yml", "compose.yaml"):
-        for p in root.rglob(pattern):
+        for p in root.rglob(pattern, recurse_symlinks=False):
             files.append({"path": str(p), "project": p.parent.name})
     return files
 
