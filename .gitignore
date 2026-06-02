@@ -14,4 +14,7 @@ venv/
 .DS_Store
 .env
 
-SESSION_CHECKPOINT.md
+# Development documentation (exclude all .md except readme and changelog)
+*.md
+!readme.md
+!CHANGELOG.md
