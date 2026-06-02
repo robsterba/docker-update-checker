@@ -35,6 +35,7 @@ from jobs import (
 )
 
 from docker_utils import (
+    check_image,
     find_compose_files,
     get_services_for_image,
     recreate_compose,
