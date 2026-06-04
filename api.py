@@ -96,15 +96,15 @@ def api_config():
     if request.method == "GET":
         return jsonify({"auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL})
 
+    from schemas import ConfigUpdateRequest
+    
     data = request.get_json(silent=True) or {}
-    if "auto_recreate" not in data:
-        return jsonify({"status": "error", "message": "Missing auto_recreate"}), 400
-
-    auto_recreate = data["auto_recreate"]
-    if isinstance(auto_recreate, str):
-        auto_recreate = auto_recreate.strip().lower() == "true"
-    elif not isinstance(auto_recreate, bool):
-        return jsonify({"status": "error", "message": "auto_recreate must be true or false"}), 400
+    try:
+        # Validate using Pydantic model
+        validated = ConfigUpdateRequest.model_validate(data)
+        auto_recreate = validated.auto_recreate
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
 
     # Update the module-level variable in config
     # Since all imports reference the same module, this updates it globally
@@ -169,10 +169,16 @@ def api_check_single(image_ref):
 
 @app.route("/api/update/<path:image_ref>", methods=["POST"])
 def api_update_image(image_ref):
+    from schemas import ImageUpdateRequest
+    
     data = request.json or {}
-    auto_recreate = data.get("auto_recreate")
-    if auto_recreate is None:
-        auto_recreate = AUTO_RECREATE_AFTER_PULL
+    try:
+        validated = ImageUpdateRequest.model_validate(data)
+        auto_recreate = validated.auto_recreate
+        if auto_recreate is None:
+            auto_recreate = AUTO_RECREATE_AFTER_PULL
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e), "job_id": None}), 400
 
     stack = None
     with state_lock:
@@ -284,11 +290,17 @@ def api_update_image(image_ref):
 
 @app.route("/api/bulk/update", methods=["POST"])
 def api_bulk_update():
+    from schemas import BulkUpdateRequest
+    
     data = request.json or {}
-    stack_name = data.get("stack")
-    auto_recreate = data.get("auto_recreate")
-    if auto_recreate is None:
-        auto_recreate = AUTO_RECREATE_AFTER_PULL
+    try:
+        validated = BulkUpdateRequest.model_validate(data)
+        stack_name = validated.stack
+        auto_recreate = validated.auto_recreate
+        if auto_recreate is None:
+            auto_recreate = AUTO_RECREATE_AFTER_PULL
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
 
     target = stack_name or "all"
     job_id = create_job(
@@ -333,8 +345,14 @@ def api_prune_containers():
 
 @app.route("/api/prune/images", methods=["POST"])
 def api_prune_images():
+    from schemas import PruneRequest
+    
     data = request.json or {}
-    include_all = bool(data.get("all", False))
+    try:
+        validated = PruneRequest.model_validate(data)
+        include_all = validated.all
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
 
     job_id = create_job(
         "prune_images",
@@ -377,8 +395,14 @@ def api_prune_system():
 
 @app.route("/api/prune/volumes", methods=["POST"])
 def api_prune_volumes():
+    from schemas import PruneRequest
+    
     data = request.json or {}
-    include_all = bool(data.get("all", False))
+    try:
+        validated = PruneRequest.model_validate(data)
+        include_all = validated.all
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
 
     job_id = create_job(
         "prune_volumes",
@@ -422,10 +446,14 @@ def api_stack_recreate(stack_name):
 
 @app.route("/api/compose/recreate", methods=["POST"])
 def api_compose_recreate():
+    from schemas import ComposeRecreateRequest
+    
     data = request.json or {}
-    compose_path = data.get("compose_path")
-    if not compose_path:
-        return jsonify({"status": "error", "message": "compose_path required"}), 400
+    try:
+        validated = ComposeRecreateRequest.model_validate(data)
+        compose_path = validated.compose_path
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
 
     compose_file = Path(compose_path)
     if not compose_file.exists():
