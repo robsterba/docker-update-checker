@@ -59,7 +59,7 @@ def index():
 @app.route("/health")
 def health():
     """Health check endpoint for monitoring."""
-    docker_connected = docker_client is not None
+    docker_connected = docker_client() is not None
     return jsonify({
         "status": "ok",
         "docker_connected": docker_connected,
@@ -200,7 +200,8 @@ def api_update_image(image_ref):
     update_job(job_id, progress=0, current_step="Pulling image", message=f"Pulling {image_ref}")
 
     try:
-        if not docker_client:
+        client = docker_client()
+        if not client:
             raise RuntimeError("Docker socket not connected")
 
         update_job(job_id, progress=1,
@@ -208,7 +209,7 @@ def api_update_image(image_ref):
                    message=f"Downloading {image_ref}",
                    event={"status": "started", "message": f"Pull started for {image_ref}"})
 
-        docker_client.images.pull(image_ref)
+        client.images.pull(image_ref)
 
         update_job(job_id, progress=2,
                    current_step="Refreshing status",

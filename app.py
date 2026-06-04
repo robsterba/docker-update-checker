@@ -633,7 +633,8 @@ def run_bulk_pull(job_id: str, stack_name: Optional[str] = None, auto_recreate: 
     label = stack_name or "all"
     images = get_outdated_images(stack_name=stack_name)
 
-    if not docker_client:
+    client = docker_client()
+    if not client:
         finish_job(job_id, "error", "Docker socket not connected")
         log_op("bulk_pull", label, "error", "Docker socket not connected")
         notify_bulk_complete(label, "Bulk pull failed: Docker socket not connected", {
@@ -668,7 +669,7 @@ def run_bulk_pull(job_id: str, stack_name: Optional[str] = None, auto_recreate: 
         log_op("bulk_pull", image_ref, "started", f"Pulling {image_ref}")
 
         try:
-            docker_client.images.pull(image_ref)
+            client.images.pull(image_ref)
             result = refresh_image_result(image_ref)
             updated_images.append(image_ref)
             for cf in result.get("compose_files", []):
@@ -871,7 +872,8 @@ def run_prune_command(args: list[str], timeout: int = DEFAULT_PRUNE_TIMEOUT) -> 
 
 
 def run_prune_job(job_id: str, prune_type: str, include_all: bool = False):
-    if not docker_client:
+    client = docker_client()
+    if not client:
         finish_job(job_id, "error", "Docker socket not connected")
         log_op("prune", prune_type, "error", "Docker socket not connected")
         return

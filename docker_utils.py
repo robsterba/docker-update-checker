@@ -45,13 +45,33 @@ def _rate_limit_registry():
             _last_registry_request = time.time()
 
 
-docker_client: Optional[docker.DockerClient] = None
-try:
-    docker_client = docker.from_env()
-    docker_client.ping()
-    log.info("Docker socket connected.")
-except Exception as e:
-    log.warning(f"Docker socket unavailable: {e}")
+_docker_client: Optional[docker.DockerClient] = None
+
+
+def get_docker_client() -> Optional[docker.DockerClient]:
+    """Lazily initialize and return Docker client with reconnection support.
+    
+    This allows the Docker client to be reinitialized if the Docker daemon
+    restarts, without requiring the application to be restarted.
+    
+    Returns:
+        Docker client instance, or None if connection fails
+    """
+    global _docker_client
+    if _docker_client is None:
+        try:
+            _docker_client = docker.from_env()
+            _docker_client.ping()
+            log.info("Docker socket connected.")
+        except Exception as e:
+            log.warning(f"Docker socket unavailable: {e}")
+            _docker_client = None
+    return _docker_client
+
+
+# For backward compatibility, docker_client is now the function itself
+# Call docker_client() to get the client instance
+docker_client = get_docker_client
 
 
 def read_dotenv(dotenv_path: Path) -> dict[str, str]:
@@ -296,10 +316,11 @@ def get_remote_digest(image_ref: str) -> Optional[str]:
 
 
 def get_local_digest(image_ref: str) -> Optional[str]:
-    if not docker_client:
+    client = docker_client()
+    if not client:
         return None
     try:
-        img = docker_client.images.get(image_ref)
+        img = client.images.get(image_ref)
         digests = img.attrs.get("RepoDigests", [])
         return digests[0].split("@")[-1] if digests else img.id
     except docker.errors.ImageNotFound:
