@@ -14,7 +14,8 @@ state_lock = threading.Lock()
 
 # Shared application state
 check_results: Dict[str, Dict[str, Any]] = {}
-last_full_check: Optional[str] = None
+# Initialize to current time so there's always a value, even before first check completes
+last_full_check: Optional[str] = datetime.now(timezone.utc).isoformat()
 
 
 class OperationLog:
