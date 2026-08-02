@@ -25,13 +25,13 @@ from app import (
 from jobs import (
     state_lock,
     check_results,
-    last_full_check,
     operations_log,
     jobs_state,
     log_op,
     create_job,
     update_job,
     finish_job,
+    get_last_full_check,
 )
 
 from docker_utils import (
@@ -71,7 +71,7 @@ def health():
 def api_status():
     with state_lock:
         return jsonify({
-            "last_check": last_full_check,
+            "last_check": get_last_full_check(),
             "total": len(check_results),
             "up_to_date": sum(1 for r in check_results.values()
                               if r["status"] == "up_to_date"),
