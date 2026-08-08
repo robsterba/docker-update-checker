@@ -67,7 +67,7 @@ from notifier import (
     notify_pull_result,
     notify_recreate_result,
 )
-from config import NOTIFY_ENABLED, NOTIFY_BACKEND, DEFAULT_COMPOSE_TIMEOUT
+from config import NOTIFY_ENABLED, NOTIFY_BACKEND, DEFAULT_COMPOSE_TIMEOUT, VERSION
 
 
 # ── Routes (moved from app.py) ─────────────────────────────────────────────────
@@ -85,8 +85,14 @@ def health():
     return jsonify({
         "status": "ok",
         "docker_connected": docker_connected,
-        "version": "1.0.0"
+        "version": VERSION
     }), 200
+
+
+@app.route("/api/version")
+def api_version():
+    """Get the application version."""
+    return jsonify({"version": VERSION})
 
 
 @app.route("/api/status")
@@ -104,7 +110,8 @@ def api_status():
             "check_interval_minutes": CHECK_INTERVAL_MINUTES,
             "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
             "notify_enabled": NOTIFY_ENABLED,
-            "notify_backend": NOTIFY_BACKEND or None
+            "notify_backend": NOTIFY_BACKEND or None,
+            "version": VERSION
         })
 
 

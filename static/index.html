@@ -189,6 +189,9 @@
     th:nth-child(4),td:nth-child(4){display:none}
   }
 
+  /* Version badge */
+  .version-badge{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.2rem .6rem;font-size:.75rem;color:var(--muted);font-family:monospace}
+
   /* Phase 2: Compose File Management Styles */
   .compose-editor{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:1rem;font-family:monospace;font-size:.8rem;white-space:pre-wrap;word-break:break-all;max-height:500px;overflow-y:auto}
   .compose-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
@@ -229,6 +232,7 @@
     </label>
     <span class="host-status unknown" id="instanceHealth">Loading…</span>
     <span class="last-check" id="lastCheck">—</span>
+    <span class="version-badge" id="instanceVersion">—</span>
     <button class="btn btn-primary btn-sm" id="checkBtn" onclick="triggerCheck()">
       <svg id="checkIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <polyline points="23 4 23 10 17 10"/>
@@ -425,6 +429,7 @@ let allStacks = [];
 let allJobs = [];
 let allInstances = [];
 let hostStatuses = {};
+let instanceVersions = {};
 let currentInstance = { id: 'local', name: 'Local host', url: '' };
 let activeFilter = 'all';
 let checking = false;
@@ -532,6 +537,13 @@ function setInstanceHealth(status, message) {
   badge.classList.add(status);
 }
 
+function setInstanceVersion(version) {
+  const versionBadge = document.getElementById('instanceVersion');
+  if (versionBadge) {
+    versionBadge.textContent = version ? `v${version}` : '—';
+  }
+}
+
 function renderInstances(instances) {
   const container = document.getElementById('instanceGrid');
   if (!instances.length) {
@@ -546,13 +558,14 @@ function renderInstances(instances) {
     const label = status?.ok ? 'Online' : 'Offline';
     const updatesInfo = status?.ok && status.data.updates_available ? ` · ${status.data.updates_available} updates` : '';
     const lastCheck = status?.ok && status.data.last_check ? fmtDate(status.data.last_check) : '';
+    const version = status?.ok && status.data.version ? ` · v${status.data.version}` : '';
 
     return `
       <div class="instance-card">
         <div class="instance-card-header">
           <div>
             <div class="instance-card-name">${escHtml(inst.name)}</div>
-            <div class="instance-card-meta">${escHtml(lastCheck)}${updatesInfo}</div>
+            <div class="instance-card-meta">${escHtml(lastCheck)}${updatesInfo}${version}</div>
           </div>
           <div class="host-status ${state}">${label}</div>
         </div>
@@ -581,21 +594,26 @@ async function selectInstance(instanceId) {
     if (status.ok) {
       setInstanceHealth('online', 'Online');
       document.getElementById('lastCheck').textContent = status.data.last_check ? `Last check: ${fmtDate(status.data.last_check)}` : 'No check yet';
+      setInstanceVersion(status.data.version);
     } else {
       setInstanceHealth('offline', 'Offline');
     document.getElementById('lastCheck').textContent = status.error || 'Unable to reach host';
+    setInstanceVersion(null);
     }
   } else {
     setInstanceHealth('unknown', 'Checking...');
     document.getElementById('lastCheck').textContent = 'Checking...';
+    setInstanceVersion(null);
     hostStatuses[currentInstance.id] = await fetchInstanceStatus(currentInstance);
     const newStatus = hostStatuses[currentInstance.id];
     if (newStatus.ok) {
       setInstanceHealth('online', 'Online');
       document.getElementById('lastCheck').textContent = newStatus.data.last_check ? `Last check: ${fmtDate(newStatus.data.last_check)}` : 'No check yet';
+      setInstanceVersion(newStatus.data.version);
     } else {
       setInstanceHealth('offline', 'Offline');
       document.getElementById('lastCheck').textContent = newStatus.error || 'Unable to reach host';
+      setInstanceVersion(null);
     }
   }
   renderInstances(allInstances);

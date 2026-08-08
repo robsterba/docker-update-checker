@@ -2,6 +2,9 @@ import os
 import time
 import logging
 
+# ── Version ──────────────────────────────────────────────────────────────────
+VERSION = "0.2.0"
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 # Job/Operation log limits

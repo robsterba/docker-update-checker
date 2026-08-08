@@ -62,6 +62,12 @@ The following endpoints are available for container management:
 | POST | `/api/containers/{id}/stop` | Stop a running container (supports `?timeout=10` parameter) |
 | POST | `/api/containers/{id}/restart` | Restart a container (supports `?timeout=10` parameter) |
 
+### System API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/version` | Get the application version |
+
 ### Compose File Management API
 
 | Method | Endpoint | Description |
