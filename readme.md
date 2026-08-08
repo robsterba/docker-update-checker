@@ -1,7 +1,6 @@
-# 🐳 Docker Update Checker
+# 🐳 Docker Homelab Manager
 
-A self-hosted web dashboard that monitors your Docker Compose stacks for container image updates.  
-It compares local image digests against upstream registry digests and lets you pull updates and recreate services on demand.  
+A self-hosted web dashboard for comprehensive Docker homelab management. Originally focused on monitoring container image updates, it now includes container lifecycle management, resource monitoring, and multi-host support.  
 Right now there is intentionally no automatic updating — this is meant to be super lightweight and manual. If you want heavier, fully automated solutions, tools like Watchtower or Komodo’s global update feature are good alternatives.
 
 ---
@@ -14,7 +13,10 @@ Right now there is intentionally no automatic updating — this is meant to be s
 - 📦 **Stack grouping** — images are grouped by Compose “stack” (based on directory name) for easier overview and bulk actions  
 - 🌐 **Remote instance aggregation** — connect to other `docker-update-checker` instances and monitor multiple hosts from one dashboard  
 - ✅ **Host selection & health panel** — choose a host, view online/offline status, and inspect last check times across local and remote instances  
-- 🧩 **Modular backend architecture** — the backend is split across `app.py`, `api.py`, `config.py`, `docker_utils.py`, `jobs.py`, and `notifier.py` for cleaner separation of concerns and easier remote deployment  
+- 🧩 **Modular backend architecture** — the backend is split across `app.py`, `api.py`, `config.py`, `docker_utils.py`, `jobs.py`, and `notifier.py` for cleaner separation of concerns and easier remote deployment
+- 📊 **Container Monitoring** — view all containers across hosts with real-time status, health checks, and resource information
+- ▶️ **Container Lifecycle Management** — start, stop, restart containers directly from the dashboard
+- 🏥 **Health Check Visualization** — color-coded health status badges for containers with health checks configured  
 - 🔄 **Bulk update actions**  
   - **Pull All Updates** — pull all outdated images across all stacks  
   - **Pull All (Selected Stack)** — pull all outdated images in a single stack  
@@ -38,6 +40,23 @@ Right now there is intentionally no automatic updating — this is meant to be s
 - 🌙 **Dark / light mode** toggle — preserves your last selected theme across browser reloads
 - 💾 **Persistent UI preferences** — auto-recreate and theme selections are remembered in the dashboard
 - 🧪 **Test notification** — send a test notification from the UI to validate your configuration  
+- 📋 **Container Management API** — REST endpoints for programmatic container control
+
+---
+
+## Container Management API
+
+The following endpoints are available for container management:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/containers` | List all containers (supports `?all=true` and `?status=running` filters) |
+| GET | `/api/containers/{id}` | Get detailed container information |
+| GET | `/api/containers/{id}/resources` | Get CPU/memory resource usage |
+| GET | `/api/host/resources` | Get Docker host resource summary |
+| POST | `/api/containers/{id}/start` | Start a stopped container |
+| POST | `/api/containers/{id}/stop` | Stop a running container (supports `?timeout=10` parameter) |
+| POST | `/api/containers/{id}/restart` | Restart a container (supports `?timeout=10` parameter) |
 
 ---
 
