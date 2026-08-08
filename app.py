@@ -46,7 +46,6 @@ from config import (
 from jobs import (
     state_lock,
     check_results,
-    last_full_check,
     operations_log,
     job_manager,
     jobs_state,
@@ -266,7 +265,7 @@ def proxy_local_request(proxy_path: str) -> Response:
     if proxy_path == "status":
         with state_lock:
             return jsonify({
-                "last_check": last_full_check,
+                "last_check": get_last_full_check(),
                 "total": len(check_results),
                 "up_to_date": sum(1 for r in check_results.values()
                                   if r["status"] == STATUS_UP_TO_DATE),
@@ -533,7 +532,6 @@ def get_outdated_images(stack_name: Optional[str] = None) -> list[str]:
 
 
 def run_full_check(job_id: Optional[str] = None):
-    global last_full_check
     log.info("Running full image check...")
 
     if not job_id:
@@ -614,7 +612,7 @@ def run_full_check(job_id: Optional[str] = None):
     with state_lock:
         check_results.clear()
         check_results.update(results)
-        last_full_check = datetime.now(timezone.utc).isoformat()
+        set_last_full_check(datetime.now(timezone.utc).isoformat())
 
     updates = sum(1 for r in results.values() if r["status"] == "update_available")
     log.info(f"Check complete: {len(results)} images, {updates} updates available.")
