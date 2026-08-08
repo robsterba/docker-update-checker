@@ -622,3 +622,442 @@ def restart_container(container_id: str, timeout: int = 10) -> tuple[bool, str]:
         return False, f"Failed to restart container: {str(e)}"
     except Exception as e:
         return False, f"Unexpected error: {str(e)}"
+
+
+# -- Phase 2: Compose File Management Functions --
+
+
+def get_compose_file_content(compose_path: str) -> Optional[dict]:
+    """Read and parse a compose file, returning its content as a dictionary.
+    
+    Args:
+        compose_path: Path to the compose file
+        
+    Returns:
+        Parsed YAML content as dict, or None if file not found or invalid
+    """
+    try:
+        path = Path(compose_path)
+        if not path.exists():
+            log.warning(f"Compose file not found: {compose_path}")
+            return None
+        
+        with open(path, 'r', encoding='utf-8') as f:
+            content = yaml.safe_load(f)
+        
+        if content is None:
+            return {}
+        return content
+    except yaml.YAMLError as e:
+        log.warning(f"Invalid YAML in {compose_path}: {e}")
+        return None
+    except Exception as e:
+        log.warning(f"Failed to read compose file {compose_path}: {e}")
+        return None
+
+
+def write_compose_file(compose_path: str, content: dict, backup: bool = True) -> tuple[bool, str]:
+    """Write content to a compose file, optionally creating a backup first.
+    
+    Args:
+        compose_path: Path to the compose file
+        content: Dictionary to write as YAML
+        backup: Whether to create a backup file before writing
+        
+    Returns:
+        Tuple of (success, message)
+    """
+    try:
+        path = Path(compose_path)
+        
+        # Create backup if requested
+        if backup and path.exists():
+            backup_path = path.with_suffix(path.suffix + '.bak')
+            import shutil
+            shutil.copy2(path, backup_path)
+            log.info(f"Created backup of {compose_path} at {backup_path}")
+        
+        # Write new content
+        with open(path, 'w', encoding='utf-8') as f:
+            yaml.dump(content, f, sort_keys=False, default_flow_style=False, allow_unicode=True)
+        
+        log.info(f"Successfully wrote compose file: {compose_path}")
+        return True, f"Compose file saved successfully"
+    except Exception as e:
+        log.error(f"Failed to write compose file {compose_path}: {e}")
+        return False, f"Failed to save compose file: {str(e)}"
+
+
+def validate_compose_content(content: dict) -> tuple[bool, str, list]:
+    """Validate compose file content structure.
+    
+    Args:
+        content: Parsed YAML content to validate
+        
+    Returns:
+        Tuple of (is_valid, message, errors_list)
+    """
+    errors = []
+    
+    if content is None:
+        errors.append("Content is empty or None")
+        return False, "Invalid: empty content", errors
+    
+    if not isinstance(content, dict):
+        errors.append(f"Root must be a dictionary, got {type(content).__name__}")
+        return False, "Invalid: root not a dictionary", errors
+    
+    # Check for valid top-level keys
+    valid_top_level = {'version', 'services', 'networks', 'volumes', 'configs', 'secrets'}
+    for key in content.keys():
+        if key not in valid_top_level:
+            errors.append(f"Unknown top-level key: {key}")
+    
+    # Check services if present
+    services = content.get('services')
+    if services is not None:
+        if not isinstance(services, dict):
+            errors.append("services must be a dictionary")
+        else:
+            for svc_name, svc_config in services.items():
+                if not isinstance(svc_config, dict):
+                    errors.append(f"Service '{svc_name}' configuration must be a dictionary")
+    
+    if errors:
+        return False, f"Validation failed with {len(errors)} error(s)", errors
+    
+    return True, "Valid compose file", []
+
+
+def get_compose_file_dependencies(compose_path: str) -> dict:
+    """Extract dependency graph from a compose file.
+    
+    Analyzes service dependencies (depends_on), networks, volumes, and service links
+    to build a dependency graph.
+    
+    Args:
+        compose_path: Path to the compose file
+        
+    Returns:
+        Dictionary with:
+        - nodes: list of service names
+        - edges: list of {from, to, type} tuples
+        - networks: dict of network names to services
+        - volumes: dict of volume names to services
+    """
+    content = get_compose_file_content(compose_path)
+    if content is None:
+        return {"nodes": [], "edges": [], "networks": {}, "volumes": {}}
+    
+    services = content.get('services') or {}
+    networks_def = content.get('networks') or {}
+    volumes_def = content.get('volumes') or {}
+    
+    nodes = list(services.keys())
+    edges = []
+    networks = {name: [] for name in networks_def.keys()}
+    volumes_map = {name: [] for name in volumes_def.keys()}
+    
+    # Extract dependencies from depends_on
+    for svc_name, svc_config in services.items():
+        if not isinstance(svc_config, dict):
+            continue
+        
+        # depends_on
+        depends_on = svc_config.get('depends_on')
+        if depends_on:
+            if isinstance(depends_on, list):
+                for dep in depends_on:
+                    if isinstance(dep, str):
+                        edges.append({"from": dep, "to": svc_name, "type": "depends_on"})
+                    elif isinstance(dep, dict):
+                        # depends_on with condition
+                        for condition_dep in dep.get('condition', []):
+                            if isinstance(condition_dep, str):
+                                edges.append({"from": condition_dep, "to": svc_name, "type": "depends_on"})
+            elif isinstance(depends_on, dict):
+                for dep, _ in depends_on.items():
+                    edges.append({"from": dep, "to": svc_name, "type": "depends_on"})
+        
+        # networks
+        svc_networks = svc_config.get('networks')
+        if svc_networks:
+            for net in svc_networks:
+                if net in networks:
+                    networks[net].append(svc_name)
+        
+        # volumes
+        svc_volumes = svc_config.get('volumes')
+        if svc_volumes:
+            for vol in svc_volumes:
+                if isinstance(vol, str):
+                    vol_name = vol.split(':')[0]
+                    if vol_name in volumes_map:
+                        volumes_map[vol_name].append(svc_name)
+    
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "networks": networks,
+        "volumes": volumes_map
+    }
+
+
+def list_compose_files_detailed() -> list[dict]:
+    """List all compose files with additional metadata.
+    
+    Returns:
+        List of dictionaries with compose file info including:
+        - path: full path to the file
+        - project: project name (directory name)
+        - filename: just the filename
+        - services: list of service names (from parsing)
+        - service_count: number of services
+        - images: list of images used
+        - image_count: number of unique images
+    """
+    files = find_compose_files()
+    result = []
+    
+    for file_info in files:
+        compose_path = file_info.get('path', '')
+        project = file_info.get('project', '')
+        filename = Path(compose_path).name
+        
+        content = get_compose_file_content(compose_path)
+        services = []
+        images = []
+        
+        if content:
+            services_data = content.get('services') or {}
+            services = list(services_data.keys())
+            
+            # Extract images
+            for svc_name, svc_config in services_data.items():
+                if not isinstance(svc_config, dict):
+                    continue
+                img = svc_config.get('image')
+                if img:
+                    images.append(img)
+        
+        result.append({
+            "path": compose_path,
+            "project": project,
+            "filename": filename,
+            "services": services,
+            "service_count": len(services),
+            "images": list(set(images)),
+            "image_count": len(set(images))
+        })
+    
+    return result
+
+
+# -- Phase 2: Stack Management Functions --
+
+
+def get_stack_name_from_path(compose_path: str) -> str:
+    """Derive stack name from compose file path.
+    
+    Args:
+        compose_path: Path to the compose file
+        
+    Returns:
+        Stack name (directory name containing the compose file)
+    """
+    return Path(compose_path).parent.name
+
+
+def stack_up(compose_path: str, timeout: int = DEFAULT_COMPOSE_TIMEOUT) -> subprocess.CompletedProcess:
+    """Start a stack using docker compose up.
+    
+    Args:
+        compose_path: Path to the compose file
+        timeout: Timeout in seconds
+        
+    Returns:
+        CompletedProcess with result
+    """
+    compose_file = Path(compose_path)
+    cmd = ["docker", "compose", "-f", str(compose_file), "up", "-d", "--remove-orphans"]
+    
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        cwd=str(compose_file.parent)
+    )
+
+
+def stack_down(compose_path: str, timeout: int = DEFAULT_COMPOSE_TIMEOUT) -> subprocess.CompletedProcess:
+    """Stop a stack using docker compose down.
+    
+    Args:
+        compose_path: Path to the compose file
+        timeout: Timeout in seconds
+        
+    Returns:
+        CompletedProcess with result
+    """
+    compose_file = Path(compose_path)
+    cmd = ["docker", "compose", "-f", str(compose_file), "down"]
+    
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        cwd=str(compose_file.parent)
+    )
+
+
+def stack_restart(compose_path: str, timeout: int = DEFAULT_COMPOSE_TIMEOUT) -> subprocess.CompletedProcess:
+    """Restart a stack using docker compose restart.
+    
+    Args:
+        compose_path: Path to the compose file
+        timeout: Timeout in seconds
+        
+    Returns:
+        CompletedProcess with result
+    """
+    compose_file = Path(compose_path)
+    cmd = ["docker", "compose", "-f", str(compose_file), "restart"]
+    
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        cwd=str(compose_file.parent)
+    )
+
+
+def stack_ps(compose_path: str) -> subprocess.CompletedProcess:
+    """Get status of all containers in a stack.
+    
+    Args:
+        compose_path: Path to the compose file
+        
+    Returns:
+        CompletedProcess with result
+    """
+    compose_file = Path(compose_path)
+    cmd = ["docker", "compose", "-f", str(compose_file), "ps", "--format", "json"]
+    
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd=str(compose_file.parent)
+    )
+
+
+def get_stack_containers(compose_path: str) -> list[dict]:
+    """Get containers belonging to a specific stack.
+    
+    Args:
+        compose_path: Path to the compose file
+        
+    Returns:
+        List of container dictionaries for this stack
+    """
+    client = docker_client()
+    if not client:
+        return []
+    
+    stack_name = get_stack_name_from_path(compose_path)
+    
+    try:
+        # Get all containers and filter by stack label
+        all_containers = client.containers.list(all=True)
+        stack_containers = []
+        
+        for container in all_containers:
+            labels = container.attrs.get('Config', {}).get('Labels', {})
+            # Check for com.docker.compose.project label
+            project = labels.get('com.docker.compose.project')
+            if project == stack_name:
+                stack_containers.append({
+                    "id": container.short_id,
+                    "name": container.name,
+                    "status": container.status,
+                    "state": container.attrs.get("State", {}).get("Status", ""),
+                    "image": container.attrs.get("Config", {}).get("Image", ""),
+                    "service": labels.get('com.docker.compose.service', '')
+                })
+        
+        return stack_containers
+    except Exception as e:
+        log.warning(f"Failed to get containers for stack {stack_name}: {e}")
+        return []
+
+
+def get_all_stacks() -> dict[str, dict]:
+    """Get information about all stacks (grouped compose projects).
+    
+    Returns:
+        Dictionary mapping stack names to stack info:
+        - compose_files: list of compose file paths
+        - services: list of service names
+        - containers: list of container info
+        - status: overall status (running/stopped/mixed)
+    """
+    compose_files = find_compose_files()
+    stacks = {}
+    
+    for file_info in compose_files:
+        compose_path = file_info.get('path', '')
+        stack_name = get_stack_name_from_path(compose_path)
+        
+        if stack_name not in stacks:
+            stacks[stack_name] = {
+                "compose_files": [],
+                "services": [],
+                "containers": [],
+                "status": "unknown"
+            }
+        
+        stacks[stack_name]["compose_files"].append(compose_path)
+        
+        # Parse services from compose file
+        content = get_compose_file_content(compose_path)
+        if content:
+            services = list(content.get('services', {}).keys())
+            stacks[stack_name]["services"].extend(services)
+    
+    # Get container status for each stack
+    client = docker_client()
+    if client:
+        try:
+            all_containers = client.containers.list(all=True)
+            for container in all_containers:
+                labels = container.attrs.get('Config', {}).get('Labels', {})
+                project = labels.get('com.docker.compose.project')
+                if project in stacks:
+                    stacks[project]["containers"].append({
+                        "id": container.short_id,
+                        "name": container.name,
+                        "status": container.status,
+                        "service": labels.get('com.docker.compose.service', '')
+                    })
+            
+            # Determine overall status
+            for stack_name, stack_info in stacks.items():
+                containers = stack_info.get("containers", [])
+                if not containers:
+                    stack_info["status"] = "stopped"
+                else:
+                    running = sum(1 for c in containers if c["status"] == "running")
+                    stopped = sum(1 for c in containers if c["status"] != "running")
+                    if stopped == 0:
+                        stack_info["status"] = "running"
+                    elif running == 0:
+                        stack_info["status"] = "stopped"
+                    else:
+                        stack_info["status"] = "mixed"
+        except Exception as e:
+            log.warning(f"Failed to get container status for stacks: {e}")
+    
+    return stacks

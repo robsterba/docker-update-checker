@@ -188,9 +188,29 @@
     .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
     th:nth-child(4),td:nth-child(4){display:none}
   }
+
+  /* Phase 2: Compose File Management Styles */
+  .compose-editor{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:1rem;font-family:monospace;font-size:.8rem;white-space:pre-wrap;word-break:break-all;max-height:500px;overflow-y:auto}
+  .compose-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
+  .stack-status-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600}
+  .stack-status-badge.running{background:var(--badge-up);color:var(--success)}
+  .stack-status-badge.stopped{background:var(--badge-err);color:var(--error)}
+  .stack-status-badge.mixed{background:var(--badge-unk);color:var(--warning)}
+  .dependency-graph{background:var(--surface2);border:1px solid var(--border);border-radius:.6rem;padding:1rem;margin-top:1rem}
+  .dependency-node{display:inline-block;padding:.3rem .6rem;border:1px solid var(--border);border-radius:.4rem;margin:.25rem;font-size:.8rem}
+  .dependency-edge{color:var(--muted);font-size:.75rem;margin:.5rem 0}
+  .compose-file-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.85rem}
+  .compose-file-card{background:var(--surface2);border:1px solid var(--border);border-radius:.6rem;padding:.85rem;cursor:pointer;transition:background .15s}
+  .compose-file-card:hover{background:var(--surface)}
+  .compose-file-name{font-weight:600;font-size:.86rem;margin-bottom:.3rem}
+  .compose-file-meta{font-size:.76rem;color:var(--muted)}
+  .validation-error{color:var(--error);font-size:.78rem;margin-top:.5rem;padding:.4rem .6rem;background:rgba(220,38,38,.1);border-radius:.4rem}
+  .validation-success{color:var(--success);font-size:.78rem;margin-top:.5rem;padding:.4rem .6rem;background:rgba(14,165,233,.1);border-radius:.4rem}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Phase 2: YAML parser for compose file editing -->
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 </head>
 <body>
 
@@ -231,6 +251,16 @@
     <div class="toolbar-left">
       <button class="btn btn-warn" onclick="bulkUpdateAll()">Pull All Updates</button>
       <button class="btn btn-ghost" onclick="refreshAll()">Refresh All</button>
+      <div class="dropdown">
+        <button class="dropdown-btn" onclick="toggleComposeMenu(event)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Compose Files
+        </button>
+        <div class="dropdown-menu hidden" id="composeMenu">
+          <button class="dropdown-menu-item" onclick="loadComposeFiles()">View All Compose Files</button>
+          <button class="dropdown-menu-item" onclick="showComposeEditor()">New Compose File</button>
+        </div>
+      </div>
       <div class="dropdown">
         <button class="dropdown-btn" onclick="toggleToolsMenu(event)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
@@ -293,6 +323,22 @@
         <div class="jobs-scroll" id="jobsList">
           <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 2: Compose Files Section -->
+  <div class="card" id="composeFilesSection" style="display:none">
+    <div class="card-header">
+      <span class="card-title">Compose Files</span>
+      <div class="toolbar-right" style="margin-left: auto;">
+        <button class="btn btn-primary btn-sm" onclick="showComposeEditor()">New File</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadComposeFiles()">Refresh</button>
+      </div>
+    </div>
+    <div class="jobs-wrap">
+      <div class="compose-file-list" id="composeFileList">
+        <div style="padding:1.25rem;color:var(--muted)">Click "View All Compose Files" to load.</div>
       </div>
     </div>
   </div>
@@ -415,7 +461,17 @@ document.addEventListener('click', function() {
   if (menu && !menu.classList.contains('hidden')) {
     menu.classList.add('hidden');
   }
+  const composeMenu = document.getElementById('composeMenu');
+  if (composeMenu && !composeMenu.classList.contains('hidden')) {
+    composeMenu.classList.add('hidden');
+  }
 });
+
+function toggleComposeMenu(event) {
+  event.stopPropagation();
+  const menu = document.getElementById('composeMenu');
+  menu.classList.toggle('hidden');
+}
 
 function buildThemeIcon(mode) {
   return mode === 'dark'
@@ -677,7 +733,38 @@ function renderStacks(stacks) {
     return;
   }
 
-  el.innerHTML = stacks.map(stack => `
+  // Check if using Phase 2 stack data (from /api/stacks/all)
+  const isPhase2Data = stacks[0] && stacks[0].compose_files !== undefined;
+  
+  if (isPhase2Data) {
+    // Phase 2: Enhanced stack rendering with management actions
+    el.innerHTML = Object.entries(stacks).map(([stackName, stackInfo]) => {
+      const status = stackInfo.status || 'unknown';
+      const serviceCount = stackInfo.services ? stackInfo.services.length : 0;
+      const containerCount = stackInfo.containers ? stackInfo.containers.length : 0;
+      const runningCount = stackInfo.containers ? stackInfo.containers.filter(c => c.status === 'running').length : 0;
+      
+      return `
+    <div class="stack-card">
+      <div class="stack-head">
+        <div>
+          <div class="stack-name">${escHtml(stackName)}</div>
+          <div class="stack-meta">${serviceCount} services · ${containerCount} containers · ${runningCount} running</div>
+        </div>
+        <div class="stack-status-badge ${status}">${escHtml(status)}</div>
+      </div>
+      <div class="stack-actions">
+        <button class="btn btn-ghost btn-sm" onclick="viewStackDetails('${escAttr(stackName)}')">Details</button>
+        <button class="btn btn-primary btn-sm" onclick="stackUp('${escAttr(stackName)}')" ${status === 'running' ? 'disabled' : ''}>Start</button>
+        <button class="btn btn-warn btn-sm" onclick="stackRestart('${escAttr(stackName)}')" ${status === 'stopped' ? 'disabled' : ''}>Restart</button>
+        <button class="btn btn-danger btn-sm" onclick="stackDown('${escAttr(stackName)}')" ${status === 'stopped' ? 'disabled' : ''}>Stop</button>
+      </div>
+    </div>
+      `;
+    }).join('');
+  } else {
+    // Phase 1: Original stack rendering (backward compatible)
+    el.innerHTML = stacks.map(stack => `
     <div class="stack-card">
       <div class="stack-head">
         <div>
@@ -698,6 +785,7 @@ function renderStacks(stacks) {
       `}
     </div>
   `).join('');
+  }
 }
 
 function renderJobs(jobs) {
@@ -1326,6 +1414,320 @@ async function inspectContainer(containerId) {
     showModal('Container Details', details.join(''));
   } catch (err) {
     showModal('Error', `<p style="color:var(--error)">Error: ${escHtml(err.message)}</p>`);
+  }
+}
+
+// ============================================
+// Phase 2: Compose File Management Functions
+// ============================================
+
+let allComposeFiles = [];
+let currentEditingFile = null;
+
+function toggleComposeFilesSection() {
+  const section = document.getElementById('composeFilesSection');
+  const isHidden = section.style.display === 'none';
+  section.style.display = isHidden ? 'block' : 'none';
+  if (isHidden) {
+    loadComposeFiles();
+  }
+}
+
+async function loadComposeFiles() {
+  showToast('Loading compose files...', 'info', 2000);
+  try {
+    const response = await fetch(`${API}/api/compose/files/detailed`);
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    allComposeFiles = await response.json();
+    renderComposeFiles();
+    document.getElementById('composeFilesSection').style.display = 'block';
+    showToast(`Loaded ${allComposeFiles.length} compose file(s)`, 'success');
+  } catch (err) {
+    showToast(`Failed to load compose files: ${err.message}`, 'error');
+    renderComposeFiles([]);
+  }
+}
+
+function renderComposeFiles(files) {
+  const el = document.getElementById('composeFileList');
+  
+  if (!files.length) {
+    el.innerHTML = `<div style="padding:1.25rem;color:var(--muted)">No compose files found.</div>`;
+    return;
+  }
+  
+  el.innerHTML = files.map(file => {
+    const shortPath = file.path.split('/').slice(-3).join('/');
+    return `
+    <div class="compose-file-card" onclick="viewComposeFile('${escAttr(file.path)}')">
+      <div class="compose-file-name">${escHtml(shortPath)}</div>
+      <div class="compose-file-meta">
+        ${file.service_count || 0} services · ${file.image_count || 0} images
+        <br>
+        Project: ${escHtml(file.project || 'unknown')}
+      </div>
+    </div>
+    `;
+  }).join('');
+}
+
+async function viewComposeFile(path) {
+  showToast('Loading compose file...', 'info', 2000);
+  try {
+    const response = await fetch(`${API}/api/compose/files/${encodeURIComponent(path)}`);
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const data = await response.json();
+    currentEditingFile = path;
+    showComposeEditor(data.path, data.content);
+  } catch (err) {
+    showToast(`Failed to load file: ${err.message}`, 'error');
+  }
+}
+
+function showComposeEditor(path = '', content = {}) {
+  const yamlContent = jsyaml.dump(content || {});
+  const modalTitle = path ? `Edit: ${path.split('/').pop()}` : 'New Compose File';
+  
+  const editorId = 'composeEditor';
+  const saveBtnId = 'composeSaveBtn';
+  
+  const html = `
+    <div class="compose-editor" id="${editorId}" contenteditable="true" style="min-height:300px">${escHtml(yamlContent)}</div>
+    <div class="compose-actions">
+      <button class="btn btn-primary btn-sm" id="${saveBtnId}" onclick="saveComposeFile()">Save</button>
+      <button class="btn btn-ghost btn-sm" onclick="validateComposeContent()">Validate</button>
+      <button class="btn btn-ghost btn-sm" onclick="showDependenciesForCurrentFile()">Dependencies</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">Cancel</button>
+    </div>
+    <div id="composeValidationResult"></div>
+  `;
+  
+  showModal(modalTitle, html);
+  
+  // Initialize editor content
+  const editor = document.getElementById(editorId);
+  if (editor) {
+    editor.textContent = yamlContent;
+    editor.focus();
+  }
+}
+
+async function saveComposeFile() {
+  const editor = document.getElementById('composeEditor');
+  if (!editor) return;
+  
+  const yamlContent = editor.textContent;
+  
+  try {
+    const parsed = jsyaml.load(yamlContent);
+    if (!parsed || typeof parsed !== 'object') {
+      throw new Error('Invalid YAML: must contain an object/dictionary');
+    }
+    
+    const path = currentEditingFile || '/compose/new-compose.yml';
+    const response = await fetch(`${API}/api/compose/files/${encodeURIComponent(path)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: parsed, backup: true })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || await response.text());
+    }
+    
+    const result = await response.json();
+    showToast(result.message || 'Compose file saved', 'success');
+    closeModal();
+    currentEditingFile = null;
+    await loadComposeFiles();
+  } catch (err) {
+    showToast(`Failed to save: ${err.message}`, 'error');
+  }
+}
+
+async function validateComposeContent() {
+  const editor = document.getElementById('composeEditor');
+  if (!editor) return;
+  
+  const yamlContent = editor.textContent;
+  const resultDiv = document.getElementById('composeValidationResult');
+  
+  try {
+    const parsed = jsyaml.load(yamlContent);
+    const response = await fetch(`${API}/api/compose/files/${encodeURIComponent(currentEditingFile || '')}/validate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: parsed })
+    });
+    
+    const data = await response.json();
+    
+    if (resultDiv) {
+      if (data.valid) {
+        resultDiv.innerHTML = `<div class="validation-success">✓ ${escHtml(data.message)}</div>`;
+      } else {
+        resultDiv.innerHTML = `<div class="validation-error">✗ ${escHtml(data.message)}<br>${(data.errors || []).map(e => `• ${escHtml(e)}`).join('<br>')}</div>`;
+      }
+    }
+  } catch (err) {
+    if (resultDiv) {
+      resultDiv.innerHTML = `<div class="validation-error">✗ Invalid YAML: ${escHtml(err.message)}</div>`;
+    }
+  }
+}
+
+async function showDependenciesForCurrentFile() {
+  if (!currentEditingFile) {
+    showToast('No file selected', 'error');
+    return;
+  }
+  
+  showToast('Loading dependencies...', 'info', 2000);
+  try {
+    const response = await fetch(`${API}/api/compose/files/${encodeURIComponent(currentEditingFile)}/dependencies`);
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const data = await response.json();
+    
+    let html = '<div class="dependency-graph">';
+    html += '<h4 style="margin-bottom:.75rem">Dependency Graph</h4>';
+    html += '<div style="margin-bottom:.5rem"><strong>Services:</strong> ' + data.nodes.map(n => `<span class="dependency-node">${escHtml(n)}</span>`).join('') + '</div>';
+    
+    if (data.edges && data.edges.length > 0) {
+      html += '<div style="margin:.5rem 0"><strong>Dependencies:</strong></div>';
+      html += data.edges.map(e => `<div class="dependency-edge">${escHtml(e.from)} → ${escHtml(e.to)} (${escHtml(e.type)})</div>`).join('');
+    }
+    
+    if (Object.keys(data.networks || {}).length > 0) {
+      html += '<div style="margin-top:.5rem"><strong>Networks:</strong></div>';
+      html += Object.entries(data.networks || {}).map(([name, services]) => 
+        `<div><strong>${escHtml(name)}:</strong> ${services.map(s => escHtml(s)).join(', ')}</div>`
+      ).join('');
+    }
+    
+    html += '</div>';
+    showModal('Dependencies: ' + currentEditingFile.split('/').pop(), html);
+  } catch (err) {
+    showToast(`Failed to load dependencies: ${err.message}`, 'error');
+  }
+}
+
+// ============================================
+// Phase 2: Stack Management Functions
+// ============================================
+
+async function loadPhase2Stacks() {
+  showToast('Loading stacks...', 'info', 2000);
+  try {
+    const response = await fetch(`${API}/api/stacks/all`);
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const stacks = await response.json();
+    renderStacks(stacks);
+    showToast(`Loaded ${Object.keys(stacks).length} stack(s)`, 'success');
+  } catch (err) {
+    showToast(`Failed to load stacks: ${err.message}`, 'error');
+  }
+}
+
+async function viewStackDetails(stackName) {
+  showToast('Loading stack details...', 'info', 2000);
+  try {
+    const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}`);
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+    const data = await response.json();
+    const stackInfo = data[stackName];
+    
+    let html = '<div>';
+    html += `<p><strong>Compose Files:</strong></p><ul>`;
+    html += (stackInfo.compose_files || []).map(f => `<li><code>${escHtml(f)}</code></li>`).join('');
+    html += `</ul>`;
+    
+    html += `<p style="margin-top:.75rem"><strong>Services:</strong> ${(stackInfo.services || []).map(s => `<span class="stack-pill">${escHtml(s)}</span>`).join(' ')}</p>`;
+    
+    if (stackInfo.containers && stackInfo.containers.length > 0) {
+      html += `<p style="margin-top:.75rem"><strong>Containers:</strong></p><ul>`;
+      html += stackInfo.containers.map(c => 
+        `<li>${escHtml(c.name || c.id)} - <span class="badge ${c.status === 'running' ? 'running' : 'error'}">${escHtml(c.status)}</span> (${escHtml(c.service)})</li>`
+      ).join('');
+      html += `</ul>`;
+    }
+    
+    html += `<p style="margin-top:.75rem"><strong>Status:</strong> <span class="stack-status-badge ${stackInfo.status || 'unknown'}">${escHtml(stackInfo.status || 'unknown')}</span></p>`;
+    html += '</div>';
+    
+    showModal(`Stack: ${escHtml(stackName)}`, html);
+  } catch (err) {
+    showToast(`Failed to load stack details: ${err.message}`, 'error');
+  }
+}
+
+async function stackUp(stackName) {
+  if (!confirm(`Start all containers in stack "${stackName}"?`)) return;
+  showToast('Starting stack...', 'info', 3000);
+  try {
+    const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/up`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    if (data.status === 'success' || data.status === 'partial_success') {
+      showToast(`Stack start ${data.status === 'success' ? 'succeeded' : 'completed with errors'}`, data.status === 'success' ? 'success' : 'warning');
+      await loadPhase2Stacks();
+    } else {
+      showToast(`Failed to start stack: ${data.message}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error starting stack: ${err.message}`, 'error');
+  }
+}
+
+async function stackDown(stackName) {
+  if (!confirm(`Stop all containers in stack "${stackName}"?\n\nThis will stop and remove containers defined in the compose files.`)) return;
+  showToast('Stopping stack...', 'info', 3000);
+  try {
+    const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/down`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    if (data.status === 'success' || data.status === 'partial_success') {
+      showToast(`Stack stop ${data.status === 'success' ? 'succeeded' : 'completed with errors'}`, data.status === 'success' ? 'success' : 'warning');
+      await loadPhase2Stacks();
+    } else {
+      showToast(`Failed to stop stack: ${data.message}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error stopping stack: ${err.message}`, 'error');
+  }
+}
+
+async function stackRestart(stackName) {
+  if (!confirm(`Restart all containers in stack "${stackName}"?`)) return;
+  showToast('Restarting stack...', 'info', 3000);
+  try {
+    const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/restart`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    if (data.status === 'success' || data.status === 'partial_success') {
+      showToast(`Stack restart ${data.status === 'success' ? 'succeeded' : 'completed with errors'}`, data.status === 'success' ? 'success' : 'warning');
+      await loadPhase2Stacks();
+    } else {
+      showToast(`Failed to restart stack: ${data.message}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error restarting stack: ${err.message}`, 'error');
   }
 }
 

@@ -47,13 +47,27 @@ from docker_utils import (
     start_container,
     stop_container,
     restart_container,
+    # Phase 2: Compose file management
+    get_compose_file_content,
+    write_compose_file,
+    validate_compose_content,
+    get_compose_file_dependencies,
+    list_compose_files_detailed,
+    # Phase 2: Stack management
+    get_stack_name_from_path,
+    stack_up,
+    stack_down,
+    stack_restart,
+    stack_ps,
+    get_stack_containers,
+    get_all_stacks,
 )
 from notifier import (
     send_notification,
     notify_pull_result,
     notify_recreate_result,
 )
-from config import NOTIFY_ENABLED, NOTIFY_BACKEND
+from config import NOTIFY_ENABLED, NOTIFY_BACKEND, DEFAULT_COMPOSE_TIMEOUT
 
 
 # ── Routes (moved from app.py) ─────────────────────────────────────────────────
@@ -674,5 +688,382 @@ def api_container_restart(container_id):
     else:
         log_op("container_restart", container_id, "error", message)
         return jsonify({"status": "error", "message": message}), 400
+
+
+# -- Phase 2: Compose File Management Endpoints --
+
+
+@app.route("/api/compose/files/detailed")
+def api_compose_files_detailed():
+    """List all compose files with detailed metadata (services, images, etc.)."""
+    project_filter = request.args.get("project", None)
+    files = list_compose_files_detailed()
+    
+    if project_filter:
+        files = [f for f in files if f.get("project") == project_filter]
+    
+    return jsonify(files)
+
+
+@app.route("/api/compose/files/<path:compose_path>")
+def api_compose_file_get(compose_path):
+    """Get the content of a specific compose file."""
+    content = get_compose_file_content(compose_path)
+    if content is None:
+        return jsonify({"status": "error", "message": "File not found or invalid"}), 404
+    
+    return jsonify({"path": compose_path, "content": content})
+
+
+@app.route("/api/compose/files/<path:compose_path>", methods=["PUT"])
+def api_compose_file_update(compose_path):
+    """Update/save a compose file with new content."""
+    from schemas import ComposeFileContentRequest
+    
+    data = request.json or {}
+    try:
+        validated = ComposeFileContentRequest.model_validate(data)
+        content = validated.content
+        backup = validated.backup
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    
+    # Validate content
+    is_valid, validation_msg, errors = validate_compose_content(content)
+    if not is_valid:
+        return jsonify({
+            "status": "error",
+            "message": validation_msg,
+            "errors": errors
+        }), 400
+    
+    success, message = write_compose_file(compose_path, content, backup=backup)
+    if success:
+        log_op("compose_update", compose_path, "success", message)
+        return jsonify({"status": "success", "message": message, "path": compose_path})
+    else:
+        log_op("compose_update", compose_path, "error", message)
+        return jsonify({"status": "error", "message": message}), 500
+
+
+@app.route("/api/compose/files/<path:compose_path>/validate", methods=["POST"])
+def api_compose_file_validate(compose_path):
+    """Validate a compose file's content."""
+    from schemas import ComposeFileValidateRequest
+    
+    # Get content from request body or read from file
+    data = request.json or {}
+    content = data.get("content")
+    
+    if content is None:
+        # Read from file if no content provided
+        content = get_compose_file_content(compose_path)
+        if content is None:
+            return jsonify({"status": "error", "message": "File not found"}), 404
+    
+    is_valid, message, errors = validate_compose_content(content)
+    return jsonify({
+        "valid": is_valid,
+        "message": message,
+        "errors": errors
+    })
+
+
+@app.route("/api/compose/files/<path:compose_path>/dependencies")
+def api_compose_file_dependencies(compose_path):
+    """Get dependency graph for a compose file."""
+    dependencies = get_compose_file_dependencies(compose_path)
+    return jsonify({"path": compose_path, **dependencies})
+
+
+# -- Phase 2: Stack Management Endpoints --
+
+
+@app.route("/api/stacks/all")
+def api_all_stacks():
+    """Get information about all stacks (compose projects)."""
+    stacks = get_all_stacks()
+    return jsonify(stacks)
+
+
+@app.route("/api/stacks/<stack_name>")
+def api_stack_info(stack_name):
+    """Get information about a specific stack."""
+    stacks = get_all_stacks()
+    stack_info = stacks.get(stack_name)
+    
+    if stack_info is None:
+        return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
+    
+    return jsonify({stack_name: stack_info})
+
+
+@app.route("/api/stacks/<stack_name>/containers")
+def api_stack_containers(stack_name):
+    """Get containers for a specific stack."""
+    stacks = get_all_stacks()
+    stack_info = stacks.get(stack_name)
+    
+    if stack_info is None:
+        return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
+    
+    return jsonify({"stack": stack_name, "containers": stack_info.get("containers", [])})
+
+
+@app.route("/api/stacks/<stack_name>/status")
+def api_stack_status(stack_name):
+    """Get status of all containers in a stack."""
+    stacks = get_all_stacks()
+    stack_info = stacks.get(stack_name)
+    
+    if stack_info is None:
+        return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
+    
+    return jsonify({
+        "stack": stack_name,
+        "status": stack_info.get("status", "unknown"),
+        "containers": stack_info.get("containers", [])
+    })
+
+
+@app.route("/api/stacks/<stack_name>/up", methods=["POST"])
+def api_stack_up(stack_name):
+    """Start a stack (docker compose up -d)."""
+    from schemas import StackActionRequest
+    
+    data = request.json or {}
+    try:
+        validated = StackActionRequest.model_validate(data)
+        timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    
+    # Find compose files for this stack
+    stacks = get_all_stacks()
+    stack_info = stacks.get(stack_name)
+    
+    if stack_info is None:
+        return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
+    
+    compose_files = stack_info.get("compose_files", [])
+    if not compose_files:
+        return jsonify({"status": "error", "message": f"No compose files found for stack '{stack_name}'"}), 400
+    
+    results = []
+    all_success = True
+    
+    for compose_path in compose_files:
+        try:
+            result = stack_up(compose_path, timeout=timeout)
+            results.append({
+                "compose_file": compose_path,
+                "success": result.returncode == 0,
+                "output": result.stdout,
+                "error": result.stderr
+            })
+            if result.returncode != 0:
+                all_success = False
+        except Exception as e:
+            results.append({
+                "compose_file": compose_path,
+                "success": False,
+                "output": "",
+                "error": str(e)
+            })
+            all_success = False
+    
+    if all_success:
+        log_op("stack_up", stack_name, "success", f"Started {len(compose_files)} compose file(s)")
+        return jsonify({"status": "success", "stack": stack_name, "results": results})
+    else:
+        log_op("stack_up", stack_name, "error", "Partial or complete failure")
+        return jsonify({"status": "partial_success", "stack": stack_name, "results": results}), 207
+
+
+@app.route("/api/stacks/<stack_name>/down", methods=["POST"])
+def api_stack_down(stack_name):
+    """Stop a stack (docker compose down)."""
+    from schemas import StackActionRequest
+    
+    data = request.json or {}
+    try:
+        validated = StackActionRequest.model_validate(data)
+        timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    
+    # Find compose files for this stack
+    stacks = get_all_stacks()
+    stack_info = stacks.get(stack_name)
+    
+    if stack_info is None:
+        return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
+    
+    compose_files = stack_info.get("compose_files", [])
+    if not compose_files:
+        return jsonify({"status": "error", "message": f"No compose files found for stack '{stack_name}'"}), 400
+    
+    results = []
+    all_success = True
+    
+    for compose_path in compose_files:
+        try:
+            result = stack_down(compose_path, timeout=timeout)
+            results.append({
+                "compose_file": compose_path,
+                "success": result.returncode == 0,
+                "output": result.stdout,
+                "error": result.stderr
+            })
+            if result.returncode != 0:
+                all_success = False
+        except Exception as e:
+            results.append({
+                "compose_file": compose_path,
+                "success": False,
+                "output": "",
+                "error": str(e)
+            })
+            all_success = False
+    
+    if all_success:
+        log_op("stack_down", stack_name, "success", f"Stopped {len(compose_files)} compose file(s)")
+        return jsonify({"status": "success", "stack": stack_name, "results": results})
+    else:
+        log_op("stack_down", stack_name, "error", "Partial or complete failure")
+        return jsonify({"status": "partial_success", "stack": stack_name, "results": results}), 207
+
+
+@app.route("/api/stacks/<stack_name>/restart", methods=["POST"])
+def api_stack_restart(stack_name):
+    """Restart all containers in a stack."""
+    from schemas import StackActionRequest
+    
+    data = request.json or {}
+    try:
+        validated = StackActionRequest.model_validate(data)
+        timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    
+    # Find compose files for this stack
+    stacks = get_all_stacks()
+    stack_info = stacks.get(stack_name)
+    
+    if stack_info is None:
+        return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
+    
+    compose_files = stack_info.get("compose_files", [])
+    if not compose_files:
+        return jsonify({"status": "error", "message": f"No compose files found for stack '{stack_name}'"}), 400
+    
+    results = []
+    all_success = True
+    
+    for compose_path in compose_files:
+        try:
+            result = stack_restart(compose_path, timeout=timeout)
+            results.append({
+                "compose_file": compose_path,
+                "success": result.returncode == 0,
+                "output": result.stdout,
+                "error": result.stderr
+            })
+            if result.returncode != 0:
+                all_success = False
+        except Exception as e:
+            results.append({
+                "compose_file": compose_path,
+                "success": False,
+                "output": "",
+                "error": str(e)
+            })
+            all_success = False
+    
+    if all_success:
+        log_op("stack_restart", stack_name, "success", f"Restarted {len(compose_files)} compose file(s)")
+        return jsonify({"status": "success", "stack": stack_name, "results": results})
+    else:
+        log_op("stack_restart", stack_name, "error", "Partial or complete failure")
+        return jsonify({"status": "partial_success", "stack": stack_name, "results": results}), 207
+
+
+@app.route("/api/stacks/bulk", methods=["POST"])
+def api_stacks_bulk_action():
+    """Perform bulk action on multiple stacks."""
+    from schemas import StackBulkActionRequest
+    
+    data = request.json or {}
+    try:
+        validated = StackBulkActionRequest.model_validate(data)
+        stack_names = validated.stack_names
+        action = validated.action
+        timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 400
+    
+    action_map = {
+        'up': stack_up,
+        'down': stack_down,
+        'restart': stack_restart
+    }
+    
+    if action not in action_map:
+        return jsonify({"status": "error", "message": f"Invalid action: {action}"}), 400
+    
+    stacks = get_all_stacks()
+    results = {}
+    all_success = True
+    
+    for stack_name in stack_names:
+        stack_info = stacks.get(stack_name)
+        if stack_info is None:
+            results[stack_name] = {
+                "status": "error",
+                "message": f"Stack '{stack_name}' not found"
+            }
+            all_success = False
+            continue
+        
+        compose_files = stack_info.get("compose_files", [])
+        stack_results = []
+        stack_success = True
+        
+        for compose_path in compose_files:
+            try:
+                action_func = action_map[action]
+                result = action_func(compose_path, timeout=timeout)
+                stack_results.append({
+                    "compose_file": compose_path,
+                    "success": result.returncode == 0,
+                    "output": result.stdout,
+                    "error": result.stderr
+                })
+                if result.returncode != 0:
+                    stack_success = False
+            except Exception as e:
+                stack_results.append({
+                    "compose_file": compose_path,
+                    "success": False,
+                    "output": "",
+                    "error": str(e)
+                })
+                stack_success = False
+        
+        results[stack_name] = {
+            "status": "success" if stack_success else "partial_success",
+            "action": action,
+            "results": stack_results
+        }
+        
+        if not stack_success:
+            all_success = False
+    
+    if all_success:
+        log_op("stacks_bulk", f"{action} ({','.join(stack_names)})", "success", f"Applied {action} to {len(stack_names)} stack(s)")
+        return jsonify({"status": "success", "action": action, "results": results})
+    else:
+        log_op("stacks_bulk", f"{action} ({','.join(stack_names)})", "error", "Partial or complete failure")
+        return jsonify({"status": "partial_success", "action": action, "results": results}), 207
 
 
