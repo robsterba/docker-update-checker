@@ -157,6 +157,7 @@
   .filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 
   .last-check{font-size:.75rem;color:var(--muted)}
+  .card-subtitle{font-size:.78rem;color:var(--muted)}
   .empty{padding:3rem 1rem;text-align:center;color:var(--muted)}
   .empty svg{margin-inline:auto;margin-bottom:.75rem;opacity:.4}
 
@@ -186,11 +187,9 @@
   </div>
   <div class="header-actions">
     <label class="inline-toggle host-select">
-      <span>Host</span>
       <select id="instanceSelect" onchange="selectInstance(this.value)"></select>
     </label>
-    <span class="host-label" id="hostLabel">Host: Local host</span>
-    <span class="host-status unknown" id="instanceHealth">Loading host state…</span>
+    <span class="host-status unknown" id="instanceHealth">Loading…</span>
     <span class="last-check" id="lastCheck">—</span>
     <button class="btn btn-primary btn-sm" id="checkBtn" onclick="triggerCheck()">
       <svg id="checkIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -213,38 +212,33 @@
   <div class="toolbar">
     <div class="toolbar-left">
       <button class="btn btn-warn" onclick="bulkUpdateAll()">Pull All Updates</button>
-      <button class="btn btn-ghost" onclick="loadStacks()">Refresh Stacks</button>
-      <button class="btn btn-ghost" onclick="loadInstances()">Refresh Hosts</button>
-      <button class="btn btn-ghost" onclick="sendTestNotification()">Test Notification</button>
+      <button class="btn btn-ghost" onclick="refreshAll()">Refresh All</button>
       <div class="dropdown">
         <button class="dropdown-btn" onclick="toggleToolsMenu(event)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-          Tools
+          Maintenance
         </button>
         <div class="dropdown-menu hidden" id="toolsMenu">
-          <button class="dropdown-menu-item" onclick="pruneContainers()">Prune Containers</button>
+          <button class="dropdown-menu-item" onclick="sendTestNotification()">Test Notification</button>
+          <button class="dropdown-menu-item" onclick="pruneContainers()">Prune Stopped Containers</button>
           <button class="dropdown-menu-item" onclick="pruneImages(false)">Prune Dangling Images</button>
           <button class="dropdown-menu-item" onclick="pruneImages(true)">Prune All Unused Images</button>
-          <button class="dropdown-menu-item" onclick="pruneSystem()">System Prune</button>
           <button class="dropdown-menu-item" onclick="pruneVolumes(false)">Prune Anonymous Volumes</button>
-          <button class="dropdown-menu-item" onclick="pruneVolumes(true)">Prune All Unused Volumes</button>
+          <button class="dropdown-menu-item" onclick="pruneSystem()">System Prune</button>
         </div>
       </div>
     </div>
     <div class="toolbar-right">
       <label class="inline-toggle">
         <input type="checkbox" id="autoRecreateToggle" onchange="onAutoRecreateToggle()">
-        Auto-recreate after pull
+        Auto-recreate
       </label>
     </div>
   </div>
 
   <div class="card">
     <div class="card-header">
-      <div>
-        <span class="card-title">Hosts</span>
-        <div class="card-subtitle">Select a host and watch health, last check, and update state.</div>
-      </div>
+      <span class="card-title">Hosts</span>
     </div>
     <div class="instance-grid" id="instanceGrid">
       <div class="empty" style="padding:1.25rem">Loading host status…</div>
@@ -265,7 +259,6 @@
     <div class="card">
       <div class="card-header">
         <span class="card-title">Stacks</span>
-        <button class="btn btn-ghost btn-sm" onclick="loadStacks()">Refresh</button>
       </div>
       <div class="jobs-wrap">
         <div class="stack-grid" id="stackGrid">
@@ -276,8 +269,7 @@
 
     <div class="card">
       <div class="card-header">
-        <span class="card-title">Jobs</span>
-        <button class="btn btn-ghost btn-sm" onclick="loadJobs()">Refresh</button>
+        <span class="card-title">Recent Jobs</span>
       </div>
       <div class="jobs-wrap">
         <div class="jobs-scroll" id="jobsList">
@@ -318,8 +310,7 @@
 
   <div class="card">
     <div class="card-header">
-      <span class="card-title">Recent Operations</span>
-      <button class="btn btn-ghost btn-sm" onclick="loadOps()">Refresh</button>
+      <span class="card-title">Activity Log</span>
     </div>
     <div class="log-list" id="opLog">
       <div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>
@@ -431,7 +422,14 @@ async function fetchInstanceStatus(instance) {
 
 function setInstanceHealth(status, message) {
   const badge = document.getElementById('instanceHealth');
-  badge.textContent = message;
+  // Use simpler status messages
+  if (status === 'online') {
+    badge.textContent = 'Online';
+  } else if (status === 'offline') {
+    badge.textContent = 'Offline';
+  } else {
+    badge.textContent = message || 'Unknown';
+  }
   badge.classList.remove('online', 'offline', 'unknown');
   badge.classList.add(status);
 }
@@ -448,24 +446,18 @@ function renderInstances(instances) {
     const isSelected = currentInstance.id === inst.id;
     const state = status?.ok ? 'online' : 'offline';
     const label = status?.ok ? 'Online' : 'Offline';
-    const details = status?.ok
-      ? `Last check: ${status.data.last_check ? fmtDate(status.data.last_check) : 'unknown'} · ${status.data.updates_available ?? '—'} updates`
-      : `${status?.error ?? 'Unable to reach host'}`;
+    const updatesInfo = status?.ok && status.data.updates_available ? ` · ${status.data.updates_available} updates` : '';
+    const lastCheck = status?.ok && status.data.last_check ? fmtDate(status.data.last_check) : '';
 
     return `
       <div class="instance-card">
         <div class="instance-card-header">
           <div>
             <div class="instance-card-name">${escHtml(inst.name)}</div>
-            <div class="instance-card-meta">${escHtml(inst.description || inst.url || 'No description')}</div>
+            <div class="instance-card-meta">${escHtml(lastCheck)}${updatesInfo}</div>
           </div>
           <div class="host-status ${state}">${label}</div>
         </div>
-        <div class="instance-card-row">
-          <span class="card-subtitle">${escHtml(inst.url || 'Local host')}</span>
-          <span class="card-subtitle">${escHtml(inst.type === 'local' ? 'Local' : 'Remote')}</span>
-        </div>
-        <div class="instance-card-meta">${escHtml(details)}</div>
         <div class="instance-card-row">
           <button class="btn btn-ghost btn-sm" onclick="selectInstance('${escAttr(inst.id)}')" ${isSelected ? 'disabled' : ''}>${isSelected ? 'Selected' : 'Select'}</button>
         </div>
@@ -486,25 +478,34 @@ async function selectInstance(instanceId) {
   const found = allInstances.find(i => i.id === instanceId);
   currentInstance = found || allInstances[0] || currentInstance;
   document.getElementById('instanceSelect').value = currentInstance.id;
-  document.getElementById('hostLabel').textContent = `Host: ${currentInstance.name}`;
   const status = hostStatuses[currentInstance.id];
   if (status) {
     if (status.ok) {
-      setInstanceHealth('online', `Online · Last check ${status.data.last_check ? fmtDate(status.data.last_check) : 'unknown'}`);
+      setInstanceHealth('online', 'Online');
+      document.getElementById('lastCheck').textContent = status.data.last_check ? `Last check: ${fmtDate(status.data.last_check)}` : 'No check yet';
     } else {
-      setInstanceHealth('offline', status.error || 'Unable to reach host');
+      setInstanceHealth('offline', 'Offline');
+    document.getElementById('lastCheck').textContent = status.error || 'Unable to reach host';
     }
   } else {
-    setInstanceHealth('unknown', 'Checking host...');
+    setInstanceHealth('unknown', 'Checking...');
+    document.getElementById('lastCheck').textContent = 'Checking...';
     hostStatuses[currentInstance.id] = await fetchInstanceStatus(currentInstance);
     const newStatus = hostStatuses[currentInstance.id];
-    setInstanceHealth(newStatus.ok ? 'online' : 'offline', newStatus.ok
-      ? `Online · Last check ${newStatus.data.last_check ? fmtDate(newStatus.data.last_check) : 'unknown'}`
-      : newStatus.error || 'Unable to reach host'
-    );
+    if (newStatus.ok) {
+      setInstanceHealth('online', 'Online');
+      document.getElementById('lastCheck').textContent = newStatus.data.last_check ? `Last check: ${fmtDate(newStatus.data.last_check)}` : 'No check yet';
+    } else {
+      setInstanceHealth('offline', 'Offline');
+      document.getElementById('lastCheck').textContent = newStatus.error || 'Unable to reach host';
+    }
   }
   renderInstances(allInstances);
   await refreshAll();
+}
+
+async function refreshAll() {
+  await Promise.all([loadStatus(), loadImages(), loadStacks(), loadJobs(), loadOps()]);
 }
 
 async function loadInstances() {
@@ -519,15 +520,17 @@ async function loadInstances() {
       currentInstance = allInstances[0] || currentInstance;
     }
     select.value = currentInstance.id;
-    document.getElementById('hostLabel').textContent = `Host: ${currentInstance.name}`;
-    setInstanceHealth('unknown', 'Checking host...');
+    setInstanceHealth('unknown', 'Checking...');
+    document.getElementById('lastCheck').textContent = 'Checking...';
     await loadInstanceStatuses();
     const status = hostStatuses[currentInstance.id];
     if (status) {
       if (status.ok) {
-        setInstanceHealth('online', `Online · Last check ${status.data.last_check ? fmtDate(status.data.last_check) : 'unknown'}`);
+        setInstanceHealth('online', 'Online');
+        document.getElementById('lastCheck').textContent = status.data.last_check ? `Last check: ${fmtDate(status.data.last_check)}` : 'No check yet';
       } else {
-        setInstanceHealth('offline', status.error || 'Unable to reach host');
+        setInstanceHealth('offline', 'Offline');
+        document.getElementById('lastCheck').textContent = status.error || 'Unable to reach host';
       }
     }
   } catch (err) {
@@ -540,7 +543,6 @@ function toggleTheme() {
   document.documentElement.setAttribute('data-theme', theme);
   document.getElementById('themeBtn').innerHTML = buildThemeIcon(theme);
   setStoredTheme(theme);
-  showToast(`Theme switched to ${theme}`);
 }
 
 function loadTheme() {
@@ -567,7 +569,7 @@ async function syncAutoRecreateSetting(value) {
   }
 }
 
-function showToast(message, type = 'success') {
+function showToast(message, type = 'success', duration = 2000) {
   const toast = document.getElementById('toastNotification');
   if (!toast) return;
   toast.textContent = message;
@@ -575,14 +577,13 @@ function showToast(message, type = 'success') {
   clearTimeout(toast._timeout);
   toast._timeout = setTimeout(() => {
     toast.className = 'notification';
-  }, 2500);
+  }, duration);
 }
 
 function onAutoRecreateToggle() {
   const value = getAutoRecreate();
   setStoredAutoRecreate(value);
   syncAutoRecreateSetting(value);
-  showToast(`Auto-recreate ${value ? 'enabled' : 'disabled'}`);
 }
 
 function setFilter(f, btn) {
@@ -639,20 +640,20 @@ function renderStacks(stacks) {
       <div class="stack-head">
         <div>
           <div class="stack-name">${escHtml(stack.stack)}</div>
-          <div class="stack-meta">${stack.total_images} image(s) · Last checked ${fmtDate(stack.last_checked)}</div>
+          <div class="stack-meta">${stack.total_images} images · ${fmtDate(stack.last_checked)}</div>
         </div>
         ${stack.updates_available > 0 ? badge('update_available') : badge('up_to_date')}
       </div>
-      <div class="stack-meta">
-        Up to date: ${stack.up_to_date} · Updates: ${stack.updates_available} · Unknown: ${stack.unknown}
-      </div>
-      <div class="stack-badges">
-        ${(stack.compose_files || []).map(cf => `<span class="cf-pill" title="${escHtml(cf)}">${escHtml(cf.split('/').slice(-2).join('/'))}</span>`).join('')}
-      </div>
+      ${stack.updates_available > 0 ? `
       <div class="stack-actions">
-        <button class="btn btn-warn btn-sm" onclick="bulkUpdateStack('${escAttr(stack.stack)}')" ${stack.updates_available > 0 ? '' : 'disabled'}>Pull Stack Updates</button>
-        <button class="btn btn-primary btn-sm" onclick="recreateStack('${escAttr(stack.stack)}')">Recreate Stack</button>
+        <button class="btn btn-warn btn-sm" onclick="bulkUpdateStack('${escAttr(stack.stack)}')">Pull Updates (${stack.updates_available})</button>
+        <button class="btn btn-primary btn-sm" onclick="recreateStack('${escAttr(stack.stack)}')">Recreate</button>
       </div>
+      ` : `
+      <div class="stack-actions">
+        <button class="btn btn-primary btn-sm" onclick="recreateStack('${escAttr(stack.stack)}')">Recreate</button>
+      </div>
+      `}
     </div>
   `).join('');
 }
@@ -668,35 +669,37 @@ function renderJobs(jobs) {
 
   el.innerHTML = displayedJobs.map(job => {
     const pct = Math.max(0, Math.min(100, Math.round(((job.progress || 0) / Math.max(job.total_steps || 1, 1)) * 100)));
-    const events = (job.events || []).slice(0, 8);
+    const events = (job.events || []).slice(0, 3);  // Reduced from 8 to 3
+    const showProgress = job.status === 'started' || job.status === 'running';
     return `
       <div class="job">
         <div class="job-head">
           <div>
             <div class="job-title">${escHtml(job.type)} — ${escHtml(job.target)}</div>
             <div class="job-meta">
-              ${job.stack ? `Stack: ${escHtml(job.stack)} · ` : ''}
-              Started: ${fmtDate(job.started_at)}
-              ${job.finished_at ? ` · Finished: ${fmtDate(job.finished_at)}` : ''}
+              ${fmtDate(job.started_at)}
+              ${job.finished_at ? ` → ${fmtDate(job.finished_at)}` : ''}
+              ${job.stack ? ` · ${escHtml(job.stack)}` : ''}
             </div>
           </div>
           <div>${badge(job.status)}</div>
         </div>
-        <div class="job-message">${escHtml(job.current_step || '')}${job.message ? ` — ${escHtml(job.message)}` : ''}</div>
-        <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>
-        <div class="job-meta" style="margin-top:.35rem">${job.progress || 0} / ${job.total_steps || 1} step(s)</div>
+        ${showProgress ? `<div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>` : ''}
+        ${(job.message && job.status !== 'started') ? `<div class="job-message">${escHtml(job.message)}</div>` : ''}
+        ${events.length > 0 ? `
         <div class="job-events">
           <details>
-            <summary>Recent events</summary>
+            <summary>Events (${events.length})</summary>
             <div style="margin-top:.35rem">
-              ${events.length ? events.map(ev => `
+              ${events.map(ev => `
                 <div class="job-event">
-                  <strong>${fmtDate(ev.time)}</strong> — ${escHtml(ev.status || 'info')} — ${escHtml(ev.message || '')}
+                  <strong>${fmtDate(ev.time)}</strong> — ${escHtml(ev.message || '')}
                 </div>
-              `).join('') : '<div class="job-event">No events yet.</div>'}
+              `).join('')}
             </div>
           </details>
         </div>
+        ` : ''}
       </div>
     `;
   }).join('');
@@ -760,10 +763,10 @@ async function loadStatus() {
     document.getElementById('kpiOk').textContent = '—';
     document.getElementById('kpiUpdates').textContent = '—';
     document.getElementById('kpiErr').textContent = '—';
-    document.getElementById('lastCheck').textContent = d.__error;
     const storedValue = getStoredAutoRecreate();
     document.getElementById('autoRecreateToggle').checked = storedValue !== null ? storedValue : false;
-    setInstanceHealth('offline', `Offline: ${d.__error}`);
+    setInstanceHealth('offline', 'Offline');
+    document.getElementById('lastCheck').textContent = `Error: ${d.__error}`;
     return;
   }
   document.getElementById('kpiTotal').textContent = d.total ?? '—';
@@ -775,7 +778,7 @@ async function loadStatus() {
   document.getElementById('autoRecreateToggle').checked = storedValue !== null
     ? storedValue
     : !!d.auto_recreate_after_pull;
-  setInstanceHealth('online', `Connected: ${currentInstance.name}`);
+  setInstanceHealth('online', 'Online');
 }
 
 async function loadImages() {
@@ -823,7 +826,7 @@ async function loadOps() {
     el.innerHTML = `<div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>`;
     return;
   }
-  el.innerHTML = ops.map(o => `
+  el.innerHTML = ops.slice(0, 20).map(o => `
     <div class="log-entry">
       <span class="log-time">${fmtDate(o.time)}</span>
       <span class="log-action">${escHtml(o.action)}</span>

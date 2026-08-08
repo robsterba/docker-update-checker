@@ -8,6 +8,7 @@ import threading
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from typing import Any, Optional
+from collections import defaultdict
 
 from config import (
     NOTIFY_WEBHOOK_URL,
@@ -27,12 +28,20 @@ from config import (
     NOTIFY_EMAIL_TO,
     NOTIFY_EMAIL_USE_TLS,
     NOTIFY_MAX_FREQUENCY,
+    NOTIFY_BATCH_WINDOW,
+    NOTIFY_SUMMARY_ENABLED,
     STATUS_UPDATE_AVAILABLE,
 )
 
 # Notification throttling state
 _throttle_lock = threading.Lock()
 _last_notification_time = 0.0
+
+# Notification batching state for summary notifications
+_batch_lock = threading.Lock()
+_pending_notifications = defaultdict(list)  # event_type -> list of notifications
+_last_batch_time = 0.0
+_batch_timer = None
 
 
 def notify_webhook(payload: dict):
@@ -128,18 +137,99 @@ def build_notification_payload(
     }
 
 
-def send_notification(
+def _should_batch_notification(event_type: str) -> bool:
+    """Determine if this notification type should be batched into summaries."""
+    # Batch pull and recreate success notifications, but send errors immediately
+    batchable_types = {"pull_result", "recreate_result", "bulk_complete"}
+    return (NOTIFY_SUMMARY_ENABLED and 
+            event_type in batchable_types and
+            NOTIFY_BATCH_WINDOW > 0)
+
+
+def _send_batched_notifications():
+    """Send summary notifications for all batched events."""
+    global _pending_notifications, _last_batch_time, _batch_timer
+    
+    with _batch_lock:
+        if not _pending_notifications:
+            return
+            
+        # Group notifications by type for summary
+        notifications_by_type = dict(_pending_notifications)
+        _pending_notifications.clear()
+        _last_batch_time = time.time()
+        
+    # Send summary for each notification type
+    for event_type, notifications in notifications_by_type.items():
+        if event_type == "pull_result":
+            successes = [n for n in notifications if n.get("status") == "success"]
+            errors = [n for n in notifications if n.get("status") == "error"]
+            
+            if successes:
+                image_names = [n.get("extra", {}).get("image", n.get("title", "")) for n in successes]
+                send_notification_direct(
+                    event_type="pull_summary",
+                    title=f"{len(successes)} images pulled successfully",
+                    message=f"Successfully pulled: {', '.join(image_names[:5])}{'...' if len(image_names) > 5 else ''}",
+                    status="success",
+                    extra={"count": len(successes), "images": image_names, "type": "summary"}
+                )
+                
+            if errors:
+                for error_notif in errors:
+                    # Send individual error notifications immediately
+                    send_notification_direct(**error_notif)
+                    
+        elif event_type == "recreate_result":
+            successes = [n for n in notifications if n.get("status") == "success"]
+            errors = [n for n in notifications if n.get("status") == "error"]
+            
+            if successes:
+                targets = [n.get("extra", {}).get("target", n.get("title", "")) for n in successes]
+                send_notification_direct(
+                    event_type="recreate_summary",
+                    title=f"{len(successes)} stacks recreated successfully",
+                    message=f"Successfully recreated: {', '.join(targets[:5])}{'...' if len(targets) > 5 else ''}",
+                    status="success",
+                    extra={"count": len(successes), "targets": targets, "type": "summary"}
+                )
+                
+            if errors:
+                for error_notif in errors:
+                    send_notification_direct(**error_notif)
+                    
+        elif event_type == "bulk_complete":
+            for notif in notifications:
+                send_notification_direct(**notif)
+
+
+def _schedule_batch_timer():
+    """Schedule the batch notification timer if not already running."""
+    global _batch_timer
+    
+    with _batch_lock:
+        if _batch_timer is not None:
+            return
+            
+        def batch_wrapper():
+            global _batch_timer
+            _send_batched_notifications()
+            with _batch_lock:
+                _batch_timer = None
+                
+        _batch_timer = threading.Timer(NOTIFY_BATCH_WINDOW, batch_wrapper)
+        _batch_timer.daemon = True
+        _batch_timer.start()
+
+
+def send_notification_direct(
     event_type: str,
     title: str,
     message: str,
     status: str = "info",
     extra: Optional[dict] = None
 ) -> None:
-    """Send a notification using the configured backend.
-    
-    Raises:
-        RuntimeError: If NOTIFY_ENABLED is False or backend is not configured
-    """
+    """Send a notification directly without batching logic."""
     from config import NOTIFY_ENABLED, NOTIFY_BACKEND
     
     if not NOTIFY_ENABLED:
@@ -171,6 +261,43 @@ def send_notification(
     except Exception as e:
         log.warning(f"Notification failed: {e}")
         raise
+
+
+def send_notification(
+    event_type: str,
+    title: str,
+    message: str,
+    status: str = "info",
+    extra: Optional[dict] = None
+) -> None:
+    """Send a notification using the configured backend.
+    
+    notifications may be batched into summary notifications for certain event types.
+    
+    Raises:
+        RuntimeError: If NOTIFY_ENABLED is False or backend is not configured
+    """
+    from config import NOTIFY_ENABLED, NOTIFY_BACKEND
+    
+    if not NOTIFY_ENABLED:
+        return
+
+    # Check if this notification should be batched
+    if _should_batch_notification(event_type):
+        with _batch_lock:
+            notification_data = {
+                "event_type": event_type,
+                "title": title,
+                "message": message,
+                "status": status,
+                "extra": extra or {}
+            }
+            _pending_notifications[event_type].append(notification_data)
+            _schedule_batch_timer()
+        return
+    
+    # Send directly for non-batchable notifications
+    send_notification_direct(event_type, title, message, status, extra)
 
 
 def notify_updates_found(results: dict) -> None:

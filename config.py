@@ -47,6 +47,10 @@ REGISTRY_DELAY_SECONDS = get_int_env("REGISTRY_DELAY_SECONDS", 0)
 # Notification throttling (in seconds, 0 = disabled)
 NOTIFY_MAX_FREQUENCY = get_int_env("NOTIFY_MAX_FREQUENCY", 0)
 
+# Notification batching settings
+NOTIFY_BATCH_WINDOW = get_int_env("NOTIFY_BATCH_WINDOW", 300)  # 5 minutes default batch window
+NOTIFY_SUMMARY_ENABLED = get_bool_env("NOTIFY_SUMMARY_ENABLED", True)  # Send summary notifications by default
+
 
 # ── Config ────────────────────────────────────────────────────────────────────
 COMPOSE_ROOT = get_env("COMPOSE_ROOT", "/compose")
@@ -80,7 +84,7 @@ NOTIFY_ON_PULL_SUCCESS = get_bool_env("NOTIFY_ON_PULL_SUCCESS", False)
 NOTIFY_ON_PULL_ERROR = get_bool_env("NOTIFY_ON_PULL_ERROR", True)
 NOTIFY_ON_RECREATE_SUCCESS = get_bool_env("NOTIFY_ON_RECREATE_SUCCESS", False)
 NOTIFY_ON_RECREATE_ERROR = get_bool_env("NOTIFY_ON_RECREATE_ERROR", True)
-NOTIFY_ON_BULK_COMPLETE = get_bool_env("NOTIFY_ON_BULK_COMPLETE", True)
+NOTIFY_ON_BULK_COMPLETE = get_bool_env("NOTIFY_ON_BULK_COMPLETE", False)  # Reduced from True to minimize noise
 
 REMOTE_INSTANCES_CONFIG = get_env("REMOTE_INSTANCES", "").strip()
 REMOTE_INSTANCES_FILE = get_env("REMOTE_INSTANCES_FILE", "").strip()
