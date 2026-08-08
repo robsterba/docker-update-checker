@@ -831,8 +831,8 @@ def api_stack_up(stack_name):
     """Start a stack (docker compose up -d)."""
     from schemas import StackActionRequest
     
-    data = request.json or {}
     try:
+        data = request.get_json(silent=True) or {}
         validated = StackActionRequest.model_validate(data)
         timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
     except Exception as e:
@@ -885,8 +885,8 @@ def api_stack_down(stack_name):
     """Stop a stack (docker compose down)."""
     from schemas import StackActionRequest
     
-    data = request.json or {}
     try:
+        data = request.get_json(silent=True) or {}
         validated = StackActionRequest.model_validate(data)
         timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
     except Exception as e:
@@ -939,8 +939,8 @@ def api_stack_restart(stack_name):
     """Restart all containers in a stack."""
     from schemas import StackActionRequest
     
-    data = request.json or {}
     try:
+        data = request.get_json(silent=True) or {}
         validated = StackActionRequest.model_validate(data)
         timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
     except Exception as e:

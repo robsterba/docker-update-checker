@@ -1681,7 +1681,8 @@ async function stackUp(stackName) {
   try {
     const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/up`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
     });
     const data = await response.json();
     if (data.status === 'success' || data.status === 'partial_success') {
@@ -1701,7 +1702,8 @@ async function stackDown(stackName) {
   try {
     const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/down`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
     });
     const data = await response.json();
     if (data.status === 'success' || data.status === 'partial_success') {
@@ -1721,7 +1723,8 @@ async function stackRestart(stackName) {
   try {
     const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/restart`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
     });
     const data = await response.json();
     if (data.status === 'success' || data.status === 'partial_success') {
