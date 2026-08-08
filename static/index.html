@@ -726,15 +726,18 @@ function getAutoRecreate() {
 
 function renderStacks(stacks) {
   const el = document.getElementById('stackGrid');
-  document.getElementById('kpiStacks').textContent = stacks.length || '0';
+  
+  // Handle both Phase 1 (array) and Phase 2 (object) data structures
+  const stackCount = Array.isArray(stacks) ? stacks.length : Object.keys(stacks).length;
+  document.getElementById('kpiStacks').textContent = stackCount || '0';
 
-  if (!stacks.length) {
+  if (stackCount === 0) {
     el.innerHTML = `<div class="empty" style="padding:1.25rem">No stacks found.</div>`;
     return;
   }
 
   // Check if using Phase 2 stack data (from /api/stacks/all)
-  const isPhase2Data = stacks[0] && stacks[0].compose_files !== undefined;
+  const isPhase2Data = stacks && !Array.isArray(stacks) && Object.keys(stacks).length > 0;
   
   if (isPhase2Data) {
     // Phase 2: Enhanced stack rendering with management actions
@@ -923,10 +926,11 @@ async function loadImages() {
 }
 
 async function loadStacks() {
-  const d = await safeInstanceFetch('/stacks');
+  // Use Phase 2 endpoint for enhanced stack data
+  const d = await safeInstanceFetch('/stacks/all');
   if (d.__error) {
-    allStacks = [];
-    renderStacks([]);
+    allStacks = {};
+    renderStacks({});
     return;
   }
   allStacks = d;
