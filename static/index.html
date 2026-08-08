@@ -161,6 +161,24 @@
   .empty{padding:3rem 1rem;text-align:center;color:var(--muted)}
   .empty svg{margin-inline:auto;margin-bottom:.75rem;opacity:.4}
 
+  .container-item{background:var(--surface2);border:1px solid var(--border);border-radius:.55rem;padding:.75rem;margin-bottom:.65rem}
+  .container-item:last-child{margin-bottom:0}
+  .container-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.45rem}
+  .container-name{font-weight:600;font-size:.86rem;word-break:break-all}
+  .container-status{display:inline-flex;align-items:center;gap:.4rem}
+  .container-meta{font-size:.76rem;color:var(--muted);margin-bottom:.35rem}
+  .container-actions{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.55rem}
+  .health-badge{font-size:.72rem;padding:.15rem .45rem;border-radius:.35rem;font-weight:500}
+  .health-badge.healthy{background:var(--badge-up);color:var(--success)}
+  .health-badge.unhealthy{background:var(--badge-err);color:var(--error)}
+  .health-badge.starting{background:var(--badge-unk);color:var(--warning)}
+  .health-badge.none{display:none}
+  .resource-bar{height:.35rem;background:var(--bg);border-radius:999px;overflow:hidden;margin:.25rem 0;position:relative}
+  .resource-fill{height:100%;border-radius:999px;transition:width .2s ease}
+  .resource-fill.cpu{background:var(--primary)}
+  .resource-fill.memory{background:var(--warning)}
+  .resource-label{font-size:.7rem;color:var(--muted);display:flex;justify-content:space-between}
+
   @media (max-width: 980px){
     .grid-2{grid-template-columns:1fr}
   }
@@ -306,6 +324,30 @@
         </td></tr>
       </tbody>
     </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Containers</span>
+      <div class="toolbar-right" style="margin-left: auto;">
+        <button class="btn btn-ghost btn-sm" onclick="loadContainers()">Refresh</button>
+        <label class="inline-toggle" style="margin-left: .75rem;">
+          <input type="checkbox" id="showAllContainers" onchange="toggleAllContainers()">
+          Show stopped
+        </label>
+      </div>
+    </div>
+    <div class="filter-bar" style="padding: .5rem .75rem; border-bottom: 1px solid var(--border);">
+      <button class="filter-btn active" onclick="setContainerFilter('all', this)">All</button>
+      <button class="filter-btn" onclick="setContainerFilter('running', this)">Running</button>
+      <button class="filter-btn" onclick="setContainerFilter('stopped', this)">Stopped</button>
+      <button class="filter-btn" onclick="setContainerFilter('unhealthy', this)">Unhealthy</button>
+    </div>
+    <div class="jobs-wrap">
+      <div class="jobs-scroll" id="containersList" style="max-height: 400px;">
+        <div style="padding:.5rem;color:var(--muted);font-size:.82rem">Loading containers…</div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -1048,6 +1090,222 @@ function closeModal(e) {
   }
 }
 
+// Container management state
+let allContainers = [];
+let containerFilter = 'all';
+let showAllContainers = false;
+
+function getContainerFilter() {
+  return document.getElementById('showAllContainers')?.checked || false;
+}
+
+function setContainerFilter(filter, btn) {
+  containerFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadContainers();
+}
+
+function toggleAllContainers() {
+  showAllContainers = getContainerFilter();
+  loadContainers();
+}
+
+function healthBadge(health) {
+  if (!health) return '<span class="health-badge none"></span>';
+  const status = health.Status || 'none';
+  const className = status === 'healthy' ? 'healthy' : 
+                   status === 'unhealthy' ? 'unhealthy' : 
+                   'starting';
+  const label = status.charAt(0).toUpperCase() + status.slice(1);
+  return `<span class="health-badge ${className}">${label}</span>`;
+}
+
+function containerStatusBadge(status) {
+  if (status === 'running') return '<span class="badge running">Running</span>';
+  if (status === 'exited') return '<span class="badge error">Stopped</span>';
+  if (status === 'created') return '<span class="badge info">Created</span>';
+  if (status === 'restarting') return '<span class="badge warning">Restarting</span>';
+  if (status === 'removal in progress') return '<span class="badge warning">Removing</span>';
+  if (status === 'paused') return '<span class="badge warning">Paused</span>';
+  return `<span class="badge unknown">${status}</span>`;
+}
+
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function renderContainers(containers) {
+  const el = document.getElementById('containersList');
+  
+  if (!containers.length) {
+    el.innerHTML = `<div style="padding:.5rem;color:var(--muted);font-size:.82rem">No containers found.</div>`;
+    return;
+  }
+
+  el.innerHTML = containers.map(container => {
+    const status = container.status || 'unknown';
+    const isRunning = container.is_running || status === 'running';
+    const name = container.name || container.id || 'unknown';
+    const shortName = name.startsWith('/') ? name.substring(1) : name;
+    const image = container.image || 'unknown';
+    const created = container.created ? new Date(container.created).toLocaleString() : 'unknown';
+    const health = container.health;
+    
+    // Filter by current filter if not 'all'
+    if (containerFilter !== 'all') {
+      if (containerFilter === 'running' && !isRunning) return '';
+      if (containerFilter === 'stopped' && isRunning) return '';
+      if (containerFilter === 'unhealthy' && (!health || health.Status !== 'unhealthy')) return '';
+    }
+
+    // Build action buttons
+    let actions = '';
+    if (isRunning) {
+      actions += `<button class="btn btn-ghost btn-sm" onclick="stopContainer('${escAttr(container.id)}')">Stop</button>`;
+      actions += `<button class="btn btn-ghost btn-sm" onclick="restartContainer('${escAttr(container.id)}')">Restart</button>`;
+    } else {
+      actions += `<button class="btn btn-primary btn-sm" onclick="startContainer('${escAttr(container.id)}')">Start</button>`;
+    }
+    
+    actions += `<button class="btn btn-ghost btn-sm" onclick="inspectContainer('${escAttr(container.id)}')">Details</button>`;
+
+    return `
+      <div class="container-item">
+        <div class="container-header">
+          <div>
+            <div class="container-name">${escHtml(shortName)}</div>
+            <div class="container-meta">${escHtml(image)} · Created: ${escHtml(created)}</div>
+          </div>
+          <div class="container-status">
+            ${containerStatusBadge(status)}
+            ${healthBadge(health)}
+          </div>
+        </div>
+        <div class="container-actions">${actions}</div>
+      </div>
+    `;
+  }).join('');
+  
+  if (el.innerHTML === '') {
+    el.innerHTML = `<div style="padding:.5rem;color:var(--muted);font-size:.82rem">No containers match this filter.</div>`;
+  }
+}
+
+async function loadContainers() {
+  const showAll = getContainerFilter();
+  try {
+    const url = `${API}/api/containers?all=${showAll}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const message = await response.text();
+      renderContainers([]);
+      document.getElementById('containersList').innerHTML = 
+        `<div style="padding:.5rem;color:var(--error);font-size:.82rem">Failed to load containers: ${escHtml(message)}</div>`;
+      return;
+    }
+    allContainers = await response.json();
+    renderContainers(allContainers);
+  } catch (err) {
+    renderContainers([]);
+    document.getElementById('containersList').innerHTML = 
+      `<div style="padding:.5rem;color:var(--error);font-size:.82rem">Connection failed: ${escHtml(err.message)}</div>`;
+  }
+}
+
+async function startContainer(containerId) {
+  if (!confirm(`Start container ${containerId}?`)) return;
+  showToast('Starting container...', 'info', 3000);
+  try {
+    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}/start`, {
+      method: 'POST'
+    });
+    const data = await response.json();
+    if (data.status === 'success') {
+      showToast(data.message || 'Container started', 'success');
+      await loadContainers();
+    } else {
+      showToast(data.message || 'Failed to start container', 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function stopContainer(containerId) {
+  if (!confirm(`Stop container ${containerId}?`)) return;
+  showToast('Stopping container...', 'info', 3000);
+  try {
+    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}/stop`, {
+      method: 'POST'
+    });
+    const data = await response.json();
+    if (data.status === 'success') {
+      showToast(data.message || 'Container stopped', 'success');
+      await loadContainers();
+    } else {
+      showToast(data.message || 'Failed to stop container', 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function restartContainer(containerId) {
+  if (!confirm(`Restart container ${containerId}?`)) return;
+  showToast('Restarting container...', 'info', 3000);
+  try {
+    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}/restart`, {
+      method: 'POST'
+    });
+    const data = await response.json();
+    if (data.status === 'success') {
+      showToast(data.message || 'Container restarted', 'success');
+      await loadContainers();
+    } else {
+      showToast(data.message || 'Failed to restart container', 'error');
+    }
+  } catch (err) {
+    showToast(`Error: ${err.message}`, 'error');
+  }
+}
+
+async function inspectContainer(containerId) {
+  showModal('Container Details', '<p style="color:var(--muted)">Loading details...</p>');
+  try {
+    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}`);
+    if (!response.ok) {
+      showModal('Error', `<p style="color:var(--error)">Failed to load details: ${response.statusText}</p>`);
+      return;
+    }
+    const data = await response.json();
+    
+    const details = [
+      `<p><strong>ID:</strong> <code>${escHtml(data.Id || containerId)}</code></p>`,
+      `<p><strong>Name:</strong> ${escHtml(data.Name || 'unknown')}</p>`,
+      `<p><strong>Status:</strong> ${containerStatusBadge(data.State?.Status || 'unknown')}</p>`,
+      `<p><strong>Image:</strong> ${escHtml(data.Config?.Image || 'unknown')}</p>`,
+      `<p><strong>Created:</strong> ${new Date(data.Created || '').toLocaleString()}</p>`,
+      `<p><strong>Command:</strong> <code>${escHtml(JSON.stringify(data.Config?.Cmd || []))}</code></p>`,
+      `<p><strong>Ports:</strong> ${JSON.stringify(data.NetworkSettings?.Ports || {})}</p>`,
+      `<p><strong>Mounts:</strong> ${JSON.stringify(data.Mounts || [])}</p>`,
+      `<p><strong>Network:</strong> ${escHtml(data.NetworkSettings?.Networks || 'unknown')}</p>`,
+    ];
+    
+    if (data.State?.Health) {
+      details.push(`<p><strong>Health:</strong> ${healthBadge(data.State.Health)}</p>`);
+    }
+    
+    showModal('Container Details', details.join(''));
+  } catch (err) {
+    showModal('Error', `<p style="color:var(--error)">Error: ${escHtml(err.message)}</p>`);
+  }
+}
+
 async function init() {
   loadTheme();
   const storedValue = getStoredAutoRecreate();
@@ -1056,7 +1314,9 @@ async function init() {
   }
   await loadInstances();
   await refreshAll();
+  await loadContainers();
   setInterval(refreshAll, 10000);
+  setInterval(loadContainers, 30000);
 }
 
 init();

@@ -39,6 +39,13 @@ from docker_utils import (
     find_compose_files,
     get_services_for_image,
     recreate_compose,
+    list_containers,
+    inspect_container,
+    get_container_resources,
+    get_host_resources,
+    start_container,
+    stop_container,
+    restart_container,
 )
 from notifier import (
     send_notification,
@@ -579,5 +586,84 @@ def api_notify_test():
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# -- Container Management Endpoints --
+
+@app.route("/api/containers")
+def api_containers():
+    """List all containers with basic information."""
+    all_containers = request.args.get("all", "false").lower() == "true"
+    status_filter = request.args.get("status", None)
+    
+    filters = {}
+    if status_filter:
+        filters["status"] = status_filter
+    
+    containers = list_containers(all_containers=all_containers, filters=filters if filters else None)
+    return jsonify(containers)
+
+
+@app.route("/api/containers/<path:container_id>")
+def api_container_inspect(container_id):
+    """Get detailed information about a specific container."""
+    container_data = inspect_container(container_id)
+    if container_data is None:
+        return jsonify({"status": "error", "message": "Container not found"}), 404
+    return jsonify(container_data)
+
+
+@app.route("/api/containers/<path:container_id>/resources")
+def api_container_resources(container_id):
+    """Get resource usage statistics for a specific container."""
+    resources = get_container_resources(container_id)
+    if resources is None:
+        return jsonify({"status": "error", "message": "Container not found or unavailable"}), 404
+    return jsonify(resources)
+
+
+@app.route("/api/host/resources")
+def api_host_resources():
+    """Get aggregate resource usage for the Docker host."""
+    resources = get_host_resources()
+    return jsonify(resources)
+
+
+@app.route("/api/containers/<path:container_id>/start", methods=["POST"])
+def api_container_start(container_id):
+    """Start a stopped container."""
+    success, message = start_container(container_id)
+    if success:
+        log_op("container_start", container_id, "success", message)
+        return jsonify({"status": "success", "message": message})
+    else:
+        log_op("container_start", container_id, "error", message)
+        return jsonify({"status": "error", "message": message}), 400
+
+
+@app.route("/api/containers/<path:container_id>/stop", methods=["POST"])
+def api_container_stop(container_id):
+    """Stop a running container."""
+    timeout = request.args.get("timeout", 10, type=int)
+    success, message = stop_container(container_id, timeout=timeout)
+    if success:
+        log_op("container_stop", container_id, "success", message)
+        return jsonify({"status": "success", "message": message})
+    else:
+        log_op("container_stop", container_id, "error", message)
+        return jsonify({"status": "error", "message": message}), 400
+
+
+@app.route("/api/containers/<path:container_id>/restart", methods=["POST"])
+def api_container_restart(container_id):
+    """Restart a container."""
+    timeout = request.args.get("timeout", 10, type=int)
+    success, message = restart_container(container_id, timeout=timeout)
+    if success:
+        log_op("container_restart", container_id, "success", message)
+        return jsonify({"status": "success", "message": message})
+    else:
+        log_op("container_restart", container_id, "error", message)
+        return jsonify({"status": "error", "message": message}), 400
 
 

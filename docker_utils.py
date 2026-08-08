@@ -351,3 +351,231 @@ def check_image(image_ref: str) -> dict:
         "local_digest": local, "remote_digest": remote,
         "checked_at": now
     }
+
+
+# -- Container Management Functions --
+
+def list_containers(all_containers: bool = False, filters: Optional[dict] = None) -> list[dict]:
+    """List all containers with their basic information.
+    
+    Args:
+        all_containers: If True, include stopped containers
+        filters: Optional dictionary of filters (status, name, etc.)
+        
+    Returns:
+        List of container dictionaries with id, name, status, etc.
+    """
+    client = docker_client()
+    if not client:
+        return []
+    
+    try:
+        containers = client.containers.list(all=all_containers, filters=filters)
+        return [{
+            "id": c.short_id,
+            "name": c.name,
+            "status": c.status,
+            "state": c.attrs.get("State", {}).get("Status", ""),
+            "image": c.attrs.get("Config", {}).get("Image", ""),
+            "created": c.attrs.get("Created", ""),
+            "ports": c.attrs.get("NetworkSettings", {}).get("Ports", {}),
+            "labels": c.attrs.get("Config", {}).get("Labels", {}),
+            "health": c.attrs.get("State", {}).get("Health", None),
+            "exit_code": c.attrs.get("State", {}).get("ExitCode", None),
+            "is_running": c.status == "running",
+        } for c in containers]
+    except Exception as e:
+        log.warning(f"Failed to list containers: {e}")
+        return []
+
+
+def inspect_container(container_id: str) -> Optional[dict]:
+    """Get detailed information about a specific container.
+    
+    Args:
+        container_id: Container ID or name
+        
+    Returns:
+        Container inspection data or None if not found
+    """
+    client = docker_client()
+    if not client:
+        return None
+    
+    try:
+        container = client.containers.get(container_id)
+        return container.attrs
+    except docker.errors.NotFound:
+        return None
+    except Exception as e:
+        log.warning(f"Failed to inspect container {container_id}: {e}")
+        return None
+
+
+def get_container_resources(container_id: str) -> Optional[dict]:
+    """Get resource usage statistics for a specific container.
+    
+    Args:
+        container_id: Container ID or name
+        
+    Returns:
+        Resource usage data or None if failed
+    """
+    client = docker_client()
+    if not client:
+        return None
+    
+    try:
+        container = client.containers.get(container_id)
+        # Get resource stats
+        stats = container.stats(stream=False, one_shot=True)
+        
+        # Parse the stats - they come as a stream of JSON objects
+        if isinstance(stats, bytes):
+            import json
+            stats_data = json.loads(stats.decode('utf-8'))
+        else:
+            stats_data = stats
+            
+        # Extract key metrics
+        cpu_stats = stats_data.get("cpu_stats", {})
+        memory_stats = stats_data.get("memory_stats", {})
+        blkio_stats = stats_data.get("blkio_stats", {})
+        
+        # CPU usage calculation
+        cpu_usage = None
+        if "cpu_usage" in cpu_stats:
+            total_usage = cpu_stats["cpu_usage"]["total_usage"]
+            system_cpu_usage = cpu_stats.get("system_cpu_usage", 0)
+            if system_cpu_usage > 0:
+                cpu_usage = (total_usage / system_cpu_usage) * 100 if system_cpu_usage != 0 else 0
+        
+        # Memory usage
+        memory_usage = memory_stats.get("usage", 0)
+        memory_limit = memory_stats.get("limit", 0)
+        memory_percent = (memory_usage / memory_limit * 100) if memory_limit > 0 else 0
+        
+        return {
+            "cpu_percent": cpu_usage,
+            "memory_usage": memory_usage,
+            "memory_limit": memory_limit,
+            "memory_percent": memory_percent,
+            "read_bytes": blkio_stats.get("io_service_bytes_recursive", [{}])[0].get("value", 0),
+            "write_bytes": blkio_stats.get("io_service_bytes_recursive", [{}])[1].get("value", 0) if len(blkio_stats.get("io_service_bytes_recursive", [])) > 1 else 0,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        log.warning(f"Failed to get resources for container {container_id}: {e}")
+        return None
+
+
+def get_host_resources() -> dict:
+    """Get aggregate resource usage for the Docker host.
+    
+    Returns:
+        Dictionary with total CPU, memory, container count, etc.
+    """
+    client = docker_client()
+    if not client:
+        return {"error": "Docker client not available"}
+    
+    try:
+        info = client.info()
+        
+        # Get running container count
+        containers = client.containers.list()
+        
+        return {
+            "docker_version": info.get("DockerVersion", "unknown"),
+            "containers_running": info.get("ContainersRunning", 0),
+            "containers_stopped": info.get("ContainersStopped", 0),
+            "containers_total": info.get("Containers", 0),
+            "images": info.get("Images", 0),
+            "cpu_cores": info.get("NCPU", 0),
+            "memory_total": info.get("MemTotal", 0),
+            "os": info.get("OperatingSystem", "unknown"),
+            "architecture": info.get("Architecture", "unknown"),
+            "kernel_version": info.get("KernelVersion", "unknown"),
+            "server_version": info.get("ServerVersion", "unknown"),
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+    except Exception as e:
+        log.warning(f"Failed to get host resources: {e}")
+        return {"error": str(e)}
+
+
+def start_container(container_id: str) -> tuple[bool, str]:
+    """Start a stopped container.
+    
+    Args:
+        container_id: Container ID or name
+        
+    Returns:
+        Tuple of (success, message)
+    """
+    client = docker_client()
+    if not client:
+        return False, "Docker client not available"
+    
+    try:
+        container = client.containers.get(container_id)
+        container.start()
+        return True, f"Container {container_id} started successfully"
+    except docker.errors.NotFound:
+        return False, f"Container {container_id} not found"
+    except docker.errors.APIError as e:
+        return False, f"Failed to start container: {str(e)}"
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}"
+
+
+def stop_container(container_id: str, timeout: int = 10) -> tuple[bool, str]:
+    """Stop a running container.
+    
+    Args:
+        container_id: Container ID or name
+        timeout: Timeout in seconds before force kill
+        
+    Returns:
+        Tuple of (success, message)
+    """
+    client = docker_client()
+    if not client:
+        return False, "Docker client not available"
+    
+    try:
+        container = client.containers.get(container_id)
+        container.stop(timeout=timeout)
+        return True, f"Container {container_id} stopped successfully"
+    except docker.errors.NotFound:
+        return False, f"Container {container_id} not found"
+    except docker.errors.APIError as e:
+        return False, f"Failed to stop container: {str(e)}"
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}"
+
+
+def restart_container(container_id: str, timeout: int = 10) -> tuple[bool, str]:
+    """Restart a container.
+    
+    Args:
+        container_id: Container ID or name
+        timeout: Timeout in seconds before force kill
+        
+    Returns:
+        Tuple of (success, message)
+    """
+    client = docker_client()
+    if not client:
+        return False, "Docker client not available"
+    
+    try:
+        container = client.containers.get(container_id)
+        container.restart(timeout=timeout)
+        return True, f"Container {container_id} restarted successfully"
+    except docker.errors.NotFound:
+        return False, f"Container {container_id} not found"
+    except docker.errors.APIError as e:
+        return False, f"Failed to restart container: {str(e)}"
+    except Exception as e:
+        return False, f"Unexpected error: {str(e)}"
