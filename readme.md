@@ -41,6 +41,10 @@ Right now there is intentionally no automatic updating — this is meant to be s
 - 💾 **Persistent UI preferences** — auto-recreate and theme selections are remembered in the dashboard
 - 🧪 **Test notification** — send a test notification from the UI to validate your configuration  
 - 📋 **Container Management API** — REST endpoints for programmatic container control
+- 📝 **Compose File Management** — view, edit, and validate compose files from the dashboard
+- ▶️ **Stack Lifecycle Management** — start, stop, restart entire stacks with one click
+- 🔗 **Dependency Visualization** — view service relationships and network connections in compose files
+- ✅ **Bulk Stack Operations** — apply actions across multiple stacks simultaneously
 
 ---
 
@@ -57,6 +61,29 @@ The following endpoints are available for container management:
 | POST | `/api/containers/{id}/start` | Start a stopped container |
 | POST | `/api/containers/{id}/stop` | Stop a running container (supports `?timeout=10` parameter) |
 | POST | `/api/containers/{id}/restart` | Restart a container (supports `?timeout=10` parameter) |
+
+### Compose File Management API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/compose/files/detailed` | List all compose files with metadata (services, images, project) |
+| GET | `/api/compose/files/{path}` | Get compose file content as parsed YAML |
+| PUT | `/api/compose/files/{path}` | Update compose file content (creates backup automatically) |
+| POST | `/api/compose/files/{path}/validate` | Validate compose file YAML syntax |
+| GET | `/api/compose/files/{path}/dependencies` | Get dependency graph (services, networks, volumes) |
+
+### Stack Management API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/stacks/all` | Get all stacks with services, containers, and status |
+| GET | `/api/stacks/{name}` | Get specific stack information |
+| GET | `/api/stacks/{name}/containers` | List containers belonging to a stack |
+| GET | `/api/stacks/{name}/status` | Get overall stack status (running/stopped/mixed) |
+| POST | `/api/stacks/{name}/up` | Start stack (`docker compose up -d`) |
+| POST | `/api/stacks/{name}/down` | Stop stack (`docker compose down`) |
+| POST | `/api/stacks/{name}/restart` | Restart all containers in stack |
+| POST | `/api/stacks/bulk` | Apply action (up/down/restart) to multiple stacks |
 
 ---
 
@@ -101,6 +128,33 @@ The web UI is available at `http://<your-host>:5000` and refreshes automatically
 - **↻ Recreate Stack** — recreates all services in a selected stack  
 - Optional **auto-recreate after pull** — when enabled, affected services/stacks are automatically recreated after pulling new images  
 
+### Stack Management
+
+Each stack card now displays:
+- **Service count** — number of services defined in compose files
+- **Container count** — number of running containers in the stack
+- **Status badge** — overall stack state (Running / Stopped / Mixed)
+
+Stack actions available:
+- **Details** — view compose files, services, containers, and dependency graph
+- **Start** — start all containers in the stack (`docker compose up -d`)
+- **Restart** — restart all containers in the stack
+- **Stop** — stop and remove all containers in the stack (`docker compose down`)
+- Actions are disabled based on current stack state to prevent errors
+
+### Compose File Editor
+
+Accessible from the **Compose Files** dropdown menu:
+- **View All Compose Files** — grid view of all discovered compose files with service and image counts
+- **New Compose File** — create a new compose file from scratch
+
+Editor features:
+- Full YAML editing with syntax highlighting
+- **Validate** — check YAML syntax and structure
+- **Dependencies** — view service dependency graph, networks, and volumes
+- **Save** — writes file with automatic backup (creates `.bak` file)
+- Auto-formatting and error feedback
+
 ---
 
 ## Project Structure
@@ -113,6 +167,7 @@ docker-update-checker/
 ├── docker_utils.py          # Docker and compose helpers
 ├── jobs.py                  # job state, progress tracking, and operation log
 ├── notifier.py              # notification backends (webhook, MQTT, email)
+├── schemas.py               # Pydantic schemas for request validation
 ├── compose.yaml             # Compose file for deploying the checker
 ├── Dockerfile
 ├── requirements.txt
@@ -123,9 +178,10 @@ docker-update-checker/
 
 The backend is now modularized into:
 - `config.py` for runtime configuration and environment variables
-- `docker_utils.py` for compose scanning, image checks, and Docker compose operations
+- `docker_utils.py` for compose scanning, image checks, Docker compose operations, and Phase 2 compose file/stack management
 - `jobs.py` for background job tracking and operation logging
 - `notifier.py` for webhook, MQTT, and email notification delivery
+- `schemas.py` for Pydantic request validation schemas
 - `api.py` for the Flask route handlers and HTTP API surface
 
 `app.py` boots the Flask app, initializes the scheduler, and imports `api` to register HTTP routes.
