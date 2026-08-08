@@ -5,7 +5,7 @@ Expand docker-update-checker to include container lifecycle management and resou
 
 ## Features
 - [x] Container list API - list all containers with status
-- [ ] Basic resource monitoring - CPU/memory/disk per container
+- [x] Basic resource monitoring - CPU/memory/disk per container
 - [x] Start/stop/restart endpoints - container lifecycle controls
 - [x] Health check visualization - dashboard for health status
 
@@ -15,7 +15,10 @@ Expand docker-update-checker to include container lifecycle management and resou
 - ✅ Container inspection (`GET /api/containers/{id}`)
 - ✅ Host resources endpoint (`GET /api/host/resources`)
 - ✅ Dashboard UI with filtering and actions
-- ⏳ Resource monitoring UI (next step)
+- ✅ Resource monitoring UI with CPU/memory progress bars
+
+## ✅ Phase 1 COMPLETE
+All Phase 1 features have been implemented and deployed.
 
 ## API Endpoints
 | Method | Endpoint | Description |

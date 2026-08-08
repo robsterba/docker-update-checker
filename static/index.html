@@ -1155,12 +1155,34 @@ function renderContainers(containers) {
     const image = container.image || 'unknown';
     const created = container.created ? new Date(container.created).toLocaleString() : 'unknown';
     const health = container.health;
+    const resources = container.resources || {};
     
     // Filter by current filter if not 'all'
     if (containerFilter !== 'all') {
       if (containerFilter === 'running' && !isRunning) return '';
       if (containerFilter === 'stopped' && isRunning) return '';
       if (containerFilter === 'unhealthy' && (!health || health.Status !== 'unhealthy')) return '';
+    }
+
+    // Resource data
+    const cpuPercent = resources.cpu_percent !== undefined ? resources.cpu_percent : null;
+    const memoryPercent = resources.memory_percent !== undefined ? resources.memory_percent : null;
+    
+    // Build resource bars only for running containers
+    let resourceHtml = '';
+    if (isRunning && (cpuPercent !== null || memoryPercent !== null)) {
+      resourceHtml = `
+        <div class="resource-label">
+          <span>CPU:</span>
+          <span>${cpuPercent !== null ? cpuPercent.toFixed(1) + '%' : '—'}</span>
+        </div>
+        ${cpuPercent !== null ? `<div class="resource-bar"><div class="resource-fill cpu" style="width:${cpuPercent}%"></div></div>` : ''}
+        <div class="resource-label">
+          <span>Memory:</span>
+          <span>${memoryPercent !== null ? memoryPercent.toFixed(1) + '%' : '—'}</span>
+        </div>
+        ${memoryPercent !== null ? `<div class="resource-bar"><div class="resource-fill memory" style="width:${memoryPercent}%"></div></div>` : ''}
+      `;
     }
 
     // Build action buttons
@@ -1186,6 +1208,7 @@ function renderContainers(containers) {
             ${healthBadge(health)}
           </div>
         </div>
+        ${resourceHtml}
         <div class="container-actions">${actions}</div>
       </div>
     `;
@@ -1199,7 +1222,7 @@ function renderContainers(containers) {
 async function loadContainers() {
   const showAll = getContainerFilter();
   try {
-    const url = `${API}/api/containers?all=${showAll}`;
+    const url = `${API}/api/containers?all=${showAll}&resources=true`;
     const response = await fetch(url);
     if (!response.ok) {
       const message = await response.text();
@@ -1316,7 +1339,7 @@ async function init() {
   await refreshAll();
   await loadContainers();
   setInterval(refreshAll, 10000);
-  setInterval(loadContainers, 30000);
+  setInterval(loadContainers, 15000);
 }
 
 init();

@@ -42,6 +42,7 @@ from docker_utils import (
     list_containers,
     inspect_container,
     get_container_resources,
+    get_all_container_resources,
     get_host_resources,
     start_container,
     stop_container,
@@ -592,15 +593,23 @@ def api_notify_test():
 
 @app.route("/api/containers")
 def api_containers():
-    """List all containers with basic information."""
+    """List all containers with basic information and optional resource data."""
     all_containers = request.args.get("all", "false").lower() == "true"
     status_filter = request.args.get("status", None)
+    with_resources = request.args.get("resources", "false").lower() == "true"
     
     filters = {}
     if status_filter:
         filters["status"] = status_filter
     
     containers = list_containers(all_containers=all_containers, filters=filters if filters else None)
+    
+    # If resource data requested, fetch for all containers
+    if with_resources and containers:
+        resource_data = get_all_container_resources(containers)
+        for container in containers:
+            container["resources"] = resource_data.get(container["id"], {})
+    
     return jsonify(containers)
 
 

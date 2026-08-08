@@ -427,46 +427,89 @@ def get_container_resources(container_id: str) -> Optional[dict]:
     
     try:
         container = client.containers.get(container_id)
-        # Get resource stats
-        stats = container.stats(stream=False, one_shot=True)
+        # Get resource stats - use one_shot to get a single stats snapshot
+        stats_generator = container.stats(stream=False, one_shot=True)
         
-        # Parse the stats - they come as a stream of JSON objects
-        if isinstance(stats, bytes):
+        # Handle both generator and direct return cases
+        try:
+            stats_data = next(stats_generator)
+        except (StopIteration, TypeError):
+            # If it's not a generator, it might be the direct stats dict
+            stats_data = stats_generator
+        
+        # Parse if bytes
+        if isinstance(stats_data, bytes):
             import json
-            stats_data = json.loads(stats.decode('utf-8'))
-        else:
-            stats_data = stats
-            
+            stats_data = json.loads(stats_data.decode('utf-8'))
+        
+        # Handle case where stats might be a generator that needs to be consumed
+        if hasattr(stats_data, '__iter__') and not isinstance(stats_data, (dict, str)):
+            stats_data = next(stats_data, {})
+        
         # Extract key metrics
         cpu_stats = stats_data.get("cpu_stats", {})
         memory_stats = stats_data.get("memory_stats", {})
-        blkio_stats = stats_data.get("blkio_stats", {})
         
-        # CPU usage calculation
-        cpu_usage = None
-        if "cpu_usage" in cpu_stats:
-            total_usage = cpu_stats["cpu_usage"]["total_usage"]
-            system_cpu_usage = cpu_stats.get("system_cpu_usage", 0)
-            if system_cpu_usage > 0:
-                cpu_usage = (total_usage / system_cpu_usage) * 100 if system_cpu_usage != 0 else 0
+        # CPU usage calculation - improved
+        cpu_usage_percent = None
+        precpu_stats = stats_data.get("precpu_stats", {})
         
-        # Memory usage
+        if "cpu_usage" in cpu_stats and "precpu_stats" in stats_data:
+            try:
+                # Calculate CPU percentage using standard formula
+                cpu_delta = cpu_stats["cpu_usage"]["total_usage"] - precpu_stats.get("cpu_usage", {}).get("total_usage", 0)
+                system_cpu_delta = cpu_stats["system_cpu_usage"] - precpu_stats.get("system_cpu_usage", 0)
+                
+                if system_cpu_delta > 0 and cpu_delta > 0:
+                    cpu_usage_percent = (cpu_delta / system_cpu_delta) * 100
+                    # Cap at 100%
+                    cpu_usage_percent = min(100, cpu_usage_percent)
+            except (KeyError, TypeError, ZeroDivisionError):
+                # Fallback: try simple calculation
+                total_usage = cpu_stats.get("cpu_usage", {}).get("total_usage", 0)
+                system_usage = cpu_stats.get("system_cpu_usage", 0)
+                if system_usage > 0 and total_usage > 0:
+                    cpu_usage_percent = min(100, (total_usage / system_usage) * 100)
+        
+        # Memory usage - more robust
         memory_usage = memory_stats.get("usage", 0)
         memory_limit = memory_stats.get("limit", 0)
-        memory_percent = (memory_usage / memory_limit * 100) if memory_limit > 0 else 0
+        memory_percent = 0
+        if memory_limit > 0:
+            memory_percent = min(100, (memory_usage / memory_limit) * 100)
         
         return {
-            "cpu_percent": cpu_usage,
+            "cpu_percent": round(cpu_usage_percent, 1) if cpu_usage_percent is not None else None,
             "memory_usage": memory_usage,
             "memory_limit": memory_limit,
-            "memory_percent": memory_percent,
-            "read_bytes": blkio_stats.get("io_service_bytes_recursive", [{}])[0].get("value", 0),
-            "write_bytes": blkio_stats.get("io_service_bytes_recursive", [{}])[1].get("value", 0) if len(blkio_stats.get("io_service_bytes_recursive", [])) > 1 else 0,
+            "memory_percent": round(memory_percent, 1),
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
     except Exception as e:
         log.warning(f"Failed to get resources for container {container_id}: {e}")
         return None
+
+
+def get_all_container_resources(containers: list[dict]) -> dict[str, Optional[dict]]:
+    """Get resource usage for multiple containers efficiently.
+    
+    Args:
+        containers: List of container dicts with 'id' field
+        
+    Returns:
+        Dict mapping container_id to resource data
+    """
+    client = docker_client()
+    if not client:
+        return {}
+    
+    results = {}
+    for container in containers:
+        container_id = container.get("id", "")
+        if container_id:
+            results[container_id] = get_container_resources(container_id)
+    
+    return results
 
 
 def get_host_resources() -> dict:
