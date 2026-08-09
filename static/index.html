@@ -192,6 +192,21 @@
   /* Version badge */
   .version-badge{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.2rem .6rem;font-size:.75rem;color:var(--muted);font-family:monospace}
 
+  /* Settings/Configuration Styles */
+  .config-form{display:flex;flex-direction:column;gap:1rem}
+  .config-section{background:var(--surface2);border:1px solid var(--border);border-radius:.6rem;padding:1rem}
+  .config-section-title{font-weight:700;font-size:.88rem;margin-bottom:.75rem;color:var(--text)}
+  .config-row{display:flex;align-items:center;gap:.75rem;justify-content:space-between;flex-wrap:wrap}
+  .config-label{font-size:.82rem;color:var(--muted);min-width:140px}
+  .config-input{padding:.45rem .7rem;border-radius:.45rem;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.82rem;width:100%;max-width:320px}
+  .config-input.select{padding:.45rem .5rem}
+  .config-toggle{display:flex;align-items:center;gap:.5rem}
+  .config-description{font-size:.76rem;color:var(--faint);margin-top:.25rem;line-height:1.4}
+  .remote-host-item{display:flex;align-items:center;gap:.75rem;padding:.6rem;border-bottom:1px solid var(--border)}
+  .remote-host-item:last-child{border-bottom:none}
+  .remote-host-item input{flex:1}
+  .btn-config{padding:.35rem .75rem;font-size:.78rem}
+
   /* Phase 2: Compose File Management Styles */
   .compose-editor{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:1rem;font-family:monospace;font-size:.8rem;white-space:pre-wrap;word-break:break-all;max-height:500px;overflow-y:auto}
   .compose-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
@@ -279,6 +294,17 @@
           <button class="dropdown-menu-item" onclick="pruneSystem()">System Prune</button>
         </div>
       </div>
+      <div class="dropdown">
+        <button class="dropdown-btn" onclick="toggleSettingsMenu(event)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V7a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </button>
+        <div class="dropdown-menu hidden" id="settingsMenu">
+          <button class="dropdown-menu-item" onclick="showNotificationConfig()">Notifications</button>
+          <button class="dropdown-menu-item" onclick="showRemoteHostsConfig()">Remote Hosts</button>
+          <button class="dropdown-menu-item" onclick="showPreferencesConfig()">Preferences</button>
+        </div>
+      </div>
     </div>
     <div class="toolbar-right">
       <label class="inline-toggle">
@@ -321,11 +347,24 @@
 
     <div class="card">
       <div class="card-header">
-        <span class="card-title">Recent Jobs</span>
+        <span class="card-title">Containers</span>
+        <div class="toolbar-right" style="margin-left: auto;">
+          <button class="btn btn-ghost btn-sm" onclick="loadContainers()">Refresh</button>
+          <label class="inline-toggle" style="margin-left: .75rem;">
+            <input type="checkbox" id="showAllContainers" onchange="toggleAllContainers()">
+            Show stopped
+          </label>
+        </div>
+      </div>
+      <div class="filter-bar" style="padding: .5rem .75rem; border-bottom: 1px solid var(--border);">
+        <button class="filter-btn active" onclick="setContainerFilter('all', this)">All</button>
+        <button class="filter-btn" onclick="setContainerFilter('running', this)">Running</button>
+        <button class="filter-btn" onclick="setContainerFilter('stopped', this)">Stopped</button>
+        <button class="filter-btn" onclick="setContainerFilter('unhealthy', this)">Unhealthy</button>
       </div>
       <div class="jobs-wrap">
-        <div class="jobs-scroll" id="jobsList">
-          <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
+        <div class="jobs-scroll" id="containersList" style="max-height: 400px;">
+          <div style="padding:.5rem;color:var(--muted);font-size:.82rem">Loading containers…</div>
         </div>
       </div>
     </div>
@@ -378,24 +417,11 @@
 
   <div class="card">
     <div class="card-header">
-      <span class="card-title">Containers</span>
-      <div class="toolbar-right" style="margin-left: auto;">
-        <button class="btn btn-ghost btn-sm" onclick="loadContainers()">Refresh</button>
-        <label class="inline-toggle" style="margin-left: .75rem;">
-          <input type="checkbox" id="showAllContainers" onchange="toggleAllContainers()">
-          Show stopped
-        </label>
-      </div>
-    </div>
-    <div class="filter-bar" style="padding: .5rem .75rem; border-bottom: 1px solid var(--border);">
-      <button class="filter-btn active" onclick="setContainerFilter('all', this)">All</button>
-      <button class="filter-btn" onclick="setContainerFilter('running', this)">Running</button>
-      <button class="filter-btn" onclick="setContainerFilter('stopped', this)">Stopped</button>
-      <button class="filter-btn" onclick="setContainerFilter('unhealthy', this)">Unhealthy</button>
+      <span class="card-title">Recent Jobs</span>
     </div>
     <div class="jobs-wrap">
-      <div class="jobs-scroll" id="containersList" style="max-height: 400px;">
-        <div style="padding:.5rem;color:var(--muted);font-size:.82rem">Loading containers…</div>
+      <div class="jobs-scroll" id="jobsList">
+        <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
       </div>
     </div>
   </div>
@@ -417,6 +443,18 @@
     <div id="modalBody"></div>
     <div style="margin-top:1rem;text-align:right">
       <button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Configuration Modal -->
+<div class="modal-backdrop" id="configModalBackdrop" onclick="closeConfigModal(event)">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-title" id="configModalTitle">Configuration</div>
+    <div id="configModalBody" class="config-form"></div>
+    <div style="margin-top:1rem;text-align:right">
+      <button class="btn btn-ghost btn-sm" onclick="closeConfigModal()">Close</button>
+      <button class="btn btn-primary btn-sm" onclick="saveConfig()" id="configSaveBtn">Save</button>
     </div>
   </div>
 </div>
@@ -470,11 +508,21 @@ document.addEventListener('click', function() {
   if (composeMenu && !composeMenu.classList.contains('hidden')) {
     composeMenu.classList.add('hidden');
   }
+  const settingsMenu = document.getElementById('settingsMenu');
+  if (settingsMenu && !settingsMenu.classList.contains('hidden')) {
+    settingsMenu.classList.add('hidden');
+  }
 });
 
 function toggleComposeMenu(event) {
   event.stopPropagation();
   const menu = document.getElementById('composeMenu');
+  menu.classList.toggle('hidden');
+}
+
+function toggleSettingsMenu(event) {
+  event.stopPropagation();
+  const menu = document.getElementById('settingsMenu');
   menu.classList.toggle('hidden');
 }
 
@@ -1200,6 +1248,380 @@ function closeModal(e) {
   }
 }
 
+function closeConfigModal(e) {
+  if (!e || e.target === document.getElementById('configModalBackdrop')) {
+    document.getElementById('configModalBackdrop').classList.remove('open');
+  }
+}
+
+// Configuration state
+let currentConfigSection = null;
+let currentConfigData = {};
+
+function showNotificationConfig() {
+  currentConfigSection = 'notifications';
+  const html = `
+    <div class="config-section">
+      <div class="config-section-title">Notification Settings</div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configNotifyEnabled" ${NOTIFY_ENABLED ? 'checked' : ''}>
+          <span>Enable Notifications</span>
+        </label>
+      </div>
+      <div class="config-description">
+        Enable event-driven notifications for updates, pulls, recreates, and bulk operations.
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Notification Backend</div>
+      <div class="config-row">
+        <label class="config-label">Backend:</label>
+        <select class="config-input select" id="configBackend">
+          <option value="">None</option>
+          <option value="webhook" ${NOTIFY_BACKEND === 'webhook' ? 'selected' : ''}>Webhook</option>
+          <option value="mqtt" ${NOTIFY_BACKEND === 'mqtt' ? 'selected' : ''}>MQTT</option>
+          <option value="email" ${NOTIFY_BACKEND === 'email' ? 'selected' : ''}>Email</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="config-section" id="webhookConfigSection" style="display:${NOTIFY_BACKEND === 'webhook' ? 'block' : 'none'}">
+      <div class="config-section-title">Webhook Settings</div>
+      <div class="config-row">
+        <label class="config-label">URL:</label>
+        <input type="text" class="config-input" id="configWebhookUrl" placeholder="https://homeassistant.local:8123/api/webhook/..." value="${NOTIFY_WEBHOOK_URL || ''}">
+      </div>
+      <div class="config-row">
+        <label class="config-label">Method:</label>
+        <select class="config-input select" id="configWebhookMethod">
+          <option value="POST" ${(NOTIFY_WEBHOOK_METHOD || 'POST') === 'POST' ? 'selected' : ''}>POST</option>
+          <option value="PUT" ${(NOTIFY_WEBHOOK_METHOD || 'POST') === 'PUT' ? 'selected' : ''}>PUT</option>
+        </select>
+      </div>
+      <div class="config-row">
+        <label class="config-label">Timeout (s):</label>
+        <input type="number" class="config-input" id="configWebhookTimeout" value="${NOTIFY_WEBHOOK_TIMEOUT || 10}">
+      </div>
+    </div>
+
+    <div class="config-section" id="mqttConfigSection" style="display:${NOTIFY_BACKEND === 'mqtt' ? 'block' : 'none'}">
+      <div class="config-section-title">MQTT Settings</div>
+      <div class="config-row">
+        <label class="config-label">Host:</label>
+        <input type="text" class="config-input" id="configMqttHost" placeholder="mqtt.example.com" value="${NOTIFY_MQTT_HOST || ''}">
+      </div>
+      <div class="config-row">
+        <label class="config-label">Port:</label>
+        <input type="number" class="config-input" id="configMqttPort" placeholder="1883" value="${NOTIFY_MQTT_PORT || 1883}">
+      </div>
+      <div class="config-row">
+        <label class="config-label">Topic:</label>
+        <input type="text" class="config-input" id="configMqttTopic" placeholder="docker/update-checker" value="${NOTIFY_MQTT_TOPIC || ''}">
+      </div>
+      <div class="config-row">
+        <label class="config-label">Username:</label>
+        <input type="text" class="config-input" id="configMqttUsername" placeholder="optional" value="${NOTIFY_MQTT_USERNAME || ''}">
+      </div>
+      <div class="config-row">
+        <label class="config-label">Password:</label>
+        <input type="password" class="config-input" id="configMqttPassword" placeholder="optional" value="${NOTIFY_MQTT_PASSWORD || ''}">
+      </div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configMqttRetain" ${NOTIFY_MQTT_RETAIN === 'true' ? 'checked' : ''}>
+          <span>Retain Messages</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="config-section" id="emailConfigSection" style="display:${NOTIFY_BACKEND === 'email' ? 'block' : 'none'}">
+      <div class="config-section-title">Email Settings</div>
+      <div class="config-row">
+        <label class="config-label">SMTP Host:</label>
+        <input type="text" class="config-input" id="configEmailHost" placeholder="smtp.example.com" value="${NOTIFY_EMAIL_HOST || ''}">
+      </div>
+      <div class="config-row">
+        <label class="config-label">SMTP Port:</label>
+        <input type="number" class="config-input" id="configEmailPort" placeholder="587" value="${NOTIFY_EMAIL_PORT || 587}">
+      </div>
+      <div class="config-row">
+        <label class="config-label">Username:</label>
+        <input type="text" class="config-input" id="configEmailUsername" placeholder="optional" value="${NOTIFY_EMAIL_USERNAME || ''}">
+      </div>
+      <div class="config-row">
+        <label class="config-label">Password:</label>
+        <input type="password" class="config-input" id="configEmailPassword" placeholder="optional">
+      </div>
+      <div class="config-row">
+        <label class="config-label">From:</label>
+        <input type="email" class="config-input" id="configEmailFrom" placeholder="docker-checker@yourdomain.com" value="${NOTIFY_EMAIL_FROM || ''}">
+      </div>
+      <div class="config-row">
+        <label class="config-label">To:</label>
+        <input type="email" class="config-input" id="configEmailTo" placeholder="you@yourdomain.com" value="${NOTIFY_EMAIL_TO || ''}">
+      </div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configEmailTls" ${NOTIFY_EMAIL_USE_TLS !== 'false' ? 'checked' : ''}>
+          <span>Use TLS</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Notification Triggers</div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configNotifyUpdates" ${NOTIFY_ON_UPDATES_FOUND !== 'false' ? 'checked' : ''}>
+          <span>Updates Found</span>
+        </label>
+      </div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configNotifyPullSuccess" ${NOTIFY_ON_PULL_SUCCESS === 'true' ? 'checked' : ''}>
+          <span>Pull Success</span>
+        </label>
+      </div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configNotifyPullError" ${NOTIFY_ON_PULL_ERROR !== 'false' ? 'checked' : ''}>
+          <span>Pull Error</span>
+        </label>
+      </div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configNotifyRecreateSuccess" ${NOTIFY_ON_RECREATE_SUCCESS === 'true' ? 'checked' : ''}>
+          <span>Recreate Success</span>
+        </label>
+      </div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configNotifyRecreateError" ${NOTIFY_ON_RECREATE_ERROR !== 'false' ? 'checked' : ''}>
+          <span>Recreate Error</span>
+        </label>
+      </div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configNotifyBulkComplete" ${NOTIFY_ON_BULK_COMPLETE !== 'false' ? 'checked' : ''}>
+          <span>Bulk Complete</span>
+        </label>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('configModalTitle').textContent = 'Notification Configuration';
+  document.getElementById('configModalBody').innerHTML = html;
+  document.getElementById('configModalBackdrop').classList.add('open');
+
+  // Update backend section visibility
+  document.getElementById('configBackend').addEventListener('change', function() {
+    document.getElementById('webhookConfigSection').style.display = this.value === 'webhook' ? 'block' : 'none';
+    document.getElementById('mqttConfigSection').style.display = this.value === 'mqtt' ? 'block' : 'none';
+    document.getElementById('emailConfigSection').style.display = this.value === 'email' ? 'block' : 'none';
+  });
+}
+
+function showRemoteHostsConfig() {
+  currentConfigSection = 'remoteHosts';
+  const html = `
+    <div class="config-section">
+      <div class="config-section-title">Remote Hosts Configuration</div>
+      <div class="config-description">
+        Add other docker-update-checker instances to monitor from this dashboard.
+        Each remote host must expose its API on port 5000.
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.75rem">
+        <input type="text" class="config-input" id="newHostName" placeholder="Node 1" style="flex:1">
+        <input type="url" class="config-input" id="newHostUrl" placeholder="http://192.168.1.10:5000" style="flex:1">
+        <button class="btn btn-primary btn-sm" onclick="addRemoteHost()">Add Host</button>
+      </div>
+      <div id="remoteHostsList"></div>
+    </div>
+  `;
+  
+  document.getElementById('configModalTitle').textContent = 'Remote Hosts Configuration';
+  document.getElementById('configModalBody').innerHTML = html;
+  document.getElementById('configModalBackdrop').classList.add('open');
+  
+  renderRemoteHostsList();
+}
+
+function renderRemoteHostsList() {
+  const container = document.getElementById('remoteHostsList');
+  if (!container) return;
+  
+  container.innerHTML = allInstances
+    .filter(i => i.id !== 'local')
+    .map(inst => `
+      <div class="remote-host-item">
+        <div style="flex:1;min-width:120px">
+          <strong>${escHtml(inst.name)}</strong>
+          <div style="font-size:.76rem;color:var(--muted)">${escHtml(inst.url || inst.id)}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm btn-config" onclick="editRemoteHost('${escAttr(inst.id)}')">Edit</button>
+        <button class="btn btn-danger btn-sm btn-config" onclick="removeRemoteHost('${escAttr(inst.id)}')">Remove</button>
+      </div>
+    `).join('');
+}
+
+function addRemoteHost() {
+  const name = document.getElementById('newHostName').value.trim();
+  const url = document.getElementById('newHostUrl').value.trim();
+  
+  if (!name || !url) {
+    showToast('Please enter both name and URL', 'error');
+    return;
+  }
+  
+  // Add to allInstances
+  const newHost = {
+    id: name.toLowerCase().replace(/\s+/g, '-'),
+    name: name,
+    url: url,
+    type: 'remote',
+    description: 'Remote Docker Update Checker instance'
+  };
+  
+  allInstances.push(newHost);
+  renderRemoteHostsList();
+  showToast(`Added remote host: ${name}`, 'success');
+  
+  // Clear inputs
+  document.getElementById('newHostName').value = '';
+  document.getElementById('newHostUrl').value = '';
+}
+
+function editRemoteHost(instanceId) {
+  const inst = allInstances.find(i => i.id === instanceId);
+  if (!inst) return;
+  
+  const name = prompt('New name:', inst.name);
+  if (name === null) return;
+  const url = prompt('New URL:', inst.url || '');
+  if (url === null) return;
+  
+  inst.name = name.trim() || inst.name;
+  inst.url = url.trim() || inst.url;
+  renderRemoteHostsList();
+  showToast(`Updated: ${inst.name}`, 'success');
+}
+
+function removeRemoteHost(instanceId) {
+  if (!confirm('Remove this remote host?')) return;
+  
+  allInstances = allInstances.filter(i => i.id !== instanceId);
+  renderRemoteHostsList();
+  showToast('Remote host removed', 'success');
+}
+
+function showPreferencesConfig() {
+  currentConfigSection = 'preferences';
+  const autoRecreateChecked = getStoredAutoRecreate() !== null ? getStoredAutoRecreate() : AUTO_RECREATE_AFTER_PULL;
+  
+  const html = `
+    <div class="config-section">
+      <div class="config-section-title">Display Preferences</div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configAutoRecreate" ${autoRecreateChecked ? 'checked' : ''}>
+          <span>Auto-recreate after pull</span>
+        </label>
+      </div>
+      <div class="config-description">
+        Automatically recreate containers after pulling updated images.
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Theme</div>
+      <div class="config-row">
+        <label class="config-label">Theme:</label>
+        <select class="config-input select" id="configTheme">
+          <option value="light" ${theme === 'light' ? 'selected' : ''}>Light</option>
+          <option value="dark" ${theme === 'dark' ? 'selected' : ''}>Dark</option>
+          <option value="system" ${theme === 'system' || (theme !== 'light' && theme !== 'dark') ? 'selected' : ''}>System</option>
+        </select>
+      </div>
+      <div class="config-description">
+        Choose your preferred color theme. "System" follows your OS preference.
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Polling Intervals</div>
+      <div class="config-row">
+        <label class="config-label">Auto-refresh (seconds):</label>
+        <input type="number" class="config-input" id="configRefreshInterval" value="10" min="5">
+      </div>
+      <div class="config-description">
+        How often the dashboard refreshes data (default: 10 seconds).
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('configModalTitle').textContent = 'Preferences';
+  document.getElementById('configModalBody').innerHTML = html;
+  document.getElementById('configModalBackdrop').classList.add('open');
+}
+
+function saveConfig() {
+  if (!currentConfigSection) return;
+  
+  switch (currentConfigSection) {
+    case 'notifications':
+      saveNotificationConfig();
+      break;
+    case 'remoteHosts':
+      saveRemoteHostsConfig();
+      break;
+    case 'preferences':
+      savePreferencesConfig();
+      break;
+  }
+  
+  closeConfigModal();
+}
+
+function saveNotificationConfig() {
+  // This would require backend API to save config - for now, just show toast
+  showToast('Notification settings saved (backend API needed for persistence)', 'success');
+}
+
+function saveRemoteHostsConfig() {
+  // This would require backend API to save remote instances
+  showToast('Remote hosts saved (backend API needed for persistence)', 'success');
+}
+
+function savePreferencesConfig() {
+  // Save auto-recreate
+  const autoRecreate = document.getElementById('configAutoRecreate').checked;
+  setStoredAutoRecreate(autoRecreate);
+  document.getElementById('autoRecreateToggle').checked = autoRecreate;
+  syncAutoRecreateSetting(autoRecreate);
+  
+  // Save theme
+  const themeSelect = document.getElementById('configTheme');
+  const newTheme = themeSelect.value;
+  if (newTheme === 'system') {
+    setStoredTheme(null);
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', systemDark ? 'dark' : 'light');
+    document.getElementById('themeBtn').innerHTML = buildThemeIcon(systemDark ? 'dark' : 'light');
+  } else {
+    setStoredTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    document.getElementById('themeBtn').innerHTML = buildThemeIcon(newTheme);
+  }
+  theme = newTheme;
+  
+  showToast('Preferences saved', 'success');
+}
+
 // Container management state
 let allContainers = [];
 let containerFilter = 'all';
@@ -1458,7 +1880,7 @@ function toggleComposeFilesSection() {
 async function loadComposeFiles() {
   showToast('Loading compose files...', 'info', 2000);
   try {
-    const response = await fetch(`${API}/api/compose/files/detailed`);
+    const response = await instanceFetch('/compose/files/detailed');
     if (!response.ok) {
       throw new Error(await response.text());
     }
@@ -1498,7 +1920,7 @@ function renderComposeFiles(files) {
 async function viewComposeFile(path) {
   showToast('Loading compose file...', 'info', 2000);
   try {
-    const response = await fetch(`${API}/api/compose/files/${encodeURIComponent(path)}`);
+    const response = await instanceFetch(`/compose/files/${encodeURIComponent(path)}`);
     if (!response.ok) {
       throw new Error(await response.text());
     }
@@ -1551,7 +1973,7 @@ async function saveComposeFile() {
     }
     
     const path = currentEditingFile || '/compose/new-compose.yml';
-    const response = await fetch(`${API}/api/compose/files/${encodeURIComponent(path)}`, {
+    const response = await instanceFetch(`/compose/files/${encodeURIComponent(path)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: parsed, backup: true })
@@ -1581,7 +2003,7 @@ async function validateComposeContent() {
   
   try {
     const parsed = jsyaml.load(yamlContent);
-    const response = await fetch(`${API}/api/compose/files/${encodeURIComponent(currentEditingFile || '')}/validate`, {
+    const response = await instanceFetch(`/compose/files/${encodeURIComponent(currentEditingFile || '')}/validate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: parsed })
@@ -1611,7 +2033,7 @@ async function showDependenciesForCurrentFile() {
   
   showToast('Loading dependencies...', 'info', 2000);
   try {
-    const response = await fetch(`${API}/api/compose/files/${encodeURIComponent(currentEditingFile)}/dependencies`);
+    const response = await instanceFetch(`/compose/files/${encodeURIComponent(currentEditingFile)}/dependencies`);
     if (!response.ok) {
       throw new Error(await response.text());
     }
@@ -1647,7 +2069,7 @@ async function showDependenciesForCurrentFile() {
 async function loadPhase2Stacks() {
   showToast('Loading stacks...', 'info', 2000);
   try {
-    const response = await fetch(`${API}/api/stacks/all`);
+    const response = await instanceFetch('/stacks/all');
     if (!response.ok) {
       throw new Error(await response.text());
     }
@@ -1662,7 +2084,7 @@ async function loadPhase2Stacks() {
 async function viewStackDetails(stackName) {
   showToast('Loading stack details...', 'info', 2000);
   try {
-    const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}`);
+    const response = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}`);
     if (!response.ok) {
       throw new Error(await response.text());
     }
@@ -1697,7 +2119,7 @@ async function stackUp(stackName) {
   if (!confirm(`Start all containers in stack "${stackName}"?`)) return;
   showToast('Starting stack...', 'info', 3000);
   try {
-    const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/up`, {
+    const response = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/up`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
@@ -1718,7 +2140,7 @@ async function stackDown(stackName) {
   if (!confirm(`Stop all containers in stack "${stackName}"?\n\nThis will stop and remove containers defined in the compose files.`)) return;
   showToast('Stopping stack...', 'info', 3000);
   try {
-    const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/down`, {
+    const response = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/down`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
@@ -1739,7 +2161,7 @@ async function stackRestart(stackName) {
   if (!confirm(`Restart all containers in stack "${stackName}"?`)) return;
   showToast('Restarting stack...', 'info', 3000);
   try {
-    const response = await fetch(`${API}/api/stacks/${encodeURIComponent(stackName)}/restart`, {
+    const response = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/restart`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})

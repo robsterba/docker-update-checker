@@ -30,6 +30,7 @@ from config import (
     REMOTE_INSTANCES_FILE,
     TOKEN_CACHE_TTL,
     REGISTRY_TOKEN_CACHE,
+    VERSION,
     # Status constants
     STATUS_UP_TO_DATE,
     STATUS_UPDATE_AVAILABLE,
@@ -276,7 +277,8 @@ def proxy_local_request(proxy_path: str) -> Response:
                 "check_interval_minutes": CHECK_INTERVAL_MINUTES,
                 "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
                 "notify_enabled": NOTIFY_ENABLED,
-                "notify_backend": NOTIFY_BACKEND or None
+                "notify_backend": NOTIFY_BACKEND or None,
+                "version": VERSION
             })
     if proxy_path == "images":
         with state_lock:
