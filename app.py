@@ -78,9 +78,9 @@ from docker_utils import (
     find_compose_files,
     list_compose_files_detailed,
     get_compose_file_content,
-    save_compose_file,
-    validate_yaml,
-    get_dependency_graph,
+    write_compose_file,
+    validate_compose_content,
+    get_compose_file_dependencies,
     recreate_compose,
     parse_image_ref,
     get_registry_token,
@@ -508,8 +508,8 @@ def proxy_local_request(proxy_path: str) -> Response:
             content = data.get("content", {})
             backup = data.get("backup", True)
             try:
-                result = save_compose_file(compose_path, content, backup)
-                return jsonify(result)
+                success, message = write_compose_file(compose_path, content, backup)
+                return jsonify({"status": "success" if success else "error", "message": message})
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
     if proxy_path.endswith("/validate"):
@@ -518,13 +518,13 @@ def proxy_local_request(proxy_path: str) -> Response:
         content = data.get("content")
         try:
             if content:
-                validate_yaml(content)
-                return jsonify({"valid": True, "message": "YAML is valid"})
+                valid, message, errors = validate_compose_content(content)
+                return jsonify({"valid": valid, "message": message, "errors": errors})
             else:
                 yaml_content = get_compose_file_content(compose_path)
                 if yaml_content:
-                    validate_yaml(yaml_content)
-                    return jsonify({"valid": True, "message": "YAML is valid"})
+                    valid, message, errors = validate_compose_content(yaml_content)
+                    return jsonify({"valid": valid, "message": message, "errors": errors})
                 else:
                     return jsonify({"valid": False, "message": "File not found"}), 404
         except Exception as e:
@@ -532,12 +532,8 @@ def proxy_local_request(proxy_path: str) -> Response:
     if proxy_path.endswith("/dependencies"):
         compose_path = proxy_path.replace("/dependencies", "")
         try:
-            content = get_compose_file_content(compose_path)
-            if content:
-                graph = get_dependency_graph(content)
-                return jsonify(graph)
-            else:
-                return jsonify({"status": "error", "message": "File not found"}), 404
+            deps = get_compose_file_dependencies(compose_path)
+            return jsonify(deps)
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
 
