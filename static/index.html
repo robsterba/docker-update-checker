@@ -894,31 +894,38 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-function showHostResources() {
-  loadHostResources();
+async function showHostResources() {
+  showToast('Loading host resources...', 'info', 2000);
+  await loadHostResources();
   const card = document.getElementById('hostResourcesCard');
   if (card) {
     card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 }
 
-function showContainerResources() {
-  loadContainersWithResources();
+async function showContainerResources() {
+  showToast('Loading container resources...', 'info', 2000);
+  await loadContainersWithResources();
 }
 
 function toggleResourceRefresh() {
-  const btn = document.querySelector('#performanceMenu .dropdown-menu-item:last-child');
-  if (!btn) return;
+  const btn = document.querySelector('#performanceMenu .dropdown-menu-item:nth-last-child(2)');
+  if (!btn) {
+    console.warn('Could not find auto-refresh button');
+    return;
+  }
 
   if (resourceRefreshInterval) {
     clearInterval(resourceRefreshInterval);
     resourceRefreshInterval = null;
     btn.textContent = 'Start Auto-refresh';
     localStorage.setItem(STORAGE_RESOURCE_REFRESH_KEY, 'false');
+    showToast('Auto-refresh stopped', 'info');
   } else {
     resourceRefreshInterval = setInterval(loadHostResources, 30000); // 30 seconds
     btn.textContent = 'Stop Auto-refresh';
     localStorage.setItem(STORAGE_RESOURCE_REFRESH_KEY, 'true');
+    showToast('Auto-refresh started (30s)', 'info');
   }
 }
 
@@ -932,11 +939,12 @@ async function loadContainersWithResources() {
   try {
     const d = await safeInstanceFetch(`/containers?all=${showAll}&resources=true`);
     if (!d.__error) {
-      allImages = []; // Clear and reload
-      await Promise.all([loadImages(), loadContainers()]);
+      allContainers = d;
+      renderContainers(allContainers);
     }
   } catch (err) {
     console.warn('Failed to load containers with resources', err);
+    showToast(`Failed to load container resources: ${err.message}`, 'error');
   }
 }
 
