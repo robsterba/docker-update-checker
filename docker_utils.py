@@ -542,6 +542,30 @@ def get_host_resources() -> dict:
             "server_version": info.get("ServerVersion", "unknown"),
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
+    except docker.errors.APIError as e:
+        # Handle permission errors gracefully
+        log.warning(f"Docker API error getting host resources: {e}")
+        try:
+            # Try to get basic info without the full info() call
+            containers = client.containers.list()
+            return {
+                "error": "Limited access",
+                "containers_running": len([c for c in containers if c.status == "running"]),
+                "containers_stopped": len([c for c in containers if c.status != "running"]),
+                "containers_total": len(containers),
+                "images": "unknown",
+                "cpu_cores": "unknown",
+                "memory_total": 0,
+                "os": "unknown",
+                "architecture": "unknown", 
+                "kernel_version": "unknown",
+                "server_version": "unknown",
+                "docker_version": "unknown",
+                "timestamp": datetime.now(timezone.utc).isoformat()
+            }
+        except Exception as e2:
+            log.warning(f"Failed to get basic container info: {e2}")
+            return {"error": str(e)}
     except Exception as e:
         log.warning(f"Failed to get host resources: {e}")
         return {"error": str(e)}
