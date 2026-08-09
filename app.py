@@ -497,7 +497,7 @@ def proxy_local_request(proxy_path: str) -> Response:
         files = find_compose_files()
         return jsonify(files)
     if proxy_path.startswith("compose/files/") and not any(proxy_path.endswith(suffix) for suffix in ["/validate", "/dependencies"]):
-        compose_path = proxy_path[len("compose/files/"):]
+        compose_path = proxy_path[len("compose/files/"):].lstrip('/')
         if request.method == "GET":
             content = get_compose_file_content(compose_path)
             if content is None:
@@ -513,7 +513,7 @@ def proxy_local_request(proxy_path: str) -> Response:
             except Exception as e:
                 return jsonify({"status": "error", "message": str(e)}), 500
     if proxy_path.endswith("/validate"):
-        compose_path = proxy_path.replace("/validate", "")
+        compose_path = proxy_path.replace("/validate", "").lstrip('/')
         data = request.get_json(silent=True) or {}
         content = data.get("content")
         try:
@@ -530,7 +530,7 @@ def proxy_local_request(proxy_path: str) -> Response:
         except Exception as e:
             return jsonify({"valid": False, "message": str(e)})
     if proxy_path.endswith("/dependencies"):
-        compose_path = proxy_path.replace("/dependencies", "")
+        compose_path = proxy_path.replace("/dependencies", "").lstrip('/')
         try:
             deps = get_compose_file_dependencies(compose_path)
             return jsonify(deps)

@@ -167,7 +167,9 @@ def find_compose_files() -> list[dict]:
         for filename in filenames:
             if filename in patterns:
                 full_path = Path(dirpath) / filename
-                files.append({"path": str(full_path), "project": Path(dirpath).name})
+                # Store path relative to COMPOSE_ROOT for proper API routing
+                relative_path = str(full_path.relative_to(root))
+                files.append({"path": relative_path, "project": Path(dirpath).name})
     
     return files
 
@@ -655,15 +657,20 @@ def get_compose_file_content(compose_path: str) -> Optional[dict]:
     """Read and parse a compose file, returning its content as a dictionary.
     
     Args:
-        compose_path: Path to the compose file
+        compose_path: Path to the compose file (absolute or relative to COMPOSE_ROOT)
         
     Returns:
         Parsed YAML content as dict, or None if file not found or invalid
     """
     try:
         path = Path(compose_path)
+        
+        # If path is relative, try to resolve it from COMPOSE_ROOT
+        if not path.is_absolute():
+            path = Path(COMPOSE_ROOT) / path
+        
         if not path.exists():
-            log.warning(f"Compose file not found: {compose_path}")
+            log.warning(f"Compose file not found: {compose_path} (resolved to: {path})")
             return None
         
         with open(path, 'r', encoding='utf-8') as f:
