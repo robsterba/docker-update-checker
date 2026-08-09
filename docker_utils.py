@@ -98,9 +98,10 @@ def resolve_env_vars(value: str, env: dict) -> str:
 
 def parse_images_from_compose(path: str) -> list[str]:
     try:
-        env = read_dotenv(Path(path).parent / ".env")
+        resolved_path = resolve_compose_path(path)
+        env = read_dotenv(resolved_path.parent / ".env")
 
-        with open(path) as f:
+        with open(resolved_path) as f:
             data = yaml.safe_load(f)
 
         images = []
@@ -132,9 +133,10 @@ def parse_images_from_compose(path: str) -> list[str]:
 
 def get_services_for_image(compose_path: str, image_ref: str) -> list[str]:
     try:
-        env = read_dotenv(Path(compose_path).parent / ".env")
+        resolved_path = resolve_compose_path(compose_path)
+        env = read_dotenv(resolved_path.parent / ".env")
 
-        with open(compose_path) as f:
+        with open(resolved_path) as f:
             data = yaml.safe_load(f) or {}
 
         matches = []
@@ -176,7 +178,7 @@ def find_compose_files() -> list[dict]:
 
 def recreate_compose(compose_path: str, services: Optional[list[str]] = None,
                      remove_orphans: bool = True, timeout: int = DEFAULT_COMPOSE_TIMEOUT) -> subprocess.CompletedProcess:
-    compose_file = Path(compose_path)
+    compose_file = resolve_compose_path(compose_path)
     cmd = ["docker", "compose", "-f", str(compose_file), "up", "-d"]
 
     if remove_orphans and not services:
@@ -699,7 +701,7 @@ def write_compose_file(compose_path: str, content: dict, backup: bool = True) ->
         Tuple of (success, message)
     """
     try:
-        path = Path(compose_path)
+        path = resolve_compose_path(compose_path)
         
         # Create backup if requested
         if backup and path.exists():
@@ -887,6 +889,24 @@ def list_compose_files_detailed() -> list[dict]:
 # -- Phase 2: Stack Management Functions --
 
 
+def resolve_compose_path(compose_path: str) -> Path:
+    """Resolve a compose file path to an absolute path.
+    
+    Args:
+        compose_path: Path to the compose file (absolute or relative to COMPOSE_ROOT)
+        
+    Returns:
+        Absolute Path to the compose file
+    """
+    path = Path(compose_path)
+    
+    # If path is relative, try to resolve it from COMPOSE_ROOT
+    if not path.is_absolute():
+        path = Path(COMPOSE_ROOT) / path
+    
+    return path
+
+
 def get_stack_name_from_path(compose_path: str) -> str:
     """Derive stack name from compose file path.
     
@@ -909,7 +929,7 @@ def stack_up(compose_path: str, timeout: int = DEFAULT_COMPOSE_TIMEOUT) -> subpr
     Returns:
         CompletedProcess with result
     """
-    compose_file = Path(compose_path)
+    compose_file = resolve_compose_path(compose_path)
     cmd = ["docker", "compose", "-f", str(compose_file), "up", "-d", "--remove-orphans"]
     
     return subprocess.run(
@@ -931,7 +951,7 @@ def stack_down(compose_path: str, timeout: int = DEFAULT_COMPOSE_TIMEOUT) -> sub
     Returns:
         CompletedProcess with result
     """
-    compose_file = Path(compose_path)
+    compose_file = resolve_compose_path(compose_path)
     cmd = ["docker", "compose", "-f", str(compose_file), "down"]
     
     return subprocess.run(
@@ -953,7 +973,7 @@ def stack_restart(compose_path: str, timeout: int = DEFAULT_COMPOSE_TIMEOUT) -> 
     Returns:
         CompletedProcess with result
     """
-    compose_file = Path(compose_path)
+    compose_file = resolve_compose_path(compose_path)
     cmd = ["docker", "compose", "-f", str(compose_file), "restart"]
     
     return subprocess.run(
@@ -974,7 +994,7 @@ def stack_ps(compose_path: str) -> subprocess.CompletedProcess:
     Returns:
         CompletedProcess with result
     """
-    compose_file = Path(compose_path)
+    compose_file = resolve_compose_path(compose_path)
     cmd = ["docker", "compose", "-f", str(compose_file), "ps", "--format", "json"]
     
     return subprocess.run(
