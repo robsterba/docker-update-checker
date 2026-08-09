@@ -829,15 +829,18 @@ async function loadInstances() {
 
 async function loadHostResources() {
   try {
+    console.log('Loading host resources...');
     const d = await safeInstanceFetch('/host/resources');
+    console.log('Host resources response:', d);
     if (d.__error) {
+      console.warn('Host resources error:', d.__error);
       hostResources = {};
       return;
     }
     hostResources = d;
     renderHostResources(d);
   } catch (err) {
-    console.warn('Failed to load host resources', err);
+    console.warn('Failed to load host resources:', err);
     hostResources = {};
   }
 }
@@ -848,13 +851,19 @@ function renderHostResources(resources) {
     if (el) el.textContent = value !== null && value !== undefined ? value : '—';
   };
 
-  // Debug: log resources to console if empty
+  // Debug: log resources to console
+  console.log('Rendering host resources:', resources);
   if (Object.keys(resources).length === 0) {
     console.warn('Host resources returned empty object');
+    // Show error in the UI
+    setText('hostCpuCores', 'Error: No data');
+    return;
   } else if (resources.error) {
     console.warn('Host resources error:', resources.error);
+    setText('hostCpuCores', `Error: ${resources.error}`);
+    return;
   } else {
-    console.log('Host resources loaded:', resources);
+    console.log('Host resources data:', resources);
   }
 
   // CPU information
