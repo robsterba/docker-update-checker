@@ -94,6 +94,9 @@ REMOTE_INSTANCES_FILE = get_env("REMOTE_INSTANCES_FILE", "").strip()
 TOKEN_CACHE_TTL = get_int_env("TOKEN_CACHE_TTL", 900)
 REGISTRY_TOKEN_CACHE: dict[str, dict[str, object]] = {}
 
+# Notification settings file
+NOTIFICATION_SETTINGS_FILE = get_env("NOTIFICATION_SETTINGS_FILE", "notification_settings.json")
+
 
 def cleanup_token_cache() -> int:
     """Remove expired tokens from the registry token cache.

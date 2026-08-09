@@ -1768,6 +1768,9 @@ function showNotificationConfig() {
     document.getElementById('mqttConfigSection').style.display = this.value === 'mqtt' ? 'block' : 'none';
     document.getElementById('emailConfigSection').style.display = this.value === 'email' ? 'block' : 'none';
   });
+  
+  // Load current settings into the form
+  loadNotificationSettings();
 }
 
 function showRemoteHostsConfig() {
@@ -1934,9 +1937,155 @@ function saveConfig() {
   closeConfigModal();
 }
 
+function loadNotificationSettings() {
+  fetch('/api/config/notification')
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(settings => {
+    // Update UI elements with loaded settings
+    if (document.getElementById('configNotifyEnabled')) {
+      document.getElementById('configNotifyEnabled').checked = settings.enabled || false;
+    }
+    if (document.getElementById('configBackend')) {
+      document.getElementById('configBackend').value = settings.backend || '';
+    }
+    if (document.getElementById('configWebhookUrl')) {
+      document.getElementById('configWebhookUrl').value = settings.webhook_url || '';
+    }
+    if (document.getElementById('configWebhookMethod')) {
+      document.getElementById('configWebhookMethod').value = settings.webhook_method || 'POST';
+    }
+    if (document.getElementById('configWebhookTimeout')) {
+      document.getElementById('configWebhookTimeout').value = settings.webhook_timeout || 10;
+    }
+    if (document.getElementById('configMqttHost')) {
+      document.getElementById('configMqttHost').value = settings.mqtt_host || '';
+    }
+    if (document.getElementById('configMqttPort')) {
+      document.getElementById('configMqttPort').value = settings.mqtt_port || 1883;
+    }
+    if (document.getElementById('configMqttTopic')) {
+      document.getElementById('configMqttTopic').value = settings.mqtt_topic || '';
+    }
+    if (document.getElementById('configMqttUsername')) {
+      document.getElementById('configMqttUsername').value = settings.mqtt_username || '';
+    }
+    if (document.getElementById('configMqttPassword')) {
+      document.getElementById('configMqttPassword').value = settings.mqtt_password || '';
+    }
+    if (document.getElementById('configMqttRetain')) {
+      document.getElementById('configMqttRetain').checked = settings.mqtt_retain || false;
+    }
+    if (document.getElementById('configEmailHost')) {
+      document.getElementById('configEmailHost').value = settings.email_host || '';
+    }
+    if (document.getElementById('configEmailPort')) {
+      document.getElementById('configEmailPort').value = settings.email_port || 587;
+    }
+    if (document.getElementById('configEmailUsername')) {
+      document.getElementById('configEmailUsername').value = settings.email_username || '';
+    }
+    if (document.getElementById('configEmailPassword')) {
+      document.getElementById('configEmailPassword').value = settings.email_password || '';
+    }
+    if (document.getElementById('configEmailFrom')) {
+      document.getElementById('configEmailFrom').value = settings.email_from || '';
+    }
+    if (document.getElementById('configEmailTo')) {
+      document.getElementById('configEmailTo').value = settings.email_to || '';
+    }
+    if (document.getElementById('configEmailTls')) {
+      document.getElementById('configEmailTls').checked = settings.email_use_tls !== false;
+    }
+    if (document.getElementById('configNotifyUpdates')) {
+      document.getElementById('configNotifyUpdates').checked = settings.on_updates_found !== false;
+    }
+    if (document.getElementById('configNotifyPullSuccess')) {
+      document.getElementById('configNotifyPullSuccess').checked = settings.on_pull_success || false;
+    }
+    if (document.getElementById('configNotifyPullError')) {
+      document.getElementById('configNotifyPullError').checked = settings.on_pull_error !== false;
+    }
+    if (document.getElementById('configNotifyRecreateSuccess')) {
+      document.getElementById('configNotifyRecreateSuccess').checked = settings.on_recreate_success || false;
+    }
+    if (document.getElementById('configNotifyRecreateError')) {
+      document.getElementById('configNotifyRecreateError').checked = settings.on_recreate_error !== false;
+    }
+    if (document.getElementById('configNotifyBulkComplete')) {
+      document.getElementById('configNotifyBulkComplete').checked = settings.on_bulk_complete || false;
+    }
+    
+    // Update backend section visibility
+    const backend = settings.backend || '';
+    document.getElementById('webhookConfigSection').style.display = backend === 'webhook' ? 'block' : 'none';
+    document.getElementById('mqttConfigSection').style.display = backend === 'mqtt' ? 'block' : 'none';
+    document.getElementById('emailConfigSection').style.display = backend === 'email' ? 'block' : 'none';
+  })
+  .catch(error => {
+    console.warn('Failed to load notification settings:', error);
+  });
+}
+
 function saveNotificationConfig() {
-  // This would require backend API to save config - for now, just show toast
-  showToast('Notification settings saved (backend API needed for persistence)', 'success');
+  const settings = {
+    enabled: document.getElementById('configNotifyEnabled').checked,
+    backend: document.getElementById('configBackend').value,
+    
+    // Webhook settings
+    webhook_url: document.getElementById('configWebhookUrl').value,
+    webhook_method: document.getElementById('configWebhookMethod').value,
+    webhook_timeout: parseInt(document.getElementById('configWebhookTimeout').value) || 10,
+    
+    // MQTT settings
+    mqtt_host: document.getElementById('configMqttHost').value,
+    mqtt_port: parseInt(document.getElementById('configMqttPort').value) || 1883,
+    mqtt_topic: document.getElementById('configMqttTopic').value,
+    mqtt_username: document.getElementById('configMqttUsername').value,
+    mqtt_password: document.getElementById('configMqttPassword').value,
+    mqtt_retain: document.getElementById('configMqttRetain').checked,
+    
+    // Email settings
+    email_host: document.getElementById('configEmailHost').value,
+    email_port: parseInt(document.getElementById('configEmailPort').value) || 587,
+    email_username: document.getElementById('configEmailUsername').value,
+    email_password: document.getElementById('configEmailPassword').value,
+    email_from: document.getElementById('configEmailFrom').value,
+    email_to: document.getElementById('configEmailTo').value,
+    email_use_tls: document.getElementById('configEmailTls').checked,
+    
+    // Notification triggers
+    on_updates_found: document.getElementById('configNotifyUpdates').checked,
+    on_pull_success: document.getElementById('configNotifyPullSuccess').checked,
+    on_pull_error: document.getElementById('configNotifyPullError').checked,
+    on_recreate_success: document.getElementById('configNotifyRecreateSuccess').checked,
+    on_recreate_error: document.getElementById('configNotifyRecreateError').checked,
+    on_bulk_complete: document.getElementById('configNotifyBulkComplete').checked,
+  };
+  
+  fetch('/api/config/notification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings)
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    showToast(data.message || 'Notification settings saved', 'success');
+    // Reload settings to update UI
+    loadNotificationSettings();
+  })
+  .catch(error => {
+    showToast(`Failed to save notification settings: ${error.message}`, 'error');
+  });
 }
 
 function saveRemoteHostsConfig() {

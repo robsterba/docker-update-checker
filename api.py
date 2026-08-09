@@ -19,6 +19,15 @@ from app import (
     run_bulk_pull,
     run_stack_recreate,
     run_prune_job,
+    load_notification_settings,
+    save_notification_settings,
+)
+
+# Import from config module
+from config import (
+    get_env,
+    get_bool_env,
+    get_int_env,
 )
 
 # Import from canonical modules
@@ -1072,5 +1081,71 @@ def api_stacks_bulk_action():
     else:
         log_op("stacks_bulk", f"{action} ({','.join(stack_names)})", "error", "Partial or complete failure")
         return jsonify({"status": "partial_success", "action": action, "results": results}), 207
+
+
+# ── Notification Settings API ───────────────────────────────────────────────
+
+@app.route("/api/config/notification", methods=["GET"])
+def api_get_notification_config():
+    """Get current notification settings."""
+    from config import NOTIFY_ENABLED, NOTIFY_BACKEND
+    try:
+        # Merge file settings with environment variable defaults
+        file_settings = load_notification_settings()
+        
+        # Default settings from environment variables
+        defaults = {
+            "enabled": NOTIFY_ENABLED,
+            "backend": NOTIFY_BACKEND,
+            "webhook_url": get_env("NOTIFY_WEBHOOK_URL", ""),
+            "webhook_method": get_env("NOTIFY_WEBHOOK_METHOD", "POST"),
+            "webhook_timeout": get_int_env("NOTIFY_WEBHOOK_TIMEOUT", 10),
+            "mqtt_host": get_env("NOTIFY_MQTT_HOST", ""),
+            "mqtt_port": get_int_env("NOTIFY_MQTT_PORT", 1883),
+            "mqtt_topic": get_env("NOTIFY_MQTT_TOPIC", ""),
+            "mqtt_username": get_env("NOTIFY_MQTT_USERNAME", ""),
+            "mqtt_password": get_env("NOTIFY_MQTT_PASSWORD", ""),
+            "mqtt_retain": get_bool_env("NOTIFY_MQTT_RETAIN", False),
+            "email_host": get_env("NOTIFY_EMAIL_HOST", ""),
+            "email_port": get_int_env("NOTIFY_EMAIL_PORT", 587),
+            "email_username": get_env("NOTIFY_EMAIL_USERNAME", ""),
+            "email_password": get_env("NOTIFY_EMAIL_PASSWORD", ""),
+            "email_from": get_env("NOTIFY_EMAIL_FROM", ""),
+            "email_to": get_env("NOTIFY_EMAIL_TO", ""),
+            "email_use_tls": get_bool_env("NOTIFY_EMAIL_USE_TLS", True),
+            "on_updates_found": get_bool_env("NOTIFY_ON_UPDATES_FOUND", True),
+            "on_pull_success": get_bool_env("NOTIFY_ON_PULL_SUCCESS", False),
+            "on_pull_error": get_bool_env("NOTIFY_ON_PULL_ERROR", True),
+            "on_recreate_success": get_bool_env("NOTIFY_ON_RECREATE_SUCCESS", False),
+            "on_recreate_error": get_bool_env("NOTIFY_ON_RECREATE_ERROR", True),
+            "on_bulk_complete": get_bool_env("NOTIFY_ON_BULK_COMPLETE", False),
+        }
+        
+        # File settings override defaults
+        final_settings = {**defaults, **file_settings}
+        return jsonify(final_settings)
+        
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/config/notification", methods=["POST"])
+def api_set_notification_config():
+    """Save notification settings."""
+    try:
+        data = request.get_json(silent=True) or {}
+        if not data:
+            return jsonify({"status": "error", "message": "No settings data provided"}), 400
+        
+        # Save settings to file
+        success = save_notification_settings(data)
+        if not success:
+            return jsonify({"status": "error", "message": "Failed to save settings"}), 500
+        
+        log_op("config_notification_save", "", "success", "Notification settings saved")
+        return jsonify({"status": "success", "message": "Notification settings saved"})
+        
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 

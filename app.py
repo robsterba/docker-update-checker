@@ -31,6 +31,7 @@ from config import (
     TOKEN_CACHE_TTL,
     REGISTRY_TOKEN_CACHE,
     VERSION,
+    NOTIFICATION_SETTINGS_FILE,
     # Status constants
     STATUS_UP_TO_DATE,
     STATUS_UPDATE_AVAILABLE,
@@ -205,6 +206,37 @@ def load_remote_instances() -> list[dict]:
         unique[instance["id"]] = instance
     log.info(f"Total remote instances loaded: {len(list(unique.values()))}")
     return list(unique.values())
+
+
+def load_notification_settings() -> dict:
+    """Load notification settings from file."""
+    try:
+        path = Path(NOTIFICATION_SETTINGS_FILE).expanduser()
+        if path.exists():
+            with open(path, 'r', encoding='utf-8') as f:
+                settings = json.load(f)
+                log.info(f"Loaded notification settings from {path}")
+                return settings
+        else:
+            log.info(f"Notification settings file not found: {path}, using defaults")
+            return {}
+    except Exception as e:
+        log.warning(f"Unable to load notification settings from {NOTIFICATION_SETTINGS_FILE}: {e}")
+        return {}
+
+
+def save_notification_settings(settings: dict) -> bool:
+    """Save notification settings to file."""
+    try:
+        path = Path(NOTIFICATION_SETTINGS_FILE).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(settings, f, indent=2)
+        log.info(f"Saved notification settings to {path}")
+        return True
+    except Exception as e:
+        log.error(f"Unable to save notification settings to {NOTIFICATION_SETTINGS_FILE}: {e}")
+        return False
 
 
 def get_all_instances() -> list[dict]:
