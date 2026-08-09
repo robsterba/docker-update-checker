@@ -224,6 +224,26 @@
   .compose-file-meta{font-size:.76rem;color:var(--muted)}
   .validation-error{color:var(--error);font-size:.78rem;margin-top:.5rem;padding:.4rem .6rem;background:rgba(220,38,38,.1);border-radius:.4rem}
   .validation-success{color:var(--success);font-size:.78rem;margin-top:.5rem;padding:.4rem .6rem;background:rgba(14,165,233,.1);border-radius:.4rem}
+
+  /* Performance/Resource Monitoring Styles */
+  .resource-card{background:var(--surface);border:1px solid var(--border);border-radius:.625rem;padding:1rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem}
+  .gauge-container{text-align:center;padding:.5rem}
+  .gauge-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem}
+  .gauge-value{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:.25rem}
+  .gauge{position:relative;width:100px;height:100px;margin:0 auto;border-radius:50%;background:conic-gradient(var(--primary) 0%, var(--primary) var(--gauge-percent, 0%), var(--border) var(--gauge-percent, 0%), var(--border) 100%);display:flex;align-items:center;justify-content:center}
+  .gauge::before{content:'';position:absolute;width:80%;height:80%;background:var(--surface);border-radius:50%}
+  .gauge-text{position:relative;z-index:1;font-size:.85rem;font-weight:600;color:var(--text)}
+  .resource-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem}
+  .resource-stat{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.65rem;text-align:center}
+  .resource-stat-label{font-size:.72rem;color:var(--muted);margin-bottom:.25rem}
+  .resource-stat-value{font-size:1rem;font-weight:600;font-variant-numeric:tabular-nums}
+  .stack-resources{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
+  .stack-resource{background:var(--surface2);border:1px solid var(--border);border-radius:.4rem;padding:.25rem .5rem;font-size:.7rem}
+  .stack-resource-label{color:var(--muted);margin-right:.25rem}
+  .stack-resource-value{font-weight:600;color:var(--text)}
+  .performance-toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+  .performance-filter{padding:.3rem .6rem;border-radius:.4rem;font-size:.78rem;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s}
+  .performance-filter.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -305,6 +325,18 @@
           <button class="dropdown-menu-item" onclick="showPreferencesConfig()">Preferences</button>
         </div>
       </div>
+      <div class="dropdown">
+        <button class="dropdown-btn" onclick="togglePerformanceMenu(event)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16V6M4 4v10M18 4v10M4 16h10M4 12h10M4 8h10"/></svg>
+          Performance
+        </button>
+        <div class="dropdown-menu hidden" id="performanceMenu">
+          <button class="dropdown-menu-item" onclick="showPerformanceMonitoring()">Performance Dashboard</button>
+          <button class="dropdown-menu-item" onclick="showHostResources()">Host Overview</button>
+          <button class="dropdown-menu-item" onclick="showContainerResources()">Container Resources</button>
+          <button class="dropdown-menu-item" onclick="toggleResourceRefresh()">Auto-refresh</button>
+        </div>
+      </div>
     </div>
     <div class="toolbar-right">
       <label class="inline-toggle">
@@ -331,7 +363,76 @@
     <div class="kpi"><div class="kpi-label">Stacks</div><div class="kpi-value info" id="kpiStacks">—</div></div>
   </div>
 
-
+  <!-- Host Resources Overview Card -->
+  <div class="card" id="hostResourcesCard">
+    <div class="card-header">
+      <span class="card-title">Host Resources</span>
+      <div class="toolbar-right" style="margin-left: auto;">
+        <button class="btn btn-ghost btn-sm" onclick="loadHostResources()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+    <div class="resource-card" id="hostResourcesGrid">
+      <div class="gauge-container">
+        <div class="gauge-label">CPU Usage</div>
+        <div class="gauge-value" id="hostCpuUsage">—%</div>
+        <div class="resource-grid" style="margin-top: .5rem;">
+          <div class="resource-stat">
+            <div class="resource-stat-label">Cores</div>
+            <div class="resource-stat-value" id="hostCpuCores">—</div>
+          </div>
+          <div class="resource-stat">
+            <div class="resource-stat-label">Docker Version</div>
+            <div class="resource-stat-value" id="hostDockerVersion">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="gauge-container">
+        <div class="gauge-label">Memory Usage</div>
+        <div class="gauge-value" id="hostMemoryUsage">—%</div>
+        <div class="resource-grid" style="margin-top: .5rem;">
+          <div class="resource-stat">
+            <div class="resource-stat-label">Total Memory</div>
+            <div class="resource-stat-value" id="hostMemoryTotal">—</div>
+          </div>
+          <div class="resource-stat">
+            <div class="resource-stat-label">OS</div>
+            <div class="resource-stat-value" id="hostOs">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="gauge-container">
+        <div class="gauge-label">Containers</div>
+        <div class="gauge-value" id="hostContainers">—</div>
+        <div class="resource-grid" style="margin-top: .5rem;">
+          <div class="resource-stat">
+            <div class="resource-stat-label">Running</div>
+            <div class="resource-stat-value" id="hostContainersRunning">—</div>
+          </div>
+          <div class="resource-stat">
+            <div class="resource-stat-label">Stopped</div>
+            <div class="resource-stat-value" id="hostContainersStopped">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="gauge-container">
+        <div class="gauge-label">Images</div>
+        <div class="gauge-value" id="hostImages">—</div>
+        <div class="resource-grid" style="margin-top: .5rem;">
+          <div class="resource-stat">
+            <div class="resource-stat-label">Architecture</div>
+            <div class="resource-stat-value" id="hostArchitecture">—</div>
+          </div>
+          <div class="resource-stat">
+            <div class="resource-stat-label">Kernel</div>
+            <div class="resource-stat-value" id="hostKernel">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="grid-2">
     <div class="card">
@@ -459,6 +560,17 @@
   </div>
 </div>
 
+<!-- Performance Monitoring Modal -->
+<div class="modal-backdrop" id="performanceModalBackdrop" onclick="closePerformanceModal(event)">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-title" id="performanceModalTitle">Performance Monitoring</div>
+    <div id="performanceModalBody"></div>
+    <div style="margin-top:1rem;text-align:right">
+      <button class="btn btn-ghost btn-sm" onclick="closePerformanceModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = '';
 const MAX_JOBS = 30;
@@ -468,12 +580,15 @@ let allJobs = [];
 let allInstances = [];
 let hostStatuses = {};
 let instanceVersions = {};
+let hostResources = {};
 let currentInstance = { id: 'local', name: 'Local host', url: '' };
 let activeFilter = 'all';
 let checking = false;
 let theme = 'light';
+let resourceRefreshInterval = null;
 const STORAGE_THEME_KEY = 'docker-update-checker-theme';
 const STORAGE_AUTO_RECREATE_KEY = 'docker-update-checker-auto-recreate';
+const STORAGE_RESOURCE_REFRESH_KEY = 'docker-update-checker-resource-refresh';
 
 function getStoredTheme() {
   return localStorage.getItem(STORAGE_THEME_KEY);
@@ -512,6 +627,10 @@ document.addEventListener('click', function() {
   if (settingsMenu && !settingsMenu.classList.contains('hidden')) {
     settingsMenu.classList.add('hidden');
   }
+  const performanceMenu = document.getElementById('performanceMenu');
+  if (performanceMenu && !performanceMenu.classList.contains('hidden')) {
+    performanceMenu.classList.add('hidden');
+  }
 });
 
 function toggleComposeMenu(event) {
@@ -523,6 +642,12 @@ function toggleComposeMenu(event) {
 function toggleSettingsMenu(event) {
   event.stopPropagation();
   const menu = document.getElementById('settingsMenu');
+  menu.classList.toggle('hidden');
+}
+
+function togglePerformanceMenu(event) {
+  event.stopPropagation();
+  const menu = document.getElementById('performanceMenu');
   menu.classList.toggle('hidden');
 }
 
@@ -669,7 +794,7 @@ async function selectInstance(instanceId) {
 }
 
 async function refreshAll() {
-  await Promise.all([loadStatus(), loadImages(), loadStacks(), loadJobs(), loadOps()]);
+  await Promise.all([loadStatus(), loadImages(), loadStacks(), loadJobs(), loadOps(), loadHostResources()]);
 }
 
 async function loadInstances() {
@@ -699,6 +824,109 @@ async function loadInstances() {
     }
   } catch (err) {
     console.warn('Failed to load instances', err);
+  }
+}
+
+async function loadHostResources() {
+  try {
+    const d = await safeInstanceFetch('/host/resources');
+    if (d.__error) {
+      hostResources = {};
+      return;
+    }
+    hostResources = d;
+    renderHostResources(d);
+  } catch (err) {
+    console.warn('Failed to load host resources', err);
+    hostResources = {};
+  }
+}
+
+function renderHostResources(resources) {
+  const setText = (id, value) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value !== null && value !== undefined ? value : '—';
+  };
+
+  // CPU information
+  setText('hostCpuCores', resources.cpu_cores || '—');
+  setText('hostDockerVersion', resources.docker_version || '—');
+
+  // Memory information - format bytes to human readable
+  const memoryTotal = resources.memory_total;
+  setText('hostMemoryTotal', memoryTotal ? formatBytes(memoryTotal) : '—');
+
+  // OS information
+  setText('hostOs', resources.os || '—');
+  setText('hostArchitecture', resources.architecture || '—');
+  setText('hostKernel', resources.kernel_version || '—');
+
+  // Container information
+  setText('hostContainersRunning', resources.containers_running || 0);
+  setText('hostContainersStopped', resources.containers_stopped || 0);
+  const totalContainers = (resources.containers_running || 0) + (resources.containers_stopped || 0);
+  setText('hostContainers', totalContainers || 0);
+
+  // Images
+  setText('hostImages', resources.images || 0);
+
+  // Note: CPU and Memory usage percentages would require live container stats
+  // For now, we'll show static info. Real-time resource usage would need websockets or polling
+  setText('hostCpuUsage', '—');
+  setText('hostMemoryUsage', '—');
+}
+
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function showHostResources() {
+  loadHostResources();
+  const card = document.getElementById('hostResourcesCard');
+  if (card) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function showContainerResources() {
+  loadContainersWithResources();
+}
+
+function toggleResourceRefresh() {
+  const btn = document.querySelector('#performanceMenu .dropdown-menu-item:last-child');
+  if (!btn) return;
+
+  if (resourceRefreshInterval) {
+    clearInterval(resourceRefreshInterval);
+    resourceRefreshInterval = null;
+    btn.textContent = 'Start Auto-refresh';
+    localStorage.setItem(STORAGE_RESOURCE_REFRESH_KEY, 'false');
+  } else {
+    resourceRefreshInterval = setInterval(loadHostResources, 30000); // 30 seconds
+    btn.textContent = 'Stop Auto-refresh';
+    localStorage.setItem(STORAGE_RESOURCE_REFRESH_KEY, 'true');
+  }
+}
+
+// Restore resource refresh state on page load
+if (localStorage.getItem(STORAGE_RESOURCE_REFRESH_KEY) === 'true') {
+  resourceRefreshInterval = setInterval(loadHostResources, 30000);
+}
+
+async function loadContainersWithResources() {
+  const showAll = document.getElementById('showAllContainers')?.checked || false;
+  try {
+    const d = await safeInstanceFetch(`/containers?all=${showAll}&resources=true`);
+    if (!d.__error) {
+      allImages = []; // Clear and reload
+      await Promise.all([loadImages(), loadContainers()]);
+    }
+  } catch (err) {
+    console.warn('Failed to load containers with resources', err);
   }
 }
 
@@ -1254,6 +1482,98 @@ function closeConfigModal(e) {
   }
 }
 
+function closePerformanceModal(e) {
+  if (!e || e.target === document.getElementById('performanceModalBackdrop')) {
+    document.getElementById('performanceModalBackdrop').classList.remove('open');
+  }
+}
+
+async function showPerformanceMonitoring() {
+  const modal = document.getElementById('performanceModalBackdrop');
+  const body = document.getElementById('performanceModalBody');
+  
+  modal.classList.add('open');
+  
+  // Load host resources and containers with resources
+  const [hostRes, containers] = await Promise.all([
+    safeInstanceFetch('/host/resources'),
+    safeInstanceFetch('/containers?all=true&resources=true')
+  ]);
+  
+  let html = '<div class="resource-card">';
+  
+  // Host Resources Summary
+  if (!hostRes.__error) {
+    html += `
+      <div style="grid-column: 1 / -1; margin-bottom: 1rem;">
+        <h4 style="margin-bottom: .5rem;">Host Overview</h4>
+        <div class="resource-grid">
+          <div class="resource-stat">
+            <div class="resource-stat-label">CPU Cores</div>
+            <div class="resource-stat-value">${hostRes.cpu_cores || '—'}</div>
+          </div>
+          <div class="resource-stat">
+            <div class="resource-stat-label">Total Memory</div>
+            <div class="resource-stat-value">${hostRes.memory_total ? formatBytes(hostRes.memory_total) : '—'}</div>
+          </div>
+          <div class="resource-stat">
+            <div class="resource-stat-label">Containers</div>
+            <div class="resource-stat-value">${(hostRes.containers_running || 0) + (hostRes.containers_stopped || 0)}</div>
+          </div>
+          <div class="resource-stat">
+            <div class="resource-stat-label">Images</div>
+            <div class="resource-stat-value">${hostRes.images || 0}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Container Resource Table
+  if (!containers.__error && containers.length > 0) {
+    const runningContainers = containers.filter(c => c.is_running || c.status === 'running');
+    
+    if (runningContainers.length > 0) {
+      html += `
+        <div style="grid-column: 1 / -1;">
+          <h4 style="margin-bottom: .5rem;">Container Resource Usage</h4>
+          <table style="width: 100%; margin-top: .5rem;">
+            <thead>
+              <tr>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Container</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">CPU</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Memory</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+      
+      runningContainers.forEach(container => {
+        const resources = container.resources || {};
+        const cpuPercent = resources.cpu_percent !== undefined ? resources.cpu_percent : null;
+        const memoryPercent = resources.memory_percent !== undefined ? resources.memory_percent : null;
+        const status = container.status || container.is_running ? 'running' : 'stopped';
+        const name = container.name || container.id || 'unknown';
+        
+        html += `
+              <tr>
+                <td style="padding: .7rem 1rem; font-size: .85rem;">${escHtml(name.startsWith('/') ? name.substring(1) : name)}</td>
+                <td style="padding: .7rem 1rem; font-size: .85rem;">${cpuPercent !== null ? cpuPercent.toFixed(1) + '%' : '—'}</td>
+                <td style="padding: .7rem 1rem; font-size: .85rem;">${memoryPercent !== null ? memoryPercent.toFixed(1) + '%' : '—'}</td>
+                <td style="padding: .7rem 1rem; font-size: .85rem;">${badge(status)}</td>
+              </tr>
+        `;
+      });
+      
+      html += '</tbody></table>';
+    }
+  }
+  
+  html += '</div>';
+  body.innerHTML = html;
+}
+
 // Configuration state
 let currentConfigSection = null;
 let currentConfigData = {};
@@ -1754,8 +2074,7 @@ function renderContainers(containers) {
 async function loadContainers() {
   const showAll = getContainerFilter();
   try {
-    const url = `${API}/api/containers?all=${showAll}&resources=true`;
-    const response = await fetch(url);
+    const response = await instanceFetch(`/containers?all=${showAll}&resources=true`);
     if (!response.ok) {
       const message = await response.text();
       renderContainers([]);
