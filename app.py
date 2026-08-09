@@ -229,6 +229,8 @@ def proxy_remote_request(instance_id: str, proxy_path: str) -> Response:
     allowed_prefixes = (
         "status",
         "images",
+        "containers",
+        "host",
         "stacks",
         "jobs",
         "operations",
@@ -431,6 +433,47 @@ def proxy_local_request(proxy_path: str) -> Response:
             return jsonify({"status": "success"})
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 500
+    if proxy_path == "host/resources":
+        resources = get_host_resources()
+        return jsonify(resources)
+    if proxy_path.startswith("containers") and not proxy_path.startswith("containers/"):
+        # Handle /containers?params - call the function directly
+        all_containers = request.args.get("all", "false").lower() == "true"
+        status_filter = request.args.get("status", None)
+        with_resources = request.args.get("resources", "false").lower() == "true"
+        
+        filters = {}
+        if status_filter:
+            filters["status"] = status_filter
+        
+        containers = list_containers(all_containers=all_containers, filters=filters if filters else None)
+        
+        # If resource data requested, fetch for all containers
+        if with_resources and containers:
+            resource_data = get_all_container_resources(containers)
+            for container in containers:
+                container["resources"] = resource_data.get(container["id"], {})
+        
+        return jsonify(containers)
+    if proxy_path.startswith("containers/"):
+        # Extract container ID and action from path like "containers/abc123/resources"
+        container_id = proxy_path.split("/", 1)[1]
+        if proxy_path.endswith("/resources"):
+            resources = get_container_resources(container_id)
+            if resources is None:
+                return jsonify({"status": "error", "message": "Container not found or unavailable"}), 404
+            return jsonify(resources)
+        elif proxy_path.endswith("/start"):
+            return start_container(container_id)
+        elif proxy_path.endswith("/stop"):
+            return stop_container(container_id)
+        elif proxy_path.endswith("/restart"):
+            return restart_container(container_id)
+        else:
+            container_data = inspect_container(container_id)
+            if container_data is None:
+                return jsonify({"status": "error", "message": "Container not found"}), 404
+            return jsonify(container_data)
 
     return jsonify({"status": "error", "message": "Unsupported local proxy path"}), 400
 
