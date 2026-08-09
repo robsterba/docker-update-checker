@@ -13,7 +13,7 @@ services:
       # Docker socket — required for pulling images and running compose
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Mount your entire compose root (adjust path as needed)
-      - /home/rob/docker/:/compose:ro
+      - /path/to/your/compose:/compose:ro
       # Mount remote instances file if using remote host aggregation
       - ./remote_instances.json:/app/remote_instances.json:ro
     environment:

@@ -14,6 +14,10 @@ venv/
 .DS_Store
 .env
 
+# Configuration files that may contain sensitive data
+notification_settings.json
+remote_instances.json
+
 # Development documentation (exclude all .md except readme and changelog)
 *.md
 !readme.md

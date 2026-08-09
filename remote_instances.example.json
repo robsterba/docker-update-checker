@@ -1,12 +1,12 @@
 [
   {
-    "name": "Homelab Node 1",
-    "url": "http://192.168.1.10:5000",
-    "description": "Remote docker-update-checker instance running on node 1"
+    "name": "Remote Host 1",
+    "url": "http://remote-host-1:5000",
+    "description": "Remote docker-update-checker instance"
   },
   {
-    "name": "Homelab Node 2",
-    "url": "http://192.168.1.11:5000",
-    "description": "Remote docker-update-checker instance running on node 2"
+    "name": "Remote Host 2",
+    "url": "http://remote-host-2:5000",
+    "description": "Remote docker-update-checker instance"
   }
 ]

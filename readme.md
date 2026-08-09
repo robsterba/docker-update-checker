@@ -204,7 +204,7 @@ The backend is now modularized into:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/robsterba/docker-update-checker.git
+git clone https://github.com/your-username/docker-update-checker.git
 cd docker-update-checker
 ```
 
