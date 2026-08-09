@@ -2238,7 +2238,7 @@ async function loadComposeFiles() {
       throw new Error(await response.text());
     }
     allComposeFiles = await response.json();
-    renderComposeFiles();
+    renderComposeFiles(allComposeFiles);
     document.getElementById('composeFilesSection').style.display = 'block';
     showToast(`Loaded ${allComposeFiles.length} compose file(s)`, 'success');
   } catch (err) {
@@ -2249,6 +2249,11 @@ async function loadComposeFiles() {
 
 function renderComposeFiles(files) {
   const el = document.getElementById('composeFileList');
+  
+  // Handle undefined/null files
+  if (!files) {
+    files = [];
+  }
   
   if (!files.length) {
     el.innerHTML = `<div style="padding:1.25rem;color:var(--muted)">No compose files found.</div>`;
