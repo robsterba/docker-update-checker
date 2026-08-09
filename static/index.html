@@ -848,27 +848,37 @@ function renderHostResources(resources) {
     if (el) el.textContent = value !== null && value !== undefined ? value : '—';
   };
 
+  // Debug: log resources to console if empty
+  if (Object.keys(resources).length === 0) {
+    console.warn('Host resources returned empty object');
+  } else if (resources.error) {
+    console.warn('Host resources error:', resources.error);
+  } else {
+    console.log('Host resources loaded:', resources);
+  }
+
   // CPU information
-  setText('hostCpuCores', resources.cpu_cores || '—');
-  setText('hostDockerVersion', resources.docker_version || '—');
+  setText('hostCpuCores', resources.cpu_cores || resources.CPU_Cores || resources.CpuCores || '—');
+  setText('hostDockerVersion', resources.docker_version || resources.DockerVersion || '—');
 
   // Memory information - format bytes to human readable
-  const memoryTotal = resources.memory_total;
+  const memoryTotal = resources.memory_total || resources.MemoryTotal || resources.mem_total;
   setText('hostMemoryTotal', memoryTotal ? formatBytes(memoryTotal) : '—');
 
   // OS information
-  setText('hostOs', resources.os || '—');
-  setText('hostArchitecture', resources.architecture || '—');
-  setText('hostKernel', resources.kernel_version || '—');
+  setText('hostOs', resources.os || resources.OperatingSystem || resources.OS || '—');
+  setText('hostArchitecture', resources.architecture || resources.Architecture || '—');
+  setText('hostKernel', resources.kernel_version || resources.KernelVersion || '—');
 
   // Container information
-  setText('hostContainersRunning', resources.containers_running || 0);
-  setText('hostContainersStopped', resources.containers_stopped || 0);
-  const totalContainers = (resources.containers_running || 0) + (resources.containers_stopped || 0);
-  setText('hostContainers', totalContainers || 0);
+  const running = resources.containers_running || resources.ContainersRunning || 0;
+  const stopped = resources.containers_stopped || resources.ContainersStopped || 0;
+  setText('hostContainersRunning', running);
+  setText('hostContainersStopped', stopped);
+  setText('hostContainers', running + stopped);
 
   // Images
-  setText('hostImages', resources.images || 0);
+  setText('hostImages', resources.images || resources.Images || 0);
 
   // Note: CPU and Memory usage percentages would require live container stats
   // For now, we'll show static info. Real-time resource usage would need websockets or polling
@@ -1999,7 +2009,14 @@ function renderContainers(containers) {
     return;
   }
 
-  el.innerHTML = containers.map(container => {
+  // Sort by memory usage (highest to lowest), fallback to name
+  const sortedContainers = [...containers].sort((a, b) => {
+    const aMem = a.resources?.memory_percent ?? 0;
+    const bMem = b.resources?.memory_percent ?? 0;
+    return bMem - aMem; // Descending order
+  });
+
+  el.innerHTML = sortedContainers.map(container => {
     const status = container.status || 'unknown';
     const isRunning = container.is_running || status === 'running';
     const name = container.name || container.id || 'unknown';
@@ -2506,8 +2523,10 @@ async function init() {
   await loadInstances();
   await refreshAll();
   await loadContainers();
+  await loadHostResources(); // Ensure host resources are loaded on page init
   setInterval(refreshAll, 10000);
   setInterval(loadContainers, 15000);
+  setInterval(loadHostResources, 30000); // Auto-refresh host resources
 }
 
 init();
