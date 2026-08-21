@@ -813,7 +813,6 @@ async function selectInstance(instanceId) {
   await refreshAll();
   
   // Hide loading state after refresh
-  const loadingEl = document.getElementById('hostResourcesLoading');
   if (loadingEl) loadingEl.style.display = 'none';
 }
 
