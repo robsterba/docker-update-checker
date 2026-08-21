@@ -99,6 +99,12 @@
   .btn-danger:hover:not(:disabled){opacity:.88}
 
   .cf-pill,.stack-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
+
+  /* Loading state for host resources */
+  #hostResourcesCard{position:relative}
+  .resource-loading{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;gap:.5rem;background:rgba(255,255,255,0.8);z-index:10;color:var(--muted);font-size:.85rem}
+  .resource-loading .spinner{animation:spin 1s linear infinite}
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
   .stack-pill{font-family:inherit;font-weight:600}
 
   .log-list{padding:.5rem 1rem;max-height:300px;overflow-y:auto}
@@ -373,6 +379,14 @@
           Refresh
         </button>
       </div>
+    </div>
+    <div class="resource-loading" id="hostResourcesLoading" style="display:none">
+      <svg class="spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="60">
+          <animate attributeName="stroke-dashoffset" dur="1s" values="60;0" repeatCount="indefinite"/>
+        </circle>
+      </svg>
+      <span>Loading host resources...</span>
     </div>
     <div class="resource-card" id="hostResourcesGrid">
       <div class="gauge-container">
@@ -762,6 +776,11 @@ async function selectInstance(instanceId) {
   const found = allInstances.find(i => i.id === instanceId);
   currentInstance = found || allInstances[0] || currentInstance;
   document.getElementById('instanceSelect').value = currentInstance.id;
+  
+  // Show loading state and clear cache for host resources
+  document.getElementById('hostResourcesLoading').style.display = 'flex';
+  hostResources = {};
+  
   const status = hostStatuses[currentInstance.id];
   if (status) {
     if (status.ok) {
@@ -791,6 +810,9 @@ async function selectInstance(instanceId) {
   }
   renderInstances(allInstances);
   await refreshAll();
+  
+  // Hide loading state after refresh
+  document.getElementById('hostResourcesLoading').style.display = 'none';
 }
 
 async function refreshAll() {
@@ -830,11 +852,18 @@ async function loadInstances() {
 async function loadHostResources() {
   try {
     console.log('Loading host resources...');
+    document.getElementById('hostResourcesLoading').style.display = 'flex';
+    hostResources = {};
+    
     const d = await safeInstanceFetch('/host/resources');
     console.log('Host resources response:', d);
+    
+    document.getElementById('hostResourcesLoading').style.display = 'none';
+    
     if (d.__error) {
       console.warn('Host resources error:', d.__error);
       hostResources = {};
+      renderHostResources({ error: d.__error });
       return;
     }
     hostResources = d;
@@ -842,6 +871,8 @@ async function loadHostResources() {
   } catch (err) {
     console.warn('Failed to load host resources:', err);
     hostResources = {};
+    document.getElementById('hostResourcesLoading').style.display = 'none';
+    renderHostResources({ error: err.message || 'Connection failed' });
   }
 }
 
@@ -853,18 +884,31 @@ function renderHostResources(resources) {
 
   // Debug: log resources to console
   console.log('Rendering host resources:', resources);
+  
+  // Handle error states - show error in all fields
+  if (resources.error) {
+    console.warn('Host resources error:', resources.error);
+    const errorMsg = `Error: ${resources.error}`;
+    const fields = ['hostCpuCores', 'hostDockerVersion', 'hostMemoryTotal', 'hostOs', 
+                   'hostArchitecture', 'hostKernel', 'hostContainersRunning', 
+                   'hostContainersStopped', 'hostImages', 'hostContainers',
+                   'hostCpuUsage', 'hostMemoryUsage'];
+    fields.forEach(field => setText(field, errorMsg));
+    return;
+  }
+  
   if (Object.keys(resources).length === 0) {
     console.warn('Host resources returned empty object');
     // Show error in the UI
-    setText('hostCpuCores', 'Error: No data');
+    const fields = ['hostCpuCores', 'hostDockerVersion', 'hostMemoryTotal', 'hostOs', 
+                   'hostArchitecture', 'hostKernel', 'hostContainersRunning', 
+                   'hostContainersStopped', 'hostImages', 'hostContainers',
+                   'hostCpuUsage', 'hostMemoryUsage'];
+    fields.forEach(field => setText(field, 'Error: No data'));
     return;
-  } else if (resources.error) {
-    console.warn('Host resources error:', resources.error);
-    setText('hostCpuCores', `Error: ${resources.error}`);
-    return;
-  } else {
-    console.log('Host resources data:', resources);
   }
+  
+  console.log('Host resources data:', resources);
 
   // CPU information
   setText('hostCpuCores', resources.cpu_cores || resources.CPU_Cores || resources.CpuCores || '—');
