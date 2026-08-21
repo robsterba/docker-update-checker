@@ -1334,10 +1334,6 @@ async function loadOps() {
     </div>`).join('');
 }
 
-async function refreshAll() {
-  await Promise.all([loadStatus(), loadImages(), loadStacks(), loadJobs(), loadOps()]);
-}
-
 async function triggerCheck() {
   if (checking) return;
   checking = true;
