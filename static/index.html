@@ -778,7 +778,8 @@ async function selectInstance(instanceId) {
   document.getElementById('instanceSelect').value = currentInstance.id;
   
   // Show loading state and clear cache for host resources
-  document.getElementById('hostResourcesLoading').style.display = 'flex';
+  const loadingEl = document.getElementById('hostResourcesLoading');
+  if (loadingEl) loadingEl.style.display = 'flex';
   hostResources = {};
   
   const status = hostStatuses[currentInstance.id];
@@ -812,7 +813,8 @@ async function selectInstance(instanceId) {
   await refreshAll();
   
   // Hide loading state after refresh
-  document.getElementById('hostResourcesLoading').style.display = 'none';
+  const loadingEl = document.getElementById('hostResourcesLoading');
+  if (loadingEl) loadingEl.style.display = 'none';
 }
 
 async function refreshAll() {
@@ -852,13 +854,14 @@ async function loadInstances() {
 async function loadHostResources() {
   try {
     console.log('Loading host resources...');
-    document.getElementById('hostResourcesLoading').style.display = 'flex';
+    const loadingEl = document.getElementById('hostResourcesLoading');
+    if (loadingEl) loadingEl.style.display = 'flex';
     hostResources = {};
     
     const d = await safeInstanceFetch('/host/resources');
     console.log('Host resources response:', d);
     
-    document.getElementById('hostResourcesLoading').style.display = 'none';
+    if (loadingEl) loadingEl.style.display = 'none';
     
     if (d.__error) {
       console.warn('Host resources error:', d.__error);
@@ -871,7 +874,8 @@ async function loadHostResources() {
   } catch (err) {
     console.warn('Failed to load host resources:', err);
     hostResources = {};
-    document.getElementById('hostResourcesLoading').style.display = 'none';
+    const loadingEl = document.getElementById('hostResourcesLoading');
+    if (loadingEl) loadingEl.style.display = 'none';
     renderHostResources({ error: err.message || 'Connection failed' });
   }
 }

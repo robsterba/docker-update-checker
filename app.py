@@ -332,6 +332,8 @@ def proxy_local_request(proxy_path: str) -> Response:
             return jsonify(list(check_results.values()))
     if proxy_path == "stacks":
         return jsonify(summarize_stacks())
+    if proxy_path == "stacks/all":
+        return jsonify(get_all_stacks())
     if proxy_path == "jobs":
         with state_lock:
             jobs = sorted(
