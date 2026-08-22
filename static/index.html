@@ -783,6 +783,7 @@ async function selectInstance(instanceId) {
   hostResources = {};
   allStacks = [];
   allImages = [];
+  allJobs = [];
   
   const status = hostStatuses[currentInstance.id];
   if (status) {
