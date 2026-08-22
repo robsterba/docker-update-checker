@@ -3,6 +3,7 @@ import time
 import re
 import json
 import logging
+import shutil
 import subprocess
 import threading
 from datetime import datetime, timezone
@@ -532,7 +533,40 @@ def get_host_resources() -> dict:
         # Get running container count
         containers = client.containers.list()
         
-        return {
+        # Get live resource usage from running containers
+        cpu_usage_percent = 0.0
+        memory_used = 0
+        running_containers = [c for c in containers if c.status == "running"]
+        
+        if running_containers:
+            try:
+                # Get stats for all running containers
+                for container in running_containers:
+                    try:
+                        stats = container.stats(stream=False, one_shot=True)
+                        if stats:
+                            # CPU usage calculation
+                            cpu_delta = stats.get("cpu_stats", {}).get("cpu_usage", {}).get("total_usage", 0)
+                            system_cpu = stats.get("cpu_stats", {}).get("system_cpu_usage", 0)
+                            cpu_cores = info.get("NCPU", 1)
+                            if system_cpu > 0 and cpu_cores > 0:
+                                cpu_percent = (cpu_delta / system_cpu) * 100.0 * cpu_cores
+                                cpu_usage_percent += cpu_percent / len(running_containers)
+                            
+                            # Memory usage
+                            memory_stats = stats.get("memory_stats", {})
+                            usage = memory_stats.get("usage", 0)
+                            memory_used += usage
+                    except Exception:
+                        continue
+            except Exception as e:
+                log.debug(f"Could not get container stats: {e}")
+        
+        # Calculate memory usage percentage
+        memory_total = info.get("MemTotal", 0)
+        memory_usage_percent = (memory_used / memory_total * 100) if memory_total > 0 else 0.0
+        
+        result = {
             "docker_version": info.get("DockerVersion", "unknown"),
             "containers_running": info.get("ContainersRunning", 0),
             "containers_stopped": info.get("ContainersStopped", 0),
@@ -540,12 +574,21 @@ def get_host_resources() -> dict:
             "images": info.get("Images", 0),
             "cpu_cores": info.get("NCPU", 0),
             "memory_total": info.get("MemTotal", 0),
+            "memory_used": memory_used,
+            "cpu_usage_percent": round(cpu_usage_percent, 1),
+            "memory_usage_percent": round(memory_usage_percent, 1),
             "os": info.get("OperatingSystem", "unknown"),
             "architecture": info.get("Architecture", "unknown"),
             "kernel_version": info.get("KernelVersion", "unknown"),
             "server_version": info.get("ServerVersion", "unknown"),
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
+        
+        # Add disk usage
+        disk_info = get_host_disk_usage()
+        result.update(disk_info)
+        
+        return result
     except docker.errors.APIError as e:
         # Handle permission errors gracefully
         log.warning(f"Docker API error getting host resources: {e}")
@@ -560,6 +603,9 @@ def get_host_resources() -> dict:
                 "images": "unknown",
                 "cpu_cores": "unknown",
                 "memory_total": 0,
+                "memory_used": 0,
+                "cpu_usage_percent": 0.0,
+                "memory_usage_percent": 0.0,
                 "os": "unknown",
                 "architecture": "unknown", 
                 "kernel_version": "unknown",
@@ -573,6 +619,36 @@ def get_host_resources() -> dict:
     except Exception as e:
         log.warning(f"Failed to get host resources: {e}")
         return {"error": str(e)}
+
+
+def get_host_disk_usage() -> dict:
+    """Get disk usage information for the host.
+    
+    Returns:
+        Dictionary with disk total, used, free, and usage percentage.
+    """
+    try:
+        # Get disk usage for the root filesystem
+        disk = shutil.disk_usage("/")
+        total = disk.total
+        used = disk.used
+        free = disk.free
+        usage_percent = (used / total * 100) if total > 0 else 0.0
+        
+        return {
+            "disk_total": total,
+            "disk_used": used,
+            "disk_free": free,
+            "disk_usage_percent": round(usage_percent, 1)
+        }
+    except Exception as e:
+        log.debug(f"Could not get disk usage: {e}")
+        return {
+            "disk_total": 0,
+            "disk_used": 0,
+            "disk_free": 0,
+            "disk_usage_percent": 0.0
+        }
 
 
 def start_container(container_id: str) -> tuple[bool, str]:

@@ -585,6 +585,17 @@
   </div>
 </div>
 
+<!-- Host Overview Modal -->
+<div class="modal-backdrop" id="hostOverviewModalBackdrop" onclick="closeHostOverviewModal(event)">
+  <div class="modal" style="max-width:700px">
+    <div class="modal-title">Host Overview</div>
+    <div id="hostOverviewContent"></div>
+    <div style="margin-top:1rem;text-align:right">
+      <button class="btn btn-ghost btn-sm" onclick="closeHostOverviewModal()">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = '';
 const MAX_JOBS = 30;
@@ -954,12 +965,163 @@ function formatBytes(bytes) {
 }
 
 async function showHostResources() {
-  showToast('Loading host resources...', 'info', 2000);
-  await loadHostResources();
-  const card = document.getElementById('hostResourcesCard');
-  if (card) {
-    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  showToast('Loading host overview...', 'info', 2000);
+  const resources = await safeInstanceFetch('/host/resources');
+  renderHostOverviewModal(resources);
+}
+
+function closeHostOverviewModal(event) {
+  if (event && event.target.id === 'hostOverviewModalBackdrop') {
+    document.getElementById('hostOverviewModalBackdrop').classList.remove('open');
   }
+}
+
+function renderHostOverviewModal(resources) {
+  const modal = document.getElementById('hostOverviewModalBackdrop');
+  const content = document.getElementById('hostOverviewContent');
+  
+  modal.classList.add('open');
+  
+  if (resources.__error || resources.error) {
+    content.innerHTML = `
+      <div class="empty" style="padding: 2rem; text-align: center;">
+        <div style="font-size: 1.5rem; margin-bottom: .5rem;">&#9888;</div>
+        <div>Error loading host resources</div>
+        <div style="color: var(--muted); font-size: .85rem; margin-top: .5rem;">
+          ${resources.__error || resources.error || 'Connection failed'}
+        </div>
+      </div>
+    `;
+    return;
+  }
+  
+  // Build compact host overview HTML
+  let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">';
+  
+  // System Info Card
+  html += `
+    <div class="resource-card" style="grid-column: 1 / -1;">
+      <h4 style="margin-bottom: .75rem;">System Information</h4>
+      <div class="resource-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+        <div class="resource-stat">
+          <div class="resource-stat-label">OS</div>
+          <div class="resource-stat-value">${resources.os || '—'}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Architecture</div>
+          <div class="resource-stat-value">${resources.architecture || '—'}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Kernel</div>
+          <div class="resource-stat-value">${resources.kernel_version || '—'}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Docker Version</div>
+          <div class="resource-stat-value">${resources.docker_version || '—'}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // CPU Section
+  html += `
+    <div class="resource-card">
+      <h4 style="margin-bottom: .5rem;">CPU</h4>
+      <div style="font-size: 2rem; font-weight: 600; color: var(--primary);">
+        ${resources.cpu_usage_percent !== undefined ? resources.cpu_usage_percent + '%' : '—'}
+      </div>
+      <div class="resource-grid" style="margin-top: .5rem;">
+        <div class="resource-stat">
+          <div class="resource-stat-label">Cores</div>
+          <div class="resource-stat-value">${resources.cpu_cores || '—'}</div>
+        </div>
+      </div>
+      <div style="margin-top: .5rem;">
+        <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: ${resources.cpu_usage_percent || 0}%; background: var(--primary); border-radius: 4px;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Memory Section
+  html += `
+    <div class="resource-card">
+      <h4 style="margin-bottom: .5rem;">Memory</h4>
+      <div style="font-size: 2rem; font-weight: 600; color: var(--primary);">
+        ${resources.memory_usage_percent !== undefined ? resources.memory_usage_percent + '%' : '—'}
+      </div>
+      <div class="resource-grid" style="margin-top: .5rem;">
+        <div class="resource-stat">
+          <div class="resource-stat-label">Used</div>
+          <div class="resource-stat-value">${resources.memory_used ? formatBytes(resources.memory_used) : '—'}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Total</div>
+          <div class="resource-stat-value">${resources.memory_total ? formatBytes(resources.memory_total) : '—'}</div>
+        </div>
+      </div>
+      <div style="margin-top: .5rem;">
+        <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: ${resources.memory_usage_percent || 0}%; background: var(--success); border-radius: 4px;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Disk Section
+  html += `
+    <div class="resource-card">
+      <h4 style="margin-bottom: .5rem;">Disk</h4>
+      <div style="font-size: 2rem; font-weight: 600; color: var(--primary);">
+        ${resources.disk_usage_percent !== undefined ? resources.disk_usage_percent + '%' : '—'}
+      </div>
+      <div class="resource-grid" style="margin-top: .5rem;">
+        <div class="resource-stat">
+          <div class="resource-stat-label">Used</div>
+          <div class="resource-stat-value">${resources.disk_used ? formatBytes(resources.disk_used) : '—'}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Total</div>
+          <div class="resource-stat-value">${resources.disk_total ? formatBytes(resources.disk_total) : '—'}</div>
+        </div>
+      </div>
+      <div style="margin-top: .5rem;">
+        <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: ${resources.disk_usage_percent || 0}%; background: var(--warning); border-radius: 4px;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Docker Section
+  html += `
+    <div class="resource-card" style="grid-column: 1 / -1;">
+      <h4 style="margin-bottom: .75rem;">Docker</h4>
+      <div class="resource-grid" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));">
+        <div class="resource-stat">
+          <div class="resource-stat-label">Containers</div>
+          <div class="resource-stat-value">${resources.containers_total || 0}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Running</div>
+          <div class="resource-stat-value" style="color: var(--success);">${resources.containers_running || 0}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Stopped</div>
+          <div class="resource-stat-value" style="color: var(--muted);">${resources.containers_stopped || 0}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Images</div>
+          <div class="resource-stat-value">${resources.images || 0}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  html += '</div>';
+  
+  content.innerHTML = html;
 }
 
 async function showContainerResources() {
