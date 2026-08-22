@@ -1287,12 +1287,27 @@ async function loadStatus() {
 
 async function loadImages() {
   const d = await safeInstanceFetch('/images');
+  console.log('Images /images response:', d);
   if (d.__error) {
     allImages = [];
     renderTable([]);
     return;
   }
-  allImages = d;
+  // Support multiple API response shapes:
+  // - Phase A: array of images (e.g. [{...}, ...])
+  // - Phase B: object with `images` property (e.g. { images: [...] })
+  // - Fallback: any other array-like value present on the top-level
+  if (Array.isArray(d)) {
+    allImages = d;
+  } else if (d && Array.isArray(d.images)) {
+    allImages = d.images;
+  } else if (d && Array.isArray(d.data)) {
+    allImages = d.data;
+  } else {
+    // Unknown shape: try to extract any array value, or fall back to empty
+    const arr = Object.values(d).find(v => Array.isArray(v));
+    allImages = Array.isArray(arr) ? arr : [];
+  }
   renderTable(allImages);
 }
 
@@ -1312,7 +1327,19 @@ async function loadStacks() {
     renderStacks({});
     return;
   }
-  allStacks = d;
+  // Support responses like:
+  // - Phase 2: object mapping stackName -> info (e.g. { myStack: { ... } })
+  // - Phase 1: array of stacks (e.g. [{ stack: 'name', ... }, ...])
+  // - Wrapper: { stacks: [...] } or { data: [...] }
+  if (Array.isArray(d)) {
+    allStacks = d;
+  } else if (d && d.stacks) {
+    allStacks = d.stacks;
+  } else if (d && d.data) {
+    allStacks = d.data;
+  } else {
+    allStacks = d;
+  }
   renderStacks(allStacks);
 }
 
