@@ -97,6 +97,14 @@ REGISTRY_TOKEN_CACHE: dict[str, dict[str, object]] = {}
 # Notification settings file
 NOTIFICATION_SETTINGS_FILE = get_env("NOTIFICATION_SETTINGS_FILE", "notification_settings.json")
 
+# ── Self-Update Checker ────────────────────────────────────────────────────────────
+# Enable/disable checking for application updates
+SELF_UPDATE_CHECK_ENABLED = get_bool_env("SELF_UPDATE_CHECK_ENABLED", True)
+# Interval in hours for checking for updates (default: 24 hours)
+SELF_UPDATE_CHECK_INTERVAL_HOURS = get_int_env("SELF_UPDATE_CHECK_INTERVAL_HOURS", 24)
+# GitHub repository for update checks
+GITHUB_REPO = "robsterba/docker-update-checker"
+
 
 def cleanup_token_cache() -> int:
     """Remove expired tokens from the registry token cache.

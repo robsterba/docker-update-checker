@@ -70,6 +70,8 @@ from docker_utils import (
     stack_ps,
     get_stack_containers,
     get_all_stacks,
+    # Self-update checker
+    check_for_self_update,
 )
 from notifier import (
     send_notification,
@@ -102,6 +104,38 @@ def health():
 def api_version():
     """Get the application version."""
     return jsonify({"version": VERSION})
+
+
+@app.route("/api/checker/updates")
+def api_checker_updates():
+    """Check if a newer version of the application is available."""
+    update_info = check_for_self_update(VERSION, GITHUB_REPO)
+    return jsonify(update_info)
+
+
+@app.route("/api/checker/updates/check", methods=["POST"])
+def api_checker_updates_check():
+    """Trigger a check for application updates and return the result."""
+    update_info = check_for_self_update(VERSION, GITHUB_REPO)
+    
+    # Optionally send notification if update is available and notifications are enabled
+    if update_info.get("update_available") and NOTIFY_ENABLED and SELF_UPDATE_CHECK_ENABLED:
+        try:
+            send_notification(
+                title="Application Update Available",
+                message=f"docker-update-checker {update_info['latest_version']} is available (current: {update_info['current_version']})",
+                event_type="self_update_available",
+                data={
+                    "current_version": update_info["current_version"],
+                    "latest_version": update_info["latest_version"],
+                    "release_url": update_info.get("release_url"),
+                    "release_notes": update_info.get("release_notes", "")[:200]
+                }
+            )
+        except Exception as e:
+            log.warning(f"Failed to send self-update notification: {e}")
+    
+    return jsonify(update_info)
 
 
 @app.route("/api/status")

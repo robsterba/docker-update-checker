@@ -32,6 +32,10 @@ from config import (
     REGISTRY_TOKEN_CACHE,
     VERSION,
     NOTIFICATION_SETTINGS_FILE,
+    # Self-update checker
+    SELF_UPDATE_CHECK_ENABLED,
+    SELF_UPDATE_CHECK_INTERVAL_HOURS,
+    GITHUB_REPO,
     # Status constants
     STATUS_UP_TO_DATE,
     STATUS_UPDATE_AVAILABLE,
@@ -1125,6 +1129,31 @@ scheduler.add_job(run_full_check, "interval",
 from config import cleanup_token_cache
 scheduler.add_job(cleanup_token_cache, "interval",
                   hours=1, id="token_cache_cleanup")
+# Check for application updates periodically
+from docker_utils import check_for_self_update
+def check_self_update():
+    """Background job to check for application updates."""
+    if SELF_UPDATE_CHECK_ENABLED:
+        update_info = check_for_self_update(VERSION, GITHUB_REPO)
+        if update_info.get("update_available") and NOTIFY_ENABLED:
+            try:
+                from notifier import send_notification
+                send_notification(
+                    title="Application Update Available",
+                    message=f"docker-update-checker {update_info['latest_version']} is available (current: {update_info['current_version']})",
+                    event_type="self_update_available",
+                    data={
+                        "current_version": update_info["current_version"],
+                        "latest_version": update_info["latest_version"],
+                        "release_url": update_info.get("release_url"),
+                        "release_notes": update_info.get("release_notes", "")[:200]
+                    }
+                )
+            except Exception as e:
+                log.warning(f"Failed to send self-update notification: {e}")
+
+scheduler.add_job(check_self_update, "interval",
+                  hours=SELF_UPDATE_CHECK_INTERVAL_HOURS, id="self_update_check")
 scheduler.start()
 
 threading.Thread(

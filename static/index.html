@@ -197,6 +197,9 @@
 
   /* Version badge */
   .version-badge{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.2rem .6rem;font-size:.75rem;color:var(--muted);font-family:monospace}
+  .update-badge{background:var(--warning);color:#fff;border-radius:.5rem;padding:.25rem .65rem;font-size:.75rem;font-weight:600;cursor:pointer;transition:transform .15s}
+  .update-badge:hover{transform:scale(1.05)}
+  .update-badge.hidden{display:none}
 
   /* Settings/Configuration Styles */
   .config-form{display:flex;flex-direction:column;gap:1rem}
@@ -274,6 +277,9 @@
     <span class="host-status unknown" id="instanceHealth">Loading…</span>
     <span class="last-check" id="lastCheck">—</span>
     <span class="version-badge" id="instanceVersion">—</span>
+    <span class="update-badge hidden" id="updateAvailableBadge" onclick="showUpdateInfo()">
+      Update Available!
+    </span>
     <button class="btn btn-primary btn-sm" id="checkBtn" onclick="triggerCheck()">
       <svg id="checkIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <polyline points="23 4 23 10 17 10"/>
@@ -281,6 +287,14 @@
         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
       </svg>
       Check Now
+    </button>
+    <button class="btn btn-ghost btn-sm" onclick="checkForUpdates()" title="Check for application updates">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15,3 21,3 21,9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+      Update
     </button>
     <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle theme">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -611,6 +625,7 @@ let activeFilter = 'all';
 let checking = false;
 let theme = 'light';
 let resourceRefreshInterval = null;
+let updateInfo = null;
 const STORAGE_THEME_KEY = 'docker-update-checker-theme';
 const STORAGE_AUTO_RECREATE_KEY = 'docker-update-checker-auto-recreate';
 const STORAGE_RESOURCE_REFRESH_KEY = 'docker-update-checker-resource-refresh';
@@ -862,6 +877,99 @@ async function loadInstances() {
   } catch (err) {
     console.warn('Failed to load instances', err);
   }
+}
+
+// Self-update checker functions
+async function checkForUpdates(showToastMessage = true) {
+  try {
+    if (showToastMessage) {
+      showToast('Checking for updates...', 'info', 2000);
+    }
+    const response = await fetch('/api/checker/updates');
+    const data = await response.json();
+    updateInfo = data;
+    updateUpdateBadge(data);
+    return data;
+  } catch (err) {
+    console.warn('Failed to check for updates:', err);
+    if (showToastMessage) {
+      showToast('Update check failed: ' + (err.message || 'Connection error'), 'error');
+    }
+    return null;
+  }
+}
+
+function updateUpdateBadge(updateData) {
+  const badge = document.getElementById('updateAvailableBadge');
+  if (!badge) return;
+  
+  if (updateData && updateData.update_available) {
+    badge.classList.remove('hidden');
+    badge.title = `Update available: v${updateData.latest_version} (current: v${updateData.current_version})`;
+  } else {
+    badge.classList.add('hidden');
+    badge.title = '';
+  }
+}
+
+function showUpdateInfo() {
+  if (!updateInfo || !updateInfo.update_available) {
+    showToast('No update information available', 'info');
+    return;
+  }
+  
+  const modal = document.getElementById('hostOverviewModalBackdrop');
+  const content = document.getElementById('hostOverviewContent');
+  
+  if (!modal || !content) {
+    showToast('Modal not found', 'error');
+    return;
+  }
+  
+  modal.classList.add('open');
+  
+  let html = `
+    <div style="padding: 1rem;">
+      <h3 style="margin-bottom: 1rem;">Update Available</h3>
+      <div class="resource-grid" style="margin-bottom: 1rem;">
+        <div class="resource-stat">
+          <div class="resource-stat-label">Current Version</div>
+          <div class="resource-stat-value">v${updateInfo.current_version}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Latest Version</div>
+          <div class="resource-stat-value">v${updateInfo.latest_version}</div>
+        </div>
+      </div>
+  `;
+  
+  if (updateInfo.release_url) {
+    html += `
+      <p style="margin-bottom: 1rem;">
+        <a href="${updateInfo.release_url}" target="_blank" style="color: var(--primary);">
+          View release on GitHub →
+        </a>
+      </p>
+    `;
+  }
+  
+  if (updateInfo.release_notes) {
+    html += `
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: .5rem; padding: 1rem; margin-bottom: 1rem;">
+        <h4 style="margin-bottom: .5rem;">Release Notes</h4>
+        <div style="font-size: .85rem; color: var(--muted); line-height: 1.5;">${updateInfo.release_notes}</div>
+      </div>
+    `;
+  }
+  
+  html += `
+      <p style="font-size: .85rem; color: var(--muted);">
+        To update, pull the latest changes from the repository and rebuild the container.
+      </p>
+    </div>
+  `;
+  
+  content.innerHTML = html;
 }
 
 async function loadHostResources() {
@@ -2938,6 +3046,8 @@ async function init() {
   await refreshAll();
   await loadContainers();
   await loadHostResources(); // Ensure host resources are loaded on page init
+  // Check for application updates on startup
+  await checkForUpdates(false);
   setInterval(refreshAll, 10000);
   setInterval(loadContainers, 15000);
   setInterval(loadHostResources, 30000); // Auto-refresh host resources

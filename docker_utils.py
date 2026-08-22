@@ -1188,3 +1188,94 @@ def get_all_stacks() -> dict[str, dict]:
             log.warning(f"Failed to get container status for stacks: {e}")
     
     return stacks
+
+
+def check_for_self_update(current_version: str, repo: str = "robsterba/docker-update-checker") -> dict:
+    """Check GitHub Releases API for newer version of the application.
+    
+    Args:
+        current_version: Current application version (e.g., "0.2.0")
+        repo: GitHub repository in format "owner/repo"
+    
+    Returns:
+        Dictionary with update info:
+        {
+            "current_version": str,
+            "latest_version": str or None,
+            "update_available": bool,
+            "release_url": str or None,
+            "release_notes": str or None,
+            "error": str or None
+        }
+    """
+    import re as _re
+    
+    url = f"https://api.github.com/repos/{repo}/releases/latest"
+    
+    try:
+        # Set User-Agent to avoid 403 errors from GitHub
+        headers = {
+            "User-Agent": "docker-update-checker",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        
+        # Use a short timeout
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        release_data = response.json()
+        latest_tag = release_data.get("tag_name", "")
+        
+        # Extract version from tag (e.g., "v0.3.0" -> "0.3.0")
+        # Handle both "v1.2.3" and "1.2.3" formats
+        version_match = _re.match(r"^v?(?P<version>\d+\.\d+\.\d+.*?)$", latest_tag, _re.IGNORECASE)
+        if version_match:
+            latest_version = version_match.group("version")
+        else:
+            latest_version = latest_tag
+        
+        # Compare versions using simple string comparison (works for semver-like versions)
+        # For more robust comparison, we could use packaging.version, but that adds a dependency
+        update_available = latest_version != current_version and latest_version
+        
+        # Get release notes (body) - truncate if too long
+        release_notes = release_data.get("body", "")
+        if release_notes and len(release_notes) > 500:
+            release_notes = release_notes[:500] + "..."
+        
+        return {
+            "current_version": current_version,
+            "latest_version": latest_version if latest_version else None,
+            "update_available": update_available,
+            "release_url": release_data.get("html_url"),
+            "release_notes": release_notes if release_notes else None,
+            "published_at": release_data.get("published_at"),
+            "error": None
+        }
+    except requests.exceptions.Timeout:
+        return {
+            "current_version": current_version,
+            "latest_version": None,
+            "update_available": False,
+            "release_url": None,
+            "release_notes": None,
+            "error": "Request timeout"
+        }
+    except requests.exceptions.RequestException as e:
+        return {
+            "current_version": current_version,
+            "latest_version": None,
+            "update_available": False,
+            "release_url": None,
+            "release_notes": None,
+            "error": f"Request failed: {str(e)}"
+        }
+    except Exception as e:
+        return {
+            "current_version": current_version,
+            "latest_version": None,
+            "update_available": False,
+            "release_url": None,
+            "release_notes": None,
+            "error": str(e)
+        }
