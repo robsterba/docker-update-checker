@@ -174,7 +174,7 @@ docker-update-checker/
 ├── jobs.py                  # job state, progress tracking, and operation log
 ├── notifier.py              # notification backends (webhook, MQTT, email)
 ├── schemas.py               # Pydantic schemas for request validation
-├── compose.yaml             # Compose file for deploying the checker
+├── compose.example.yaml     # Compose file template for deploying the checker
 ├── Dockerfile
 ├── requirements.txt
 ├── readme.md
@@ -208,9 +208,15 @@ git clone https://github.com/your-username/docker-update-checker.git
 cd docker-update-checker
 ```
 
-### 2. Configure `compose.yaml`
+### 2. Copy and configure `compose.yaml`
 
-Edit the volume mount to point to your compose root directory:
+Copy the template file and edit the volume mount to point to your compose root directory:
+
+```bash
+cp compose.example.yaml compose.yaml
+```
+
+Then edit `compose.yaml`:
 
 ```yaml
 volumes:
@@ -236,7 +242,7 @@ If you deploy this service to multiple nodes, make sure each node is built and r
 
 ## Configuration
 
-All configuration is done via environment variables in `compose.yaml`, or by copying `.env.example` to `.env` and customizing values.
+All configuration is done via environment variables in your `compose.yaml` (copied from `compose.example.yaml`), or by copying `.env.example` to `.env` and customizing values.
 
 ### Core Settings
 
@@ -332,7 +338,7 @@ Notifications are **disabled by default**. Enable them by setting `NOTIFY_ENABLE
 
 > **⚠️ Docker Socket Permissions - Security Consideration**
 > 
-> The Docker socket is mounted **read-only (`:ro`)** by default in `compose.yaml`. This is more secure but has limitations:
+> The Docker socket is mounted **read-only (`:ro`)** by default in the `compose.example.yaml` template. This is more secure but has limitations:
 > 
 > | Mount Mode | Can Pull Images | Can Run `docker compose up -d` | Security |
 > |---|---|---|---|

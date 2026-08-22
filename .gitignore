@@ -17,6 +17,7 @@ venv/
 # Configuration files that may contain sensitive data
 notification_settings.json
 remote_instances.json
+compose.yaml
 
 # Development documentation (exclude all .md except readme and changelog)
 *.md
