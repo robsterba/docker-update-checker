@@ -78,7 +78,7 @@ from notifier import (
     notify_pull_result,
     notify_recreate_result,
 )
-from config import NOTIFY_ENABLED, NOTIFY_BACKEND, DEFAULT_COMPOSE_TIMEOUT, VERSION
+from config import NOTIFY_ENABLED, NOTIFY_BACKEND, DEFAULT_COMPOSE_TIMEOUT, VERSION, GITHUB_REPO, SELF_UPDATE_CHECK_ENABLED
 
 
 # ── Routes (moved from app.py) ─────────────────────────────────────────────────
