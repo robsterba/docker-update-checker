@@ -1296,8 +1296,12 @@ async function loadImages() {
 }
 
 async function loadStacks() {
-  // Use Phase 2 endpoint for enhanced stack data
-  const d = await safeInstanceFetch('/stacks/all');
+  // Try Phase 2 endpoint first, fall back to Phase 1 if not available
+  let d = await safeInstanceFetch('/stacks/all');
+  if (d.__error) {
+    // Fall back to original endpoint for backward compatibility
+    d = await safeInstanceFetch('/stacks');
+  }
   if (d.__error) {
     allStacks = {};
     renderStacks({});
