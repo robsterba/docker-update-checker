@@ -777,10 +777,12 @@ async function selectInstance(instanceId) {
   currentInstance = found || allInstances[0] || currentInstance;
   document.getElementById('instanceSelect').value = currentInstance.id;
   
-  // Show loading state and clear cache for host resources
+  // Show loading state and clear all caches
   const loadingEl = document.getElementById('hostResourcesLoading');
   if (loadingEl) loadingEl.style.display = 'flex';
   hostResources = {};
+  allStacks = [];
+  allImages = [];
   
   const status = hostStatuses[currentInstance.id];
   if (status) {
