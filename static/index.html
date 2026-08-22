@@ -1299,11 +1299,15 @@ async function loadImages() {
 async function loadStacks() {
   // Try Phase 2 endpoint first, fall back to Phase 1 if not available
   let d = await safeInstanceFetch('/stacks/all');
+  console.log('Stacks /stacks/all response:', d);
   if (d.__error) {
     // Fall back to original endpoint for backward compatibility
+    console.log('Falling back to /stacks endpoint');
     d = await safeInstanceFetch('/stacks');
+    console.log('Stacks /stacks response:', d);
   }
   if (d.__error) {
+    console.error('Failed to load stacks:', d.__error);
     allStacks = {};
     renderStacks({});
     return;
