@@ -95,9 +95,9 @@ def check_apt_updates() -> List[Dict]:
         # Update package lists first
         subprocess.run(["apt-get", "update", "-qq"], timeout=60, check=False)
         
-        # List upgradable packages
+        # List upgradable packages - use 'apt' not 'apt-get'
         result = subprocess.run(
-            ["apt-get", "-qq", "list", "--upgradable", "2>/dev/null"],
+            ["apt", "list", "--upgradable", "2>/dev/null"],
             timeout=30,
             capture_output=True,
             text=True
@@ -105,25 +105,35 @@ def check_apt_updates() -> List[Dict]:
         
         for line in result.stdout.strip().split('\n'):
             if line and not line.startswith("Listing"):
+                # Parse format: package/arch new_version arch [upgradable from: old_version]
+                # Example: console-setup-linux/noble-updates 1.226ubuntu1.1 all [upgradable from: 1.226ubuntu1]
                 parts = line.split()
-                if len(parts) >= 2:
-                    pkg_name = parts[0].split('/')[0]
-                    versions = parts[1].split('/')
-                    current = versions[0] if len(versions) > 0 else "unknown"
-                    available = versions[1] if len(versions) > 1 else "unknown"
+                if len(parts) >= 4 and parts[0].count('/') > 0:
+                    # Package name with architecture
+                    pkg_full = parts[0]
+                    pkg_name = pkg_full.split('/')[0]
+                    new_version = parts[1]
+                    
+                    # Extract old version from [upgradable from: old_version]
+                    old_version = "unknown"
+                    if len(parts) >= 6 and parts[5].startswith('['):
+                        # Parse: [upgradable from: old_version]
+                        old_version = parts[5].split(':')[1].rstrip(']')
+                    
+                    # Check if it's a security update
                     is_security = "security" in line.lower()
                     
                     packages.append({
                         "name": pkg_name,
-                        "current": current,
-                        "available": available,
+                        "current": old_version,
+                        "available": new_version,
                         "security": is_security
                     })
                     
     except subprocess.TimeoutExpired:
-        log.warning("apt-get check timed out")
+        log.warning("apt check timed out")
     except FileNotFoundError:
-        log.warning("apt-get not found")
+        log.warning("apt not found")
     except Exception as e:
         log.warning(f"apt check failed: {e}")
     

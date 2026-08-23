@@ -1408,26 +1408,33 @@ def check_os_updates() -> dict:
                 # Update package lists first
                 subprocess.run(["apt-get", "update", "-qq"], timeout=60, check=False)
                 
-                cmd = ["apt-get", "-qq", "list", "--upgradable", "2>/dev/null"]
+                cmd = ["apt", "list", "--upgradable", "2>/dev/null"]
                 output = subprocess.check_output(cmd, timeout=30, text=True)
                 
                 for line in output.strip().split('\n'):
                     if line and not line.startswith("Listing"):
-                        # Parse apt output: package/current new_version [repository]
+                        # Parse format: package/arch new_version arch [upgradable from: old_version]
+                        # Example: console-setup-linux/noble-updates 1.226ubuntu1.1 all [upgradable from: 1.226ubuntu1]
                         parts = line.split()
-                        if len(parts) >= 2:
-                            pkg_name = parts[0].split('/')[0]  # Remove architecture if present
-                            versions = parts[1].split('/')
-                            current = versions[0] if len(versions) > 0 else "unknown"
-                            available = versions[1] if len(versions) > 1 else "unknown"
+                        if len(parts) >= 4 and parts[0].count('/') > 0:
+                            # Package name with architecture
+                            pkg_full = parts[0]
+                            pkg_name = pkg_full.split('/')[0]
+                            new_version = parts[1]
+                            
+                            # Extract old version from [upgradable from: old_version]
+                            old_version = "unknown"
+                            if len(parts) >= 6 and parts[5].startswith('['):
+                                # Parse: [upgradable from: old_version]
+                                old_version = parts[5].split(':')[1].rstrip(']')
                             
                             # Check if it's a security update
                             is_security = "security" in line.lower()
                             
                             packages.append({
                                 "name": pkg_name,
-                                "current": current,
-                                "available": available,
+                                "current": old_version,
+                                "available": new_version,
                                 "security": is_security
                             })
                         
