@@ -1329,6 +1329,15 @@ def detect_os() -> dict:
 def check_os_updates() -> dict:
     """Check for available OS package updates.
     
+    This function first tries to read from a mounted JSON file (recommended).
+    If the file doesn't exist or is outdated, it falls back to running
+    package manager commands directly (requires root in container).
+    
+    For production deployments, use the host-level agent approach:
+    1. Deploy scripts/os_update_agent.py on the host
+    2. Run it via cron or systemd timer
+    3. Mount /var/lib/docker-update-checker/os-updates.json into the container
+    
     Returns:
         Dictionary with OS info and list of upgradable packages:
         {
@@ -1346,6 +1355,28 @@ def check_os_updates() -> dict:
             "error": null
         }
     """
+    # Try to read from mounted JSON file first (recommended approach)
+    mounted_file = "/var/lib/docker-update-checker/os-updates.json"
+    file_age_limit = 3600  # 1 hour - if file is older, try direct check
+    
+    if os.path.exists(mounted_file):
+        try:
+            with open(mounted_file, 'r') as f:
+                file_data = json.load(f)
+            
+            # Check if file is recent
+            if file_data.get("last_checked"):
+                last_checked = datetime.fromisoformat(file_data["last_checked"].replace('Z', '+00:00'))
+                age = (datetime.now(timezone.utc) - last_checked).total_seconds()
+                
+                if age < file_age_limit:
+                    # File is recent enough, use it
+                    file_data["source"] = "mounted_file"
+                    return file_data
+        except Exception as e:
+            log.debug(f"Could not read or parse mounted OS updates file: {e}")
+    
+    # Fall back to direct check (requires package manager access in container)
     os_info = detect_os()
     package_manager = os_info.get("package_manager")
     
@@ -1358,7 +1389,8 @@ def check_os_updates() -> dict:
         "security_updates": 0,
         "packages": [],
         "last_checked": datetime.now(timezone.utc).isoformat(),
-        "error": None
+        "error": None,
+        "source": "direct_check"
     }
     
     if not package_manager:

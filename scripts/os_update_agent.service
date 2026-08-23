@@ -1,0 +1,16 @@
+[Unit]
+Description=OS Update Agent for docker-update-checker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/env python3 /opt/docker-update-checker/scripts/os_update_agent.py
+Environment=OUTPUT_FILE=/var/lib/docker-update-checker/os-updates.json
+Environment=LOG_FILE=/var/log/docker-update-checker/os-updates.log
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

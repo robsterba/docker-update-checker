@@ -1,0 +1,10 @@
+[Unit]
+Description=Timer for OS Update Agent
+
+[Timer]
+OnCalendar=*-*-* *:00:00
+Persistent=true
+RandomizedDelaySec=3600
+
+[Install]
+WantedBy=timers.target
