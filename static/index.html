@@ -476,14 +476,6 @@
         </button>
       </div>
     </div>
-    <div class="resource-loading" id="osUpdatesLoading" style="display:none">
-      <svg class="spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="60">
-          <animate attributeName="stroke-dashoffset" dur="1s" values="60;0" repeatCount="indefinite"/>
-        </circle>
-      </svg>
-      <span>Checking for OS updates...</span>
-    </div>
     <div id="osUpdatesContent">
       <div class="empty" style="padding: 1.25rem;">
         <p style="margin:0;color:var(--muted);">OS update checking is disabled or not yet configured.</p>
@@ -1008,11 +1000,7 @@ function showUpdateInfo() {
 let osUpdateInfo = {};
 
 async function loadOsUpdates() {
-  const loadingEl = document.getElementById('osUpdatesLoading');
   const contentEl = document.getElementById('osUpdatesContent');
-  
-  if (loadingEl) loadingEl.style.display = 'flex';
-  if (contentEl) contentEl.innerHTML = '';
   
   try {
     const response = await fetch('/api/host/os-updates');
@@ -1051,8 +1039,6 @@ async function loadOsUpdates() {
         </div>
       `;
     }
-  } finally {
-    if (loadingEl) loadingEl.style.display = 'none';
   }
 }
 
@@ -1145,34 +1131,9 @@ function renderOsUpdates(data) {
     `;
   }
   
-  if (lastChecked) {
-    html += `
-      <div style="text-align: right; padding: .5rem 1rem; font-size: .75rem; color: var(--muted);">
-        Last checked: ${formatRelativeTime(new Date(lastChecked))}
-      </div>
-    `;
-  }
+
   
   contentEl.innerHTML = html;
-}
-
-// Helper to format relative time
-function formatRelativeTime(date) {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-  
-  if (diffMins < 1) {
-    return 'Just now';
-  } else if (diffMins < 60) {
-    return `${diffMins}m ago`;
-  } else if (diffHours < 24) {
-    return `${diffHours}h ago`;
-  } else {
-    return `${diffDays}d ago`;
-  }
 }
 
 async function loadHostResources() {
