@@ -1405,6 +1405,9 @@ def check_os_updates() -> dict:
             # Note: This requires the container to have access to run apt
             # In production, this should be run on the host, not in the container
             try:
+                # Update package lists first
+                subprocess.run(["apt-get", "update", "-qq"], timeout=60, check=False)
+                
                 cmd = ["apt-get", "-qq", "list", "--upgradable", "2>/dev/null"]
                 output = subprocess.check_output(cmd, timeout=30, text=True)
                 
@@ -1433,13 +1436,13 @@ def check_os_updates() -> dict:
                 result["packages"] = packages
                 
             except subprocess.TimeoutExpired:
-                result["error"] = "Command timed out"
+                result["error"] = "Command timed out. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
             except FileNotFoundError:
-                result["error"] = "apt-get not found"
+                result["error"] = "apt-get not found. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
             except Exception as e:
-                result["error"] = f"apt check failed: {str(e)}"
+                result["error"] = f"apt check failed: {str(e)}. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
         
         elif package_manager == "dnf":
@@ -1472,13 +1475,13 @@ def check_os_updates() -> dict:
                 result["packages"] = packages
                 
             except subprocess.TimeoutExpired:
-                result["error"] = "Command timed out"
+                result["error"] = "Command timed out. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
             except FileNotFoundError:
-                result["error"] = "dnf not found"
+                result["error"] = "dnf not found. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
             except Exception as e:
-                result["error"] = f"dnf check failed: {str(e)}"
+                result["error"] = f"dnf check failed: {str(e)}. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
         
         elif package_manager == "apk":
@@ -1506,13 +1509,13 @@ def check_os_updates() -> dict:
                 result["packages"] = packages
                 
             except subprocess.TimeoutExpired:
-                result["error"] = "Command timed out"
+                result["error"] = "Command timed out. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
             except FileNotFoundError:
-                result["error"] = "apk not found"
+                result["error"] = "apk not found. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
             except Exception as e:
-                result["error"] = f"apk check failed: {str(e)}"
+                result["error"] = f"apk check failed: {str(e)}. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
         
         elif package_manager == "pacman":
@@ -1542,17 +1545,17 @@ def check_os_updates() -> dict:
                 result["packages"] = packages
                 
             except subprocess.TimeoutExpired:
-                result["error"] = "Command timed out"
+                result["error"] = "Command timed out. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
             except FileNotFoundError:
-                result["error"] = "pacman not found"
+                result["error"] = "pacman not found. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
             except Exception as e:
-                result["error"] = f"pacman check failed: {str(e)}"
+                result["error"] = f"pacman check failed: {str(e)}. For production, deploy the host-level agent (scripts/os_update_agent.py)"
                 return result
         
         else:
-            result["error"] = f"Unsupported package manager: {package_manager}"
+            result["error"] = f"Unsupported package manager: {package_manager}. For production, deploy the host-level agent (scripts/os_update_agent.py)"
             return result
     
     except Exception as e:
