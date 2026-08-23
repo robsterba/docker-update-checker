@@ -1005,19 +1005,7 @@ function showUpdateInfo() {
 }
 
 // OS Package Updates
-type OsUpdateInfo = {
-  os?: string;
-  version?: string;
-  family?: string;
-  package_manager?: string;
-  updates_available?: number;
-  security_updates?: number;
-  packages?: Array<{name: string; current: string; available: string; security?: boolean}>;
-  last_checked?: string;
-  error?: string | null;
-};
-
-let osUpdateInfo: OsUpdateInfo = {};
+let osUpdateInfo = {};
 
 async function loadOsUpdates() {
   const loadingEl = document.getElementById('osUpdatesLoading');
@@ -1068,7 +1056,7 @@ async function loadOsUpdates() {
   }
 }
 
-function renderOsUpdates(data: OsUpdateInfo) {
+function renderOsUpdates(data) {
   const contentEl = document.getElementById('osUpdatesContent');
   if (!contentEl) return;
   
@@ -1089,7 +1077,7 @@ function renderOsUpdates(data: OsUpdateInfo) {
       <div class="resource-grid" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));">
         <div class="resource-stat">
           <div class="resource-stat-label">OS</div>
-          <div class="resource-stat-value">${escHtml(os)} ${version ? `(${escHtml(version)})` : ''}</div>
+          <div class="resource-stat-value">${escHtml(os)}${version ? ' (' + escHtml(version) + ')' : ''}</div>
         </div>
         <div class="resource-stat">
           <div class="resource-stat-label">Package Manager</div>
@@ -1169,7 +1157,7 @@ function renderOsUpdates(data: OsUpdateInfo) {
 }
 
 // Helper to format relative time
-function formatRelativeTime(date: Date): string {
+function formatRelativeTime(date) {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
@@ -1185,17 +1173,6 @@ function formatRelativeTime(date: Date): string {
   } else {
     return `${diffDays}d ago`;
   }
-}
-
-// Escaping helper
-function escHtml(text: string): string {
-  if (!text) return '';
-  return text.toString()
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 async function loadHostResources() {
