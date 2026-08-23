@@ -462,6 +462,38 @@
     </div>
   </div>
 
+  <!-- OS Updates Card -->
+  <div class="card" id="osUpdatesCard">
+    <div class="card-header">
+      <span class="card-title">OS Package Updates</span>
+      <div class="toolbar-right" style="margin-left: auto;">
+        <button class="btn btn-ghost btn-sm" onclick="loadOsUpdates()" title="Check for OS package updates">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+          Check
+        </button>
+      </div>
+    </div>
+    <div class="resource-loading" id="osUpdatesLoading" style="display:none">
+      <svg class="spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="60">
+          <animate attributeName="stroke-dashoffset" dur="1s" values="60;0" repeatCount="indefinite"/>
+        </circle>
+      </svg>
+      <span>Checking for OS updates...</span>
+    </div>
+    <div id="osUpdatesContent">
+      <div class="empty" style="padding: 1.25rem;">
+        <p style="margin:0;color:var(--muted);">OS update checking is disabled or not yet configured.</p>
+        <p style="margin:.5rem 0 0 0;font-size:.85rem;color:var(--faint);">
+          Enable with: <code style="background:var(--surface2);padding:.1rem .3rem;border-radius:.25rem;">OS_UPDATE_CHECK_ENABLED=true</code>
+        </p>
+      </div>
+    </div>
+  </div>
+
   <div class="grid-2">
     <div class="card">
       <div class="card-header">
@@ -970,6 +1002,200 @@ function showUpdateInfo() {
   `;
   
   content.innerHTML = html;
+}
+
+// OS Package Updates
+type OsUpdateInfo = {
+  os?: string;
+  version?: string;
+  family?: string;
+  package_manager?: string;
+  updates_available?: number;
+  security_updates?: number;
+  packages?: Array<{name: string; current: string; available: string; security?: boolean}>;
+  last_checked?: string;
+  error?: string | null;
+};
+
+let osUpdateInfo: OsUpdateInfo = {};
+
+async function loadOsUpdates() {
+  const loadingEl = document.getElementById('osUpdatesLoading');
+  const contentEl = document.getElementById('osUpdatesContent');
+  
+  if (loadingEl) loadingEl.style.display = 'flex';
+  if (contentEl) contentEl.innerHTML = '';
+  
+  try {
+    const response = await fetch('/api/host/os-updates');
+    const data = await response.json();
+    osUpdateInfo = data;
+    
+    if (data.error && data.error.includes("disabled")) {
+      if (contentEl) {
+        contentEl.innerHTML = `
+          <div class="empty" style="padding: 1.25rem;">
+            <p style="margin:0;color:var(--muted);">OS update checking is disabled.</p>
+            <p style="margin:.5rem 0 0 0;font-size:.85rem;color:var(--faint);">
+              Enable with: <code style="background:var(--surface2);padding:.1rem .3rem;border-radius:.25rem;">OS_UPDATE_CHECK_ENABLED=true</code>
+            </p>
+          </div>
+        `;
+      }
+    } else if (data.error) {
+      if (contentEl) {
+        contentEl.innerHTML = `
+          <div class="empty" style="padding: 1.25rem;">
+            <p style="margin:0;color:var(--error);">Error: ${escHtml(data.error)}</p>
+          </div>
+        `;
+      }
+    } else {
+      renderOsUpdates(data);
+    }
+  } catch (err) {
+    console.warn('Failed to load OS updates:', err);
+    const contentEl = document.getElementById('osUpdatesContent');
+    if (contentEl) {
+      contentEl.innerHTML = `
+        <div class="empty" style="padding: 1.25rem;">
+          <p style="margin:0;color:var(--error);">Failed to load OS updates: ${escHtml(err.message)}</p>
+        </div>
+      `;
+    }
+  } finally {
+    if (loadingEl) loadingEl.style.display = 'none';
+  }
+}
+
+function renderOsUpdates(data: OsUpdateInfo) {
+  const contentEl = document.getElementById('osUpdatesContent');
+  if (!contentEl) return;
+  
+  const os = data.os || 'Unknown';
+  const version = data.version || '';
+  const family = data.family || 'unknown';
+  const pm = data.package_manager || 'unknown';
+  const updates = data.updates_available || 0;
+  const security = data.security_updates || 0;
+  const packages = data.packages || [];
+  const lastChecked = data.last_checked || '';
+  
+  let html = '';
+  
+  // Summary section
+  html += `
+    <div class="resource-card" style="grid-column: 1 / -1; margin-bottom: 1rem;">
+      <div class="resource-grid" style="grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));">
+        <div class="resource-stat">
+          <div class="resource-stat-label">OS</div>
+          <div class="resource-stat-value">${escHtml(os)} ${version ? `(${escHtml(version)})` : ''}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Package Manager</div>
+          <div class="resource-stat-value">${escHtml(pm)}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Updates Available</div>
+          <div class="resource-stat-value" style="color: ${updates > 0 ? 'var(--warning)' : 'var(--success)'};">${updates}</div>
+        </div>
+        <div class="resource-stat">
+          <div class="resource-stat-label">Security Updates</div>
+          <div class="resource-stat-value" style="color: ${security > 0 ? 'var(--error)' : 'var(--success)'};">${security}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Package list (if there are updates)
+  if (updates > 0 && packages.length > 0) {
+    html += `
+      <div class="resource-card" style="grid-column: 1 / -1;">
+        <h4 style="margin-bottom: .75rem;">Upgradable Packages</h4>
+        <div style="max-height: 300px; overflow-y: auto;">
+          <table style="width: 100%;">
+            <thead>
+              <tr>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Package</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Current</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Available</th>
+                <th style="text-align: center; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Security</th>
+              </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    packages.slice(0, 20).forEach(pkg => {
+      const securityBadge = pkg.security ? 
+        '<span style="color: var(--error);">✓</span>' :
+        '<span style="color: var(--muted);">−</span>';
+      html += `
+              <tr>
+                <td style="padding: .7rem 1rem; font-family: monospace;">${escHtml(pkg.name)}</td>
+                <td style="padding: .7rem 1rem; font-family: monospace; color: var(--muted);">${escHtml(pkg.current)}</td>
+                <td style="padding: .7rem 1rem; font-family: monospace;">${escHtml(pkg.available)}</td>
+                <td style="padding: .7rem 1rem; text-align: center;">${securityBadge}</td>
+              </tr>
+      `;
+    });
+    
+    html += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } else if (updates === 0) {
+    html += `
+      <div class="resource-card" style="grid-column: 1 / -1; text-align: center; padding: 1.5rem;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" style="margin-bottom: .5rem;">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <div style="color: var(--success); font-weight: 600;">All packages are up to date</div>
+      </div>
+    `;
+  }
+  
+  if (lastChecked) {
+    html += `
+      <div style="text-align: right; padding: .5rem 1rem; font-size: .75rem; color: var(--muted);">
+        Last checked: ${formatRelativeTime(new Date(lastChecked))}
+      </div>
+    `;
+  }
+  
+  contentEl.innerHTML = html;
+}
+
+// Helper to format relative time
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) {
+    return 'Just now';
+  } else if (diffMins < 60) {
+    return `${diffMins}m ago`;
+  } else if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  } else {
+    return `${diffDays}d ago`;
+  }
+}
+
+// Escaping helper
+function escHtml(text: string): string {
+  if (!text) return '';
+  return text.toString()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 async function loadHostResources() {
@@ -3048,9 +3274,12 @@ async function init() {
   await loadHostResources(); // Ensure host resources are loaded on page init
   // Check for application updates on startup
   await checkForUpdates(false);
+  // Check for OS package updates on startup
+  await loadOsUpdates();
   setInterval(refreshAll, 10000);
   setInterval(loadContainers, 15000);
   setInterval(loadHostResources, 30000); // Auto-refresh host resources
+  setInterval(loadOsUpdates, 3600000); // Auto-refresh OS updates every hour
 }
 
 init();

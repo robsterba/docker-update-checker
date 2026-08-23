@@ -72,13 +72,15 @@ from docker_utils import (
     get_all_stacks,
     # Self-update checker
     check_for_self_update,
+    # OS update checker
+    check_os_updates,
 )
 from notifier import (
     send_notification,
     notify_pull_result,
     notify_recreate_result,
 )
-from config import NOTIFY_ENABLED, NOTIFY_BACKEND, DEFAULT_COMPOSE_TIMEOUT, VERSION, GITHUB_REPO, SELF_UPDATE_CHECK_ENABLED
+from config import NOTIFY_ENABLED, NOTIFY_BACKEND, DEFAULT_COMPOSE_TIMEOUT, VERSION, GITHUB_REPO, SELF_UPDATE_CHECK_ENABLED, OS_UPDATE_CHECK_ENABLED
 
 
 # ── Routes (moved from app.py) ─────────────────────────────────────────────────
@@ -136,6 +138,50 @@ def api_checker_updates_check():
             log.warning(f"Failed to send self-update notification: {e}")
     
     return jsonify(update_info)
+
+
+@app.route("/api/host/os-updates")
+def api_host_os_updates():
+    """Check for available OS package updates on the host."""
+    if not OS_UPDATE_CHECK_ENABLED:
+        return jsonify({"error": "OS update checking is disabled", "enabled": False})
+    
+    os_updates = check_os_updates()
+    return jsonify(os_updates)
+
+
+@app.route("/api/host/os-updates/check", methods=["POST"])
+def api_host_os_updates_check():
+    """Trigger a check for OS package updates and send notification if updates are available."""
+    if not OS_UPDATE_CHECK_ENABLED:
+        return jsonify({"error": "OS update checking is disabled", "enabled": False})
+    
+    os_updates = check_os_updates()
+    
+    # Send notification if updates are available and notifications are enabled
+    if os_updates.get("updates_available", 0) > 0 and NOTIFY_ENABLED and OS_UPDATE_CHECK_ENABLED:
+        try:
+            packages_count = os_updates.get("updates_available", 0)
+            security_count = os_updates.get("security_updates", 0)
+            os_name = os_updates.get("os", "Unknown")
+            
+            send_notification(
+                title=f"OS Updates Available on {os_name}",
+                message=f"{packages_count} package(s) can be updated ({security_count} security updates)",
+                event_type="os_updates_available",
+                data={
+                    "os": os_name,
+                    "os_version": os_updates.get("version", ""),
+                    "updates_available": packages_count,
+                    "security_updates": security_count,
+                    "package_manager": os_updates.get("package_manager"),
+                    "packages": os_updates.get("packages", [])[:10]  # Limit to first 10
+                }
+            )
+        except Exception as e:
+            log.warning(f"Failed to send OS update notification: {e}")
+    
+    return jsonify(os_updates)
 
 
 @app.route("/api/status")

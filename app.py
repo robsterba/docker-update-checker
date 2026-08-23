@@ -36,6 +36,9 @@ from config import (
     SELF_UPDATE_CHECK_ENABLED,
     SELF_UPDATE_CHECK_INTERVAL_HOURS,
     GITHUB_REPO,
+    # OS update checker
+    OS_UPDATE_CHECK_ENABLED,
+    OS_UPDATE_CHECK_INTERVAL_HOURS,
     # Status constants
     STATUS_UP_TO_DATE,
     STATUS_UPDATE_AVAILABLE,
@@ -1154,6 +1157,37 @@ def check_self_update():
 
 scheduler.add_job(check_self_update, "interval",
                   hours=SELF_UPDATE_CHECK_INTERVAL_HOURS, id="self_update_check")
+# Check for OS package updates periodically
+from docker_utils import check_os_updates
+def check_os_updates_job():
+    """Background job to check for OS package updates."""
+    if OS_UPDATE_CHECK_ENABLED:
+        os_updates = check_os_updates()
+        if os_updates.get("updates_available", 0) > 0 and NOTIFY_ENABLED:
+            try:
+                packages_count = os_updates.get("updates_available", 0)
+                security_count = os_updates.get("security_updates", 0)
+                os_name = os_updates.get("os", "Unknown")
+                
+                from notifier import send_notification
+                send_notification(
+                    title=f"OS Updates Available on {os_name}",
+                    message=f"{packages_count} package(s) can be updated ({security_count} security updates)",
+                    event_type="os_updates_available",
+                    data={
+                        "os": os_name,
+                        "os_version": os_updates.get("version", ""),
+                        "updates_available": packages_count,
+                        "security_updates": security_count,
+                        "package_manager": os_updates.get("package_manager"),
+                        "packages": os_updates.get("packages", [])[:10]
+                    }
+                )
+            except Exception as e:
+                log.warning(f"Failed to send OS update notification: {e}")
+
+scheduler.add_job(check_os_updates_job, "interval",
+                  hours=OS_UPDATE_CHECK_INTERVAL_HOURS, id="os_update_check")
 scheduler.start()
 
 threading.Thread(

@@ -1279,3 +1279,252 @@ def check_for_self_update(current_version: str, repo: str = "robsterba/docker-up
             "release_notes": None,
             "error": str(e)
         }
+
+
+def detect_os() -> dict:
+    """Detect the host operating system.
+    
+    Returns:
+        Dictionary with os type, version, and family.
+        {
+            "os": "Ubuntu",
+            "version": "22.04",
+            "family": "debian",
+            "package_manager": "apt"
+        }
+    """
+    try:
+        # Try /etc/os-release first (modern Linux systems)
+        with open("/etc/os-release", "r") as f:
+            lines = f.readlines()
+        
+        os_info = {}
+        for line in lines:
+            if "=" in line:
+                key, value = line.strip().split("=", 1)
+                os_info[key] = value.strip('"')
+        
+        name = os_info.get("NAME", "").lower()
+        version = os_info.get("VERSION_ID", "").strip('"')
+        id_like = os_info.get("ID_LIKE", "").lower()
+        
+        # Determine family and package manager
+        if "ubuntu" in name or "ubuntu" in id_like:
+            return {"os": "Ubuntu", "version": version, "family": "debian", "package_manager": "apt"}
+        elif "debian" in name or "debian" in id_like:
+            return {"os": "Debian", "version": version, "family": "debian", "package_manager": "apt"}
+        elif "centos" in name or "rhel" in name or "fedora" in name:
+            return {"os": name.title(), "version": version, "family": "redhat", "package_manager": "dnf"}
+        elif "alpine" in name:
+            return {"os": "Alpine", "version": version, "family": "alpine", "package_manager": "apk"}
+        elif "arch" in name:
+            return {"os": "Arch", "version": version, "family": "arch", "package_manager": "pacman"}
+        else:
+            # Fallback detection
+            return {"os": name.title() if name else "Unknown", "version": version, "family": "unknown", "package_manager": None}
+    except Exception:
+        return {"os": "Unknown", "version": "", "family": "unknown", "package_manager": None}
+
+
+def check_os_updates() -> dict:
+    """Check for available OS package updates.
+    
+    Returns:
+        Dictionary with OS info and list of upgradable packages:
+        {
+            "os": "Ubuntu",
+            "version": "22.04",
+            "family": "debian",
+            "package_manager": "apt",
+            "updates_available": 5,
+            "security_updates": 2,
+            "packages": [
+                {"name": "libssl3", "current": "3.0.2", "available": "3.0.7"},
+                ...
+            ],
+            "last_checked": "2026-08-22T23:32:50Z",
+            "error": null
+        }
+    """
+    os_info = detect_os()
+    package_manager = os_info.get("package_manager")
+    
+    result = {
+        "os": os_info.get("os", "Unknown"),
+        "version": os_info.get("version", ""),
+        "family": os_info.get("family", "unknown"),
+        "package_manager": package_manager,
+        "updates_available": 0,
+        "security_updates": 0,
+        "packages": [],
+        "last_checked": datetime.now(timezone.utc).isoformat(),
+        "error": None
+    }
+    
+    if not package_manager:
+        result["error"] = "Unsupported OS or no package manager detected"
+        return result
+    
+    try:
+        packages = []
+        
+        if package_manager == "apt":
+            # Debian/Ubuntu: Use apt list --upgradable
+            # Note: This requires the container to have access to run apt
+            # In production, this should be run on the host, not in the container
+            try:
+                cmd = ["apt-get", "-qq", "list", "--upgradable", "2>/dev/null"]
+                output = subprocess.check_output(cmd, timeout=30, text=True)
+                
+                for line in output.strip().split('\n'):
+                    if line and not line.startswith("Listing"):
+                        # Parse apt output: package/current new_version [repository]
+                        parts = line.split()
+                        if len(parts) >= 2:
+                            pkg_name = parts[0].split('/')[0]  # Remove architecture if present
+                            versions = parts[1].split('/')
+                            current = versions[0] if len(versions) > 0 else "unknown"
+                            available = versions[1] if len(versions) > 1 else "unknown"
+                            
+                            # Check if it's a security update
+                            is_security = "security" in line.lower()
+                            
+                            packages.append({
+                                "name": pkg_name,
+                                "current": current,
+                                "available": available,
+                                "security": is_security
+                            })
+                        
+                result["updates_available"] = len(packages)
+                result["security_updates"] = len([p for p in packages if p.get("security")])
+                result["packages"] = packages
+                
+            except subprocess.TimeoutExpired:
+                result["error"] = "Command timed out"
+                return result
+            except FileNotFoundError:
+                result["error"] = "apt-get not found"
+                return result
+            except Exception as e:
+                result["error"] = f"apt check failed: {str(e)}"
+                return result
+        
+        elif package_manager == "dnf":
+            # RHEL/CentOS/Fedora: Use dnf check-update
+            try:
+                cmd = ["dnf", "check-update", "-q"]
+                output = subprocess.check_output(cmd, timeout=30, text=True)
+                
+                for line in output.strip().split('\n'):
+                    if line and not line.startswith("Last metadata") and '.' in line:
+                        # Parse dnf output: package.arch  current->available  repo
+                        parts = line.split()
+                        if len(parts) >= 3:
+                            pkg_info = parts[0]
+                            pkg_name = pkg_info.split('.')[0]  # Remove .arch
+                            version_info = parts[1]
+                            versions = version_info.split('->')
+                            current = versions[0] if len(versions) > 0 else "unknown"
+                            available = versions[1] if len(versions) > 1 else "unknown"
+                            
+                            packages.append({
+                                "name": pkg_name,
+                                "current": current,
+                                "available": available,
+                                "security": "security" in line.lower() or "update" in line.lower()
+                            })
+                
+                result["updates_available"] = len(packages)
+                result["security_updates"] = len([p for p in packages if p.get("security")])
+                result["packages"] = packages
+                
+            except subprocess.TimeoutExpired:
+                result["error"] = "Command timed out"
+                return result
+            except FileNotFoundError:
+                result["error"] = "dnf not found"
+                return result
+            except Exception as e:
+                result["error"] = f"dnf check failed: {str(e)}"
+                return result
+        
+        elif package_manager == "apk":
+            # Alpine: Use apk list --upgradable
+            try:
+                cmd = ["apk", "list", "--upgradable"]
+                output = subprocess.check_output(cmd, timeout=30, text=True)
+                
+                for line in output.strip().split('\n'):
+                    if line and len(line.split()) >= 2:
+                        parts = line.split()
+                        pkg_name = parts[0]
+                        current = parts[1].split('-')[0]  # Remove version suffix
+                        available = parts[1] if len(parts) > 1 else "unknown"
+                        
+                        packages.append({
+                            "name": pkg_name,
+                            "current": current,
+                            "available": available,
+                            "security": "security" in line.lower()
+                        })
+                
+                result["updates_available"] = len(packages)
+                result["security_updates"] = len([p for p in packages if p.get("security")])
+                result["packages"] = packages
+                
+            except subprocess.TimeoutExpired:
+                result["error"] = "Command timed out"
+                return result
+            except FileNotFoundError:
+                result["error"] = "apk not found"
+                return result
+            except Exception as e:
+                result["error"] = f"apk check failed: {str(e)}"
+                return result
+        
+        elif package_manager == "pacman":
+            # Arch: Use pacman -Qu
+            try:
+                cmd = ["pacman", "-Qu"]
+                output = subprocess.check_output(cmd, timeout=30, text=True)
+                
+                for line in output.strip().split('\n'):
+                    if line:
+                        # pacman output: old_version -> new_version  package_name
+                        parts = line.split()
+                        if len(parts) >= 3 and "->" in parts[0]:
+                            versions = parts[0].split("->")
+                            current = versions[0].strip()
+                            available = versions[1].strip()
+                            pkg_name = parts[2]
+                            
+                            packages.append({
+                                "name": pkg_name,
+                                "current": current,
+                                "available": available,
+                                "security": False  # pacman doesn't indicate security by default
+                            })
+                
+                result["updates_available"] = len(packages)
+                result["packages"] = packages
+                
+            except subprocess.TimeoutExpired:
+                result["error"] = "Command timed out"
+                return result
+            except FileNotFoundError:
+                result["error"] = "pacman not found"
+                return result
+            except Exception as e:
+                result["error"] = f"pacman check failed: {str(e)}"
+                return result
+        
+        else:
+            result["error"] = f"Unsupported package manager: {package_manager}"
+            return result
+    
+    except Exception as e:
+        result["error"] = str(e)
+        return result
+    
+    return result
