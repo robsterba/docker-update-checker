@@ -45,8 +45,71 @@ Right now there is intentionally no automatic updating — this is meant to be s
 - ▶️ **Stack Lifecycle Management** — start, stop, restart entire stacks with one click
 - 🔗 **Dependency Visualization** — view service relationships and network connections in compose files
 - ✅ **Bulk Stack Operations** — apply actions across multiple stacks simultaneously
+- 📊 **Host Overview** — view CPU, memory, and disk usage for the Docker host
+- 🔄 **Self-Update Notifications** — get notified when a new version of docker-update-checker is available
+- 📦 **OS Package Update Monitoring** — check for available OS package updates on each host
 
 ---
+
+## Version
+
+Current version: **0.3.0**
+
+---
+
+## New Features in v0.3.0
+
+### Host Overview
+
+The Host Overview modal (under Performance → Host Overview) displays real-time resource metrics:
+- **CPU Usage** — percentage and core count
+- **Memory Usage** — used/total with percentage
+- **Disk Usage** — used/total with percentage
+- **System Information** — OS, architecture, kernel, Docker version
+- **Docker Statistics** — containers (running/stopped), images
+
+All metrics are updated in real-time from the running containers on each host.
+
+### Self-Update Notifications
+
+The application can now check for and notify you when newer versions are available.
+
+**Features:**
+- Automatic background checks (every 24 hours by default)
+- Manual check via "Update" button in header
+- Visual badge indicator when update is available
+- Click badge to see version info, release notes, and GitHub link
+
+**Configuration:**
+```bash
+SELF_UPDATE_CHECK_ENABLED=true   # Enable/disable (default: true)
+SELF_UPDATE_CHECK_INTERVAL_HOURS=24  # Check interval (default: 24)
+```
+
+### OS Package Update Monitoring
+
+Monitor OS-level package updates across all your hosts.
+
+**Features:**
+- Supports Ubuntu, Debian, CentOS, RHEL, Fedora, Alpine, Arch Linux
+- Shows total updates and security updates count
+- Lists upgradable packages with current/available versions
+- Integrates with existing notification system
+
+**Setup Required:**
+For production deployments, use the host-level agent:
+1. Deploy `scripts/os_update_agent.py` on each host
+2. Mount the output file: `/var/lib/docker-update-checker/os-updates.json:/var/lib/docker-update-checker/os-updates.json:ro`
+3. See `scripts/README.md` for full deployment instructions
+
+**Configuration:**
+```bash
+OS_UPDATE_CHECK_ENABLED=true       # Enable/disable (default: true)
+OS_UPDATE_CHECK_INTERVAL_HOURS=24  # Check interval (default: 24)
+```
+
+---
+
 
 ## Container Management API
 
@@ -67,6 +130,16 @@ The following endpoints are available for container management:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/version` | Get the application version |
+| GET | `/api/checker/updates` | Check if application update is available |
+| POST | `/api/checker/updates/check` | Trigger update check with notification |
+
+### Host API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/host/resources` | Get Docker host resource usage (CPU, memory, disk) |
+| GET | `/api/host/os-updates` | Get OS package update information |
+| POST | `/api/host/os-updates/check` | Trigger OS update check with notification |
 
 ### Compose File Management API
 
@@ -222,7 +295,11 @@ Then edit `compose.yaml`:
 volumes:
   - /var/run/docker.sock:/var/run/docker.sock:ro
   - /opt/docker:/compose:ro   # ← change /opt/docker to your path
+  # Optional: For OS package update monitoring
+  - /var/lib/docker-update-checker/os-updates.json:/var/lib/docker-update-checker/os-updates.json:ro
 ```
+
+Note: For OS package update monitoring, you need to deploy the host-level agent. See the "OS Package Update Monitoring" section above for details.
 
 ### 3. Build and start
 
