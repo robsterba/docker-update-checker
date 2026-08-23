@@ -93,7 +93,7 @@ def check_apt_updates() -> List[Dict]:
     packages = []
     try:
         # Update package lists first
-        subprocess.run(["apt-get", "update", "-qq"], timeout=60, check=False)
+        subprocess.run(["apt", "update", "-qq"], timeout=60, check=False)
         
         # List upgradable packages - use 'apt' not 'apt-get'
         result = subprocess.run(
