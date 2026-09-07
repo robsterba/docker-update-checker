@@ -53,7 +53,7 @@ Right now there is intentionally no automatic updating — this is meant to be s
 
 ## Version
 
-Current version: **0.3.0**
+Current version: **0.3.1**
 
 ---
 
