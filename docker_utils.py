@@ -567,7 +567,7 @@ def get_host_resources() -> dict:
         memory_usage_percent = (memory_used / memory_total * 100) if memory_total > 0 else 0.0
         
         result = {
-            "docker_version": info.get("DockerVersion", "unknown"),
+            "docker_version": info.get("ServerVersion", "unknown"),
             "containers_running": info.get("ContainersRunning", 0),
             "containers_stopped": info.get("ContainersStopped", 0),
             "containers_total": info.get("Containers", 0),
