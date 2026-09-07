@@ -10,7 +10,7 @@
   [data-theme="dark"]{--bg:#0f172a;--surface:#111827;--surface2:#1e293b;--border:#334155;--text:#e2e8f0;--muted:#94a3b8;--faint:#cbd5e1;--primary:#60a5fa;--primary-h:#3b82f6;--success:#2dd4bf;--warning:#fb923c;--error:#ef4444;--info:#38bdf8;--badge-up:rgba(96,165,250,.16);--badge-update:rgba(248,113,113,.18);--badge-err:rgba(239,68,68,.18);--badge-unk:rgba(148,163,184,.18);--badge-run:rgba(96,165,250,.14)}
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html{font-family:'Inter',system-ui,sans-serif;font-size:15px;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
-  body{min-height:100dvh;display:flex;flex-direction:column}
+  body{min-height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
   a{color:var(--primary);text-decoration:none}
   button{cursor:pointer;border:none;font:inherit;background:none}
   code{font-family:'JetBrains Mono','Fira Mono',monospace}
@@ -102,7 +102,7 @@
 
   /* Loading state for host resources */
   #hostResourcesCard{position:relative}
-  .resource-loading{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;gap:.5rem;background:rgba(255,255,255,0.8);z-index:10;color:var(--muted);font-size:.85rem}
+  .resource-loading{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;gap:.5rem;background:var(--surface);z-index:10;color:var(--muted);font-size:.85rem}
   .resource-loading .spinner{animation:spin 1s linear infinite}
   @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
   .stack-pill{font-family:inherit;font-weight:600}
@@ -393,14 +393,6 @@
           Refresh
         </button>
       </div>
-    </div>
-    <div class="resource-loading" id="hostResourcesLoading" style="display:none">
-      <svg class="spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="60">
-          <animate attributeName="stroke-dashoffset" dur="1s" values="60;0" repeatCount="indefinite"/>
-        </circle>
-      </svg>
-      <span>Loading host resources...</span>
     </div>
     <div class="resource-card" id="hostResourcesGrid">
       <div class="gauge-container">
@@ -827,9 +819,7 @@ async function selectInstance(instanceId) {
   currentInstance = found || allInstances[0] || currentInstance;
   document.getElementById('instanceSelect').value = currentInstance.id;
   
-  // Show loading state and clear all caches
-  const loadingEl = document.getElementById('hostResourcesLoading');
-  if (loadingEl) loadingEl.style.display = 'flex';
+  // Clear all caches
   hostResources = {};
   allStacks = [];
   allImages = [];
@@ -864,9 +854,6 @@ async function selectInstance(instanceId) {
   }
   renderInstances(allInstances);
   await refreshAll();
-  
-  // Hide loading state after refresh
-  if (loadingEl) loadingEl.style.display = 'none';
 }
 
 async function refreshAll() {
@@ -1139,14 +1126,10 @@ function renderOsUpdates(data) {
 async function loadHostResources() {
   try {
     console.log('Loading host resources...');
-    const loadingEl = document.getElementById('hostResourcesLoading');
-    if (loadingEl) loadingEl.style.display = 'flex';
     hostResources = {};
     
     const d = await safeInstanceFetch('/host/resources');
     console.log('Host resources response:', d);
-    
-    if (loadingEl) loadingEl.style.display = 'none';
     
     if (d.__error) {
       console.warn('Host resources error:', d.__error);
@@ -1159,8 +1142,6 @@ async function loadHostResources() {
   } catch (err) {
     console.warn('Failed to load host resources:', err);
     hostResources = {};
-    const loadingEl = document.getElementById('hostResourcesLoading');
-    if (loadingEl) loadingEl.style.display = 'none';
     renderHostResources({ error: err.message || 'Connection failed' });
   }
 }
