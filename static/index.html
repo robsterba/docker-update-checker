@@ -533,6 +533,15 @@
 
   <div class="card">
     <div class="card-header">
+      <span class="card-title">Activity Log</span>
+    </div>
+    <div class="log-list" id="opLog">
+      <div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
       <span class="card-title">Container Images</span>
       <div class="filter-bar">
         <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
@@ -568,15 +577,6 @@
       <div class="jobs-scroll" id="jobsList">
         <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
       </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Activity Log</span>
-    </div>
-    <div class="log-list" id="opLog">
-      <div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>
     </div>
   </div>
 </main>
@@ -1113,7 +1113,7 @@ function renderOsUpdates(data) {
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
           <polyline points="22 4 12 14.01 9 11.01"/>
         </svg>
-        <div style="color: var(--success); font-weight: 600;">All packages are up to date</div>
+        <div style="color: var(--success); font-weight: 600; text-align: center;">All packages are up to date</div>
       </div>
     `;
   }
