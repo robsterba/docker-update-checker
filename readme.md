@@ -110,6 +110,133 @@ OS_UPDATE_CHECK_INTERVAL_HOURS=24  # Check interval (default: 24)
 
 ---
 
+## New Features in v0.4.0
+
+### Dense Compact UI Layout
+
+The dashboard has been redesigned with a more compact, dense layout that displays significantly more information on screen:
+- Reduced base font size from 15px to 14px
+- Removed redundant card borders and backgrounds
+- Combined Hosts, KPIs, and Host Resources into a unified grid layout
+- Activity Log is now collapsible (hidden by default)
+- All margins, padding, and spacing reduced throughout
+- Gauge visualizations resized from 100px to 80px for better density
+- Consistent sizing across all UI elements
+
+### Backend Modularization
+
+The backend has been refactored into a modular architecture for better maintainability and separation of concerns:
+- `app.py` — Main Flask application and scheduler
+- `api.py` — All Flask route handlers centralized
+- `config.py` — Environment parsing and runtime configuration
+- `docker_utils.py` — Docker and compose helpers, image checks, compose operations
+- `jobs.py` — Job state management, progress tracking, operation logging
+- `notifier.py` — Notification backend implementations (webhook, MQTT, email)
+- `schemas.py` — Pydantic schemas for request validation
+
+### Enhanced Notification System (Phase 3)
+
+A comprehensive notification framework that supports multiple backends:
+
+**Supported Backends:**
+- **Webhook** — POST/PUT to any HTTP endpoint (e.g., Home Assistant)
+- **MQTT** — Publish to MQTT topics
+- **Email** — SMTP-based email notifications
+
+**Notification Triggers:**
+- Updates found during checks
+- Pull success/failure
+- Recreate success/failure  
+- Bulk job completion
+- Test notifications for validation
+
+**Configuration:**
+```bash
+NOTIFY_ENABLED=true
+NOTIFY_BACKEND=webhook  # or mqtt, email
+NOTIFY_WEBHOOK_URL=http://your-webhook-endpoint
+NOTIFY_ON_UPDATES_FOUND=true
+NOTIFY_ON_PULL_ERROR=true
+# ... plus backend-specific settings
+```
+
+Use the **Test Notification** button in the UI to validate your configuration.
+
+### Bulk Update Actions
+
+- **Pull All Updates** — Pull all outdated images across all stacks with one click
+- **Pull All (Selected Stack)** — Pull only outdated images in a specific stack
+- Both actions support optional auto-recreate after pulling
+- Progress tracked as background jobs with status updates
+
+### Auto-Recreate After Pull
+
+Automatically recreate containers after pulling updated images:
+- Set `AUTO_RECREATE_AFTER_PULL=true` for global auto-recreate
+- Toggle per-job in the UI when initiating pulls
+- Works for both single-image and bulk pull operations
+- Prevents downtime by recreating services immediately on new images
+
+### Stack Grouping & Management
+
+Images are now grouped by their compose stack (directory name):
+- Stack summary cards showing service and container counts
+- Stack filter dropdown for focusing on specific stacks
+- Stack-level actions (pull updates, recreate all services)
+- Stack status badges (Running/Stopped/Mixed)
+- View detailed stack information including:
+  - Compose files
+  - Defined services
+  - Running containers with status
+
+### Job Tracking & Progress
+
+All background operations are tracked as jobs:
+- Live job list in the dashboard
+- Progress bars for ongoing operations
+- Status tracking (pending, running, success, error)
+- Step-by-step progress with event streaming
+- Job history and details viewable from the UI
+
+### Container Lifecycle Management
+
+Full container management directly from the dashboard:
+- Start, stop, restart any container
+- View detailed container information (ID, image, command, ports, mounts, networks)
+- Health check visualization with color-coded badges
+- Real-time resource usage (CPU, memory) for running containers
+- Container filter by status (All, Running, Stopped, Unhealthy)
+
+### Compose File Management
+
+View, edit, and manage your compose files:
+- **View All Compose Files** — Grid view of all discovered compose files
+- **New Compose File** — Create new compose files from scratch
+- YAML editor with syntax highlighting
+- **Validate** — Check YAML syntax and structure
+- **Dependencies** — View service dependency graph and network connections
+- Automatic backups when saving (creates `.bak` files)
+
+### Host Overview Dashboard
+
+Detailed host resource monitoring:
+- CPU Usage with core count
+- Memory usage (used/total with percentage)
+- Disk usage (used/total with percentage)
+- System information (OS, architecture, kernel, Docker version)
+- Docker statistics (containers running/stopped, images count)
+- Real-time metrics from running containers
+- Auto-refresh every 30 seconds (configurable)
+
+### Self-Update Notifications
+
+Get notified when new versions of docker-update-checker are available:
+- Automatic background checks (configurable interval)
+- Manual check via **Update** button in header
+- Visual badge indicator when updates are available
+- Click badge to view version info, release notes, and GitHub link
+
+---
 
 ## Container Management API
 
