@@ -1108,12 +1108,12 @@ function renderOsUpdates(data) {
     `;
   } else if (updates === 0) {
     html += `
-      <div class="resource-card" style="grid-column: 1 / -1; text-align: center; padding: 1.5rem;">
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem;">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" style="margin-bottom: .5rem;">
           <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
           <polyline points="22 4 12 14.01 9 11.01"/>
         </svg>
-        <div style="color: var(--success); font-weight: 600; text-align: center;">All packages are up to date</div>
+        <div style="color: var(--success); font-weight: 600;">All packages are up to date</div>
       </div>
     `;
   }
