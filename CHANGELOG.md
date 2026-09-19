@@ -6,9 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [Unreleased]
+## [v0.4.0] — 2025-01-XX
 
 ### Added
+
+- **Dense compact UI layout**
+  - Reduced base font size from 15px to 14px for better density
+  - Removed card borders/backgrounds and reduced all margins
+  - Combined Hosts + KPIs + Host Resources into unified grid layout
+  - Activity Log now collapsible (hidden by default to save space)
+  - Reduced table cell padding and all spacing throughout
+  - Reduced gauge sizes from 100px to 80px
+  - All UI elements consistently reduced in size
 
 - **Phase 3 — Notification framework**
   - Generic notification dispatcher supporting:
@@ -99,6 +108,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Stack grouping and stack-level operations
   - New environment variables
 - Added this `CHANGELOG.md`
+
+---
+
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Fixed
 
 ---
 
