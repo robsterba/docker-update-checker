@@ -52,6 +52,8 @@
   .host-section{display:grid;grid-template-columns:1.3fr .9fr;gap:.75rem;margin-bottom:.5rem}
   .host-instances{background:transparent}
   .host-metrics{background:transparent}
+  .info-section{margin-bottom:.5rem}
+  .info-section .card{margin-bottom:.25rem}
   .host-subtitle{margin:0 0 .3rem;font-size:.8rem;font-weight:600}
   .metrics-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem}
   .host-kpis{margin-bottom:.4rem}
@@ -458,30 +460,54 @@
     </div>
   </div>
   
-  <!-- OS Updates Card -->
-  <div class="card" id="osUpdatesCard">
-    <div class="card-header">
-      <span class="card-title">OS Package Updates</span>
-      <div class="toolbar-right" style="margin-left: auto;">
-        <button class="btn btn-ghost btn-sm" onclick="loadOsUpdates()" title="Check for OS package updates">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M23 4v6h-6M1 20v-6h6"/>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-          </svg>
-          Check
-        </button>
+  <!-- Consolidated Section: OS Package Updates, Activity Log, Recent Jobs -->
+  <div class="info-section">
+    <!-- OS Updates Card -->
+    <div class="card" id="osUpdatesCard">
+      <div class="card-header">
+        <span class="card-title">OS Package Updates</span>
+        <div class="toolbar-right" style="margin-left: auto;">
+          <button class="btn btn-ghost btn-sm" onclick="loadOsUpdates()" title="Check for OS package updates">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Check
+          </button>
+        </div>
+      </div>
+      <div id="osUpdatesContent">
+        <div class="empty" style="padding: 1.25rem;">
+          <p style="margin:0;color:var(--muted);">OS update checking is disabled or not yet configured.</p>
+          <p style="margin:.5rem 0 0 0;font-size:.85rem;color:var(--faint);">
+            Enable with: <code style="background:var(--surface2);padding:.1rem .3rem;border-radius:.25rem;">OS_UPDATE_CHECK_ENABLED=true</code>
+          </p>
+        </div>
       </div>
     </div>
-    <div id="osUpdatesContent">
-      <div class="empty" style="padding: 1.25rem;">
-        <p style="margin:0;color:var(--muted);">OS update checking is disabled or not yet configured.</p>
-        <p style="margin:.5rem 0 0 0;font-size:.85rem;color:var(--faint);">
-          Enable with: <code style="background:var(--surface2);padding:.1rem .3rem;border-radius:.25rem;">OS_UPDATE_CHECK_ENABLED=true</code>
-        </p>
+
+    <div class="card">
+      <div class="card-header" onclick="toggleActivityLog()" style="cursor:pointer">
+        <span class="card-title">Activity Log</span>
+        <button class="btn btn-ghost btn-sm" id="activityLogToggle" style="font-size:.7rem">Show</button>
+      </div>
+      <div class="log-list" id="opLog" style="display:none">
+        <div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Recent Jobs</span>
+      </div>
+      <div class="jobs-wrap">
+        <div class="jobs-scroll" id="jobsList">
+          <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
+        </div>
       </div>
     </div>
   </div>
-
+  
   <div class="grid-2">
     <div class="card">
       <div class="card-header">
@@ -536,16 +562,6 @@
   </div>
 
   <div class="card">
-    <div class="card-header" onclick="toggleActivityLog()" style="cursor:pointer">
-      <span class="card-title">Activity Log</span>
-      <button class="btn btn-ghost btn-sm" id="activityLogToggle" style="font-size:.7rem">Show</button>
-    </div>
-    <div class="log-list" id="opLog" style="display:none">
-      <div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>
-    </div>
-  </div>
-
-  <div class="card">
     <div class="card-header">
       <span class="card-title">Container Images</span>
       <div class="filter-bar">
@@ -572,17 +588,6 @@
         </td></tr>
       </tbody>
     </table>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Recent Jobs</span>
-    </div>
-    <div class="jobs-wrap">
-      <div class="jobs-scroll" id="jobsList">
-        <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
-      </div>
-    </div>
   </div>
 </main>
 
