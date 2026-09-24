@@ -15,9 +15,9 @@ This is the **recommended approach** for production deployments as it:
 1. Copy the agent files to your host:
    ```bash
    sudo mkdir -p /opt/docker-update-checker/scripts
-   sudo cp scripts/os_update_agent.py /opt/docker-update-checker/scripts/
-   sudo cp scripts/os_update_agent.service /etc/systemd/system/
-   sudo cp scripts/os_update_agent.timer /etc/systemd/system/
+   sudo cp os_update_agent.py /opt/docker-update-checker/scripts/
+   sudo cp os_update_agent.service /etc/systemd/system/
+   sudo cp os_update_agent.timer /etc/systemd/system/
    ```
 
 2. Reload systemd and enable the timer:
@@ -34,8 +34,8 @@ This is the **recommended approach** for production deployments as it:
 1. Copy the script to your host:
    ```bash
    sudo mkdir -p /opt/docker-update-checker/scripts
-   sudo cp scripts/os_update_agent.py /opt/docker-update-checker/scripts/
-   sudo cp scripts/os_update_agent.sh /opt/docker-update-checker/scripts/
+   sudo cp os_update_agent.py /opt/docker-update-checker/scripts/
+   sudo cp os_update_agent.sh /opt/docker-update-checker/scripts/
    sudo chmod +x /opt/docker-update-checker/scripts/os_update_agent.sh
    ```
 
@@ -83,10 +83,16 @@ You can customize the agent's behavior using environment variables:
 | `OUTPUT_FILE` | `/var/lib/docker-update-checker/os-updates.json` | Path to output JSON file |
 | `LOG_FILE` | `/var/log/docker-update-checker/os-updates.log` | Path to log file |
 
-Example usage:
+Example usage from the scripts directory:
 ```bash
 OUTPUT_FILE=/custom/path/os-updates.json LOG_FILE=/custom/path/log.log \
-  python3 os_update_agent.py
+  python3 ./os_update_agent.py
+```
+
+Or from anywhere with the full path:
+```bash
+OUTPUT_FILE=/custom/path/os-updates.json LOG_FILE=/custom/path/log.log \
+  python3 /opt/docker-update-checker/scripts/os_update_agent.py
 ```
 
 ## Output Format
