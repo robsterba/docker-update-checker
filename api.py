@@ -24,6 +24,9 @@ from app import (
     run_prune_job,
     load_notification_settings,
     save_notification_settings,
+    load_app_settings,
+    save_app_settings,
+    get_check_interval_minutes,
 )
 
 # Import from config module
@@ -283,25 +286,60 @@ def api_set_remote_instances():
 
 @app.route("/api/config", methods=["GET", "POST"])
 def api_config():
+    global AUTO_RECREATE_AFTER_PULL
     if request.method == "GET":
-        return jsonify({"auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL})
+        return jsonify({
+            "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
+            "check_interval_minutes": get_check_interval_minutes(),
+        })
 
     from schemas import ConfigUpdateRequest
-    
-    data = request.get_json(silent=True) or {}
-    try:
-        # Validate using Pydantic model
-        validated = ConfigUpdateRequest.model_validate(data)
-        auto_recreate = validated.auto_recreate
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
 
-    # Update the module-level variable in config
-    # Since all imports reference the same module, this updates it globally
-    import config
-    config.AUTO_RECREATE_AFTER_PULL = auto_recreate
-    log_op("config", "auto_recreate", "success", f"Set auto_recreate_after_pull={auto_recreate}")
-    return jsonify({"auto_recreate_after_pull": auto_recreate})
+    data = request.get_json(silent=True) or {}
+
+    if "auto_recreate" in data:
+        try:
+            # Validate using Pydantic model
+            validated = ConfigUpdateRequest.model_validate({"auto_recreate": data["auto_recreate"]})
+            auto_recreate = validated.auto_recreate
+        except Exception as e:
+            return jsonify({"status": "error", "message": str(e)}), 400
+
+        # Update the module-level variable in config and the modules that
+        # imported a copy of it, so every reader sees the new value
+        import config
+        config.AUTO_RECREATE_AFTER_PULL = auto_recreate
+        import app as _app
+        _app.AUTO_RECREATE_AFTER_PULL = auto_recreate
+        AUTO_RECREATE_AFTER_PULL = auto_recreate
+        log_op("config", "auto_recreate", "success", f"Set auto_recreate_after_pull={auto_recreate}")
+
+    check_interval = data.get("check_interval_minutes")
+    if check_interval is not None:
+        try:
+            check_interval = int(check_interval)
+        except (TypeError, ValueError):
+            return jsonify({"status": "error", "message": "check_interval_minutes must be an integer"}), 400
+        if not 1 <= check_interval <= 1440:
+            return jsonify({"status": "error", "message": "check_interval_minutes must be between 1 and 1440"}), 400
+
+        try:
+            from app import scheduler
+            scheduler.reschedule_job("full_check", trigger="interval", minutes=check_interval)
+        except Exception as e:
+            log_op("config", "check_interval", "error", f"Failed to reschedule check job: {e}")
+            return jsonify({"status": "error", "message": f"Failed to reschedule check job: {e}"}), 500
+
+        settings = load_app_settings()
+        settings["check_interval_minutes"] = check_interval
+        if not save_app_settings(settings):
+            return jsonify({"status": "error", "message": "Failed to persist settings to app settings file"}), 500
+        log_op("config", "check_interval", "success", f"Set check interval to {check_interval} minute(s)")
+
+    return jsonify({
+        "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
+        "check_interval_minutes": get_check_interval_minutes(),
+    })
 
 
 @app.route("/api/instances/<instance_id>/<path:proxy_path>", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])

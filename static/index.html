@@ -424,10 +424,15 @@
       <div class="card-header">
         <span class="card-title">Container Images</span>
         <div class="filter-bar">
-          <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-          <button class="filter-btn" onclick="setFilter('update_available', this)">Updates</button>
-          <button class="filter-btn" onclick="setFilter('up_to_date', this)">Up to Date</button>
-          <button class="filter-btn" onclick="setFilter('unknown', this)">Unknown</button>
+          <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+          <button class="filter-btn" data-filter="update_available" onclick="setFilter('update_available', this)">Updates</button>
+          <button class="filter-btn" data-filter="up_to_date" onclick="setFilter('up_to_date', this)">Up to Date</button>
+          <button class="filter-btn" data-filter="unknown" onclick="setFilter('unknown', this)">Unknown</button>
+          <select class="config-input select" id="imageSortSelect" style="width:auto;padding:.2rem .4rem;font-size:.72rem" onchange="setImageSort(this.value)" title="Sort order">
+            <option value="status">Sort: Status priority</option>
+            <option value="name">Sort: Image name</option>
+            <option value="checked">Sort: Recently checked</option>
+          </select>
         </div>
       </div>
       <div class="table-scroll">
@@ -465,10 +470,10 @@
         </div>
       </div>
       <div class="filter-bar" style="padding: .5rem .75rem; border-bottom: 1px solid var(--border);">
-        <button class="filter-btn active" onclick="setContainerFilter('all', this)">All</button>
-        <button class="filter-btn" onclick="setContainerFilter('running', this)">Running</button>
-        <button class="filter-btn" onclick="setContainerFilter('stopped', this)">Stopped</button>
-        <button class="filter-btn" onclick="setContainerFilter('unhealthy', this)">Unhealthy</button>
+        <button class="filter-btn active" data-filter="all" onclick="setContainerFilter('all', this)">All</button>
+        <button class="filter-btn" data-filter="running" onclick="setContainerFilter('running', this)">Running</button>
+        <button class="filter-btn" data-filter="stopped" onclick="setContainerFilter('stopped', this)">Stopped</button>
+        <button class="filter-btn" data-filter="unhealthy" onclick="setContainerFilter('unhealthy', this)">Unhealthy</button>
       </div>
       <div class="jobs-wrap">
         <div class="panel-scroll" id="containersList">
@@ -598,6 +603,7 @@ let allInstances = [];
 let hostStatuses = {};
 let currentInstance = { id: 'local', name: 'Local host', url: '' };
 let activeFilter = 'all';
+let activeImageSort = 'status';
 let checking = false;
 let theme = 'light';
 let resourceRefreshInterval = null;
@@ -621,6 +627,8 @@ function startRefreshTimer() {
 }
 
 const STORAGE_TAB_KEY = 'docker-update-checker-active-tab';
+const STORAGE_STARTUP_TAB_KEY = 'docker-update-checker-startup-tab';
+const STORAGE_MAX_JOBS_KEY = 'docker-update-checker-max-jobs';
 const TAB_NAMES = ['overview', 'images', 'containers', 'stacks', 'compose', 'system'];
 let activeTab = 'overview';
 let composeLoaded = false;
@@ -637,8 +645,19 @@ function switchTab(tab) {
   }
 }
 
+function getStartupTab() {
+  const pref = localStorage.getItem(STORAGE_STARTUP_TAB_KEY);
+  return TAB_NAMES.includes(pref) ? pref : 'last';
+}
+
+function getMaxJobs() {
+  const v = parseInt(localStorage.getItem(STORAGE_MAX_JOBS_KEY), 10);
+  return [10, 20, 30, 50].includes(v) ? v : MAX_JOBS;
+}
+
 function initTabs() {
-  switchTab(localStorage.getItem(STORAGE_TAB_KEY));
+  const pref = getStartupTab();
+  switchTab(pref === 'last' ? (localStorage.getItem(STORAGE_TAB_KEY) || 'overview') : pref);
 }
 
 function getStoredTheme() {
@@ -646,7 +665,11 @@ function getStoredTheme() {
 }
 
 function setStoredTheme(value) {
-  localStorage.setItem(STORAGE_THEME_KEY, value);
+  if (value === null) {
+    localStorage.removeItem(STORAGE_THEME_KEY);
+  } else {
+    localStorage.setItem(STORAGE_THEME_KEY, value);
+  }
 }
 
 function getStoredAutoRecreate() {
@@ -1429,9 +1452,41 @@ function onAutoRecreateToggle() {
 
 function setFilter(f, btn) {
   activeFilter = f;
+  localStorage.setItem(STORAGE_IMAGE_FILTER_KEY, f);
   btn.closest('.filter-bar').querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderTable(allImages);
+}
+
+function setImageSort(sort) {
+  activeImageSort = ['status', 'name', 'checked'].includes(sort) ? sort : 'status';
+  localStorage.setItem(STORAGE_IMAGE_SORT_KEY, activeImageSort);
+  renderTable(allImages);
+}
+
+// Restore persisted filter/sort settings (called once at startup, before data loads)
+function initFilters() {
+  const imgFilter = localStorage.getItem(STORAGE_IMAGE_FILTER_KEY);
+  if (['all', 'update_available', 'up_to_date', 'unknown'].includes(imgFilter)) {
+    activeFilter = imgFilter;
+    document.querySelectorAll('#tab-images .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === imgFilter));
+  }
+  const sort = localStorage.getItem(STORAGE_IMAGE_SORT_KEY);
+  const sortSelect = document.getElementById('imageSortSelect');
+  if (sortSelect) {
+    sortSelect.value = ['status', 'name', 'checked'].includes(sort) ? sort : 'status';
+    activeImageSort = sortSelect.value;
+  }
+  const cFilter = localStorage.getItem(STORAGE_CONTAINER_FILTER_KEY);
+  if (['all', 'running', 'stopped', 'unhealthy'].includes(cFilter)) {
+    containerFilter = cFilter;
+    document.querySelectorAll('#tab-containers .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === cFilter));
+  }
+  const showStopped = localStorage.getItem(STORAGE_SHOW_STOPPED_KEY);
+  if (showStopped !== null) {
+    const el = document.getElementById('showAllContainers');
+    if (el) el.checked = showStopped === 'true';
+  }
 }
 
 function badge(status) {
@@ -1544,7 +1599,7 @@ function renderJobs(jobs) {
     return;
   }
 
-  const displayedJobs = jobs.slice(0, MAX_JOBS);
+  const displayedJobs = jobs.slice(0, getMaxJobs());
 
   el.innerHTML = displayedJobs.map(job => {
     const pct = Math.max(0, Math.min(100, Math.round(((job.progress || 0) / Math.max(job.total_steps || 1, 1)) * 100)));
@@ -1602,8 +1657,13 @@ function renderTable(images) {
     return;
   }
 
-  const order = { update_available: 0, registry_error: 1, not_pulled: 2, unknown: 3, up_to_date: 4 };
-  filtered.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+  const statusOrder = { update_available: 0, registry_error: 1, not_pulled: 2, unknown: 3, up_to_date: 4 };
+  const sorters = {
+    status: (a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) || a.image.localeCompare(b.image),
+    name: (a, b) => a.image.localeCompare(b.image),
+    checked: (a, b) => new Date(b.checked_at || 0) - new Date(a.checked_at || 0),
+  };
+  filtered.sort(sorters[activeImageSort] || sorters.status);
 
   tbody.innerHTML = filtered.map(img => {
     const stacks = (img.stacks || []).length
@@ -2369,13 +2429,68 @@ function removeRemoteHost(instanceId) {
   showToast('Remote host removed', 'success');
 }
 
-function showPreferencesConfig() {
+async function showPreferencesConfig() {
   currentConfigSection = 'preferences';
   const autoRecreateChecked = getStoredAutoRecreate() ?? false;
-  
+  const storedTheme = getStoredTheme();
+
+  let checkInterval = '';
+  try {
+    const r = await instanceFetch('/config');
+    if (r.ok) {
+      const d = await r.json();
+      checkInterval = d.check_interval_minutes ?? '';
+    }
+  } catch (err) {
+    // Leave blank; the server default applies on save
+  }
+
+  const tabOptions = ['last', ...TAB_NAMES].map(t =>
+    `<option value="${t}" ${getStartupTab() === t ? 'selected' : ''}>${t === 'last' ? 'Remember last tab' : t.charAt(0).toUpperCase() + t.slice(1)}</option>`
+  ).join('');
+  const jobOptions = [10, 20, 30, 50].map(n =>
+    `<option value="${n}" ${getMaxJobs() === n ? 'selected' : ''}>${n}</option>`
+  ).join('');
+
   const html = `
     <div class="config-section">
-      <div class="config-section-title">Display Preferences</div>
+      <div class="config-section-title">Dashboard</div>
+      <div class="config-row">
+        <label class="config-label">Auto-refresh (seconds):</label>
+        <input type="number" class="config-input" id="configRefreshInterval" value="${getRefreshIntervalSeconds()}" min="5">
+      </div>
+      <div class="config-description">
+        How often the dashboard refreshes data (default: 10 seconds, minimum: 5).
+      </div>
+      <div class="config-row">
+        <label class="config-label">Startup tab:</label>
+        <select class="config-input select" id="configStartupTab">${tabOptions}</select>
+      </div>
+      <div class="config-description">
+        Which tab the dashboard opens on.
+      </div>
+      <div class="config-row">
+        <label class="config-label">Recent jobs shown:</label>
+        <select class="config-input select" id="configMaxJobs">${jobOptions}</select>
+      </div>
+      <div class="config-description">
+        Number of recent jobs displayed on the Overview tab (default: ${MAX_JOBS}).
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Scheduled Checks</div>
+      <div class="config-row">
+        <label class="config-label">Check interval (minutes):</label>
+        <input type="number" class="config-input" id="configCheckInterval" value="${checkInterval}" min="1" max="1440">
+      </div>
+      <div class="config-description">
+        How often the server re-checks all images against their registries. Persisted server-side and survives restarts.
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Update Behavior</div>
       <div class="config-row">
         <label class="config-toggle">
           <input type="checkbox" id="configAutoRecreate" ${autoRecreateChecked ? 'checked' : ''}>
@@ -2388,32 +2503,21 @@ function showPreferencesConfig() {
     </div>
 
     <div class="config-section">
-      <div class="config-section-title">Theme</div>
+      <div class="config-section-title">Appearance</div>
       <div class="config-row">
         <label class="config-label">Theme:</label>
         <select class="config-input select" id="configTheme">
-          <option value="light" ${theme === 'light' ? 'selected' : ''}>Light</option>
-          <option value="dark" ${theme === 'dark' ? 'selected' : ''}>Dark</option>
-          <option value="system" ${theme === 'system' || (theme !== 'light' && theme !== 'dark') ? 'selected' : ''}>System</option>
+          <option value="light" ${storedTheme === 'light' ? 'selected' : ''}>Light</option>
+          <option value="dark" ${storedTheme === 'dark' ? 'selected' : ''}>Dark</option>
+          <option value="system" ${storedTheme === null ? 'selected' : ''}>System</option>
         </select>
       </div>
       <div class="config-description">
         Choose your preferred color theme. "System" follows your OS preference.
       </div>
     </div>
-
-    <div class="config-section">
-      <div class="config-section-title">Polling Intervals</div>
-      <div class="config-row">
-        <label class="config-label">Auto-refresh (seconds):</label>
-        <input type="number" class="config-input" id="configRefreshInterval" value="${getRefreshIntervalSeconds()}" min="5">
-      </div>
-      <div class="config-description">
-        How often the dashboard refreshes data (default: 10 seconds, minimum: 5).
-      </div>
-    </div>
   `;
-  
+
   document.getElementById('configModalTitle').textContent = 'Preferences';
   document.getElementById('configModalBody').innerHTML = html;
   document.getElementById('configModalBackdrop').classList.add('open');
@@ -2430,7 +2534,7 @@ async function saveConfig() {
       await saveRemoteHostsConfig();
       break;
     case 'preferences':
-      savePreferencesConfig();
+      await savePreferencesConfig();
       break;
   }
   
@@ -2607,14 +2711,22 @@ async function saveRemoteHostsConfig() {
   }
 }
 
-function savePreferencesConfig() {
-  // Save auto-recreate
+async function savePreferencesConfig() {
+  // Auto-recreate
   const autoRecreate = document.getElementById('configAutoRecreate').checked;
   setStoredAutoRecreate(autoRecreate);
   document.getElementById('autoRecreateToggle').checked = autoRecreate;
-  syncAutoRecreateSetting(autoRecreate);
-  
-  // Save theme
+
+  // Dashboard settings
+  const seconds = Math.max(5, parseInt(document.getElementById('configRefreshInterval').value, 10) || 10);
+  localStorage.setItem(STORAGE_REFRESH_KEY, String(seconds));
+  startRefreshTimer();
+
+  localStorage.setItem(STORAGE_STARTUP_TAB_KEY, document.getElementById('configStartupTab').value);
+  localStorage.setItem(STORAGE_MAX_JOBS_KEY, document.getElementById('configMaxJobs').value);
+  renderJobs(allJobs);
+
+  // Theme
   const themeSelect = document.getElementById('configTheme');
   const newTheme = themeSelect.value;
   if (newTheme === 'system') {
@@ -2622,18 +2734,28 @@ function savePreferencesConfig() {
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     document.documentElement.setAttribute('data-theme', systemDark ? 'dark' : 'light');
     document.getElementById('themeBtn').innerHTML = buildThemeIcon(systemDark ? 'dark' : 'light');
+    theme = systemDark ? 'dark' : 'light';
   } else {
     setStoredTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
     document.getElementById('themeBtn').innerHTML = buildThemeIcon(newTheme);
+    theme = newTheme;
   }
-  theme = newTheme;
-  
-  // Save refresh interval
-  const seconds = Math.max(5, parseInt(document.getElementById('configRefreshInterval').value, 10) || 10);
-  localStorage.setItem(STORAGE_REFRESH_KEY, String(seconds));
-  startRefreshTimer();
-  
+
+  // Server-side settings (check interval + auto-recreate)
+  const checkInterval = Math.max(1, parseInt(document.getElementById('configCheckInterval').value, 10) || 0);
+  try {
+    const r = await instanceFetch('/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_recreate: autoRecreate, check_interval_minutes: checkInterval })
+    });
+    if (!r.ok) throw new Error(await r.text());
+  } catch (err) {
+    showToast(`Failed to save server settings: ${err.message}`, 'error');
+    return;
+  }
+
   showToast('Preferences saved', 'success');
 }
 
@@ -2647,12 +2769,14 @@ function getContainerFilter() {
 
 function setContainerFilter(filter, btn) {
   containerFilter = filter;
+  localStorage.setItem(STORAGE_CONTAINER_FILTER_KEY, filter);
   btn.closest('.filter-bar').querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   loadContainers();
 }
 
 function toggleAllContainers() {
+  localStorage.setItem(STORAGE_SHOW_STOPPED_KEY, getContainerFilter() ? 'true' : 'false');
   loadContainers();
 }
 
@@ -3181,6 +3305,7 @@ async function stackRestart(stackName) {
 async function init() {
   loadTheme();
   initTabs();
+  initFilters();
   const storedValue = getStoredAutoRecreate();
   if (storedValue !== null) {
     document.getElementById('autoRecreateToggle').checked = storedValue;

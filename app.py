@@ -32,6 +32,7 @@ from config import (
     REGISTRY_TOKEN_CACHE,
     VERSION,
     NOTIFICATION_SETTINGS_FILE,
+    APP_SETTINGS_FILE,
     # Self-update checker
     SELF_UPDATE_CHECK_ENABLED,
     SELF_UPDATE_CHECK_INTERVAL_HOURS,
@@ -244,6 +245,43 @@ def save_notification_settings(settings: dict) -> bool:
     except Exception as e:
         log.error(f"Unable to save notification settings to {NOTIFICATION_SETTINGS_FILE}: {e}")
         return False
+
+
+def load_app_settings() -> dict:
+    """Load general application settings from file."""
+    try:
+        path = Path(APP_SETTINGS_FILE).expanduser()
+        if path.exists():
+            with open(path, 'r', encoding='utf-8') as f:
+                settings = json.load(f)
+                log.info(f"Loaded application settings from {path}")
+                return settings if isinstance(settings, dict) else {}
+        return {}
+    except Exception as e:
+        log.warning(f"Unable to load application settings from {APP_SETTINGS_FILE}: {e}")
+        return {}
+
+
+def save_app_settings(settings: dict) -> bool:
+    """Save general application settings to file."""
+    try:
+        path = Path(APP_SETTINGS_FILE).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(settings, f, indent=2)
+        log.info(f"Saved application settings to {path}")
+        return True
+    except Exception as e:
+        log.error(f"Unable to save application settings to {APP_SETTINGS_FILE}: {e}")
+        return False
+
+
+def get_check_interval_minutes() -> int:
+    """Current scheduled check interval: stored setting if valid, else env default."""
+    stored = load_app_settings().get("check_interval_minutes")
+    if isinstance(stored, (int, float)) and not isinstance(stored, bool) and stored >= 1:
+        return int(stored)
+    return CHECK_INTERVAL_MINUTES
 
 
 def get_all_instances() -> list[dict]:
@@ -1127,7 +1165,7 @@ import api
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 scheduler = BackgroundScheduler()
 scheduler.add_job(run_full_check, "interval",
-                  minutes=CHECK_INTERVAL_MINUTES, id="full_check")
+                  minutes=get_check_interval_minutes(), id="full_check")
 # Clean up expired registry tokens every hour to prevent memory leaks
 from config import cleanup_token_cache
 scheduler.add_job(cleanup_token_cache, "interval",
