@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.1.2] — 2026-09-26
+
+### Changed
+
+- Dashboard loading no longer blocks on the slowest host: cards render immediately with a "Checking…" state and update individually as each host's status arrives
+- Startup data loads (status, images, stacks, containers, update check, OS updates) run in parallel instead of serially
+- Remote instance proxy uses a 3-second connect timeout so unreachable hosts fail fast instead of stalling for 15 seconds
+
+### Fixed
+
+- Dashboard could sit on "Loading host status…" with empty KPI fields when any remote host was slow or unreachable
+
+---
+
 ## [v1.1.1] — 2026-09-26
 
 ### Added

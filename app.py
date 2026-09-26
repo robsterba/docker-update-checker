@@ -344,7 +344,7 @@ def proxy_remote_request(instance_id: str, proxy_path: str) -> Response:
             remote_url,
             json=payload if payload is not None else None,
             params=params,
-            timeout=DEFAULT_PROXY_TIMEOUT,
+            timeout=(3, DEFAULT_PROXY_TIMEOUT),  # fail fast on unreachable hosts
         )
         return Response(response.content, status=response.status_code,
                         content_type=response.headers.get("Content-Type", "application/json"))

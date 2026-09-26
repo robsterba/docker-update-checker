@@ -791,6 +791,22 @@ function setInstanceVersion(version) {
   }
 }
 
+function applyInstanceStatusToHeader(status) {
+  if (status === undefined || status === null) {
+    setInstanceHealth('unknown', 'Checking...');
+    document.getElementById('lastCheck').textContent = 'Checking...';
+    setInstanceVersion(null);
+  } else if (status.ok) {
+    setInstanceHealth('online', 'Online');
+    document.getElementById('lastCheck').textContent = status.data.last_check ? `Last check: ${fmtDate(status.data.last_check)}` : 'No check yet';
+    setInstanceVersion(status.data.version);
+  } else {
+    setInstanceHealth('offline', 'Offline');
+    document.getElementById('lastCheck').textContent = status.error || 'Unable to reach host';
+    setInstanceVersion(null);
+  }
+}
+
 function renderInstances(instances) {
   const container = document.getElementById('instanceGrid');
   if (!instances.length) {
@@ -801,10 +817,11 @@ function renderInstances(instances) {
   container.innerHTML = instances.map(inst => {
     const status = hostStatuses[inst.id];
     const isSelected = currentInstance.id === inst.id;
-    const state = status?.ok ? 'online' : 'offline';
-    const label = status?.ok ? 'Online' : 'Offline';
+    const pending = status === undefined;
+    const state = pending ? 'unknown' : (status?.ok ? 'online' : 'offline');
+    const label = pending ? 'Checking…' : (status?.ok ? 'Online' : 'Offline');
     const updatesInfo = status?.ok && status.data.updates_available ? ` · ${status.data.updates_available} updates` : '';
-    const lastCheck = status?.ok && status.data.last_check ? fmtDate(status.data.last_check) : '';
+    const lastCheck = pending ? 'Checking…' : (status?.ok && status.data.last_check ? fmtDate(status.data.last_check) : '');
     const version = status?.ok && status.data.version ? ` · v${status.data.version}` : '';
 
     return `
@@ -826,10 +843,17 @@ function renderInstances(instances) {
 
 async function loadInstanceStatuses() {
   hostStatuses = {};
-  await Promise.all(allInstances.map(async inst => {
-    hostStatuses[inst.id] = await fetchInstanceStatus(inst);
-  }));
   renderInstances(allInstances);
+  // Update cards and header as each host responds instead of
+  // waiting for the slowest (or an unreachable) host
+  await Promise.all(allInstances.map(async inst => {
+    const result = await fetchInstanceStatus(inst);
+    hostStatuses[inst.id] = result;
+    renderInstances(allInstances);
+    if (inst.id === currentInstance.id) {
+      applyInstanceStatusToHeader(result);
+    }
+  }));
 }
 
 async function selectInstance(instanceId) {
@@ -842,33 +866,12 @@ async function selectInstance(instanceId) {
   allImages = [];
   allJobs = [];
   
-  const status = hostStatuses[currentInstance.id];
-  if (status) {
-    if (status.ok) {
-      setInstanceHealth('online', 'Online');
-      document.getElementById('lastCheck').textContent = status.data.last_check ? `Last check: ${fmtDate(status.data.last_check)}` : 'No check yet';
-      setInstanceVersion(status.data.version);
-    } else {
-      setInstanceHealth('offline', 'Offline');
-    document.getElementById('lastCheck').textContent = status.error || 'Unable to reach host';
-    setInstanceVersion(null);
-    }
-  } else {
-    setInstanceHealth('unknown', 'Checking...');
-    document.getElementById('lastCheck').textContent = 'Checking...';
-    setInstanceVersion(null);
-    hostStatuses[currentInstance.id] = await fetchInstanceStatus(currentInstance);
-    const newStatus = hostStatuses[currentInstance.id];
-    if (newStatus.ok) {
-      setInstanceHealth('online', 'Online');
-      document.getElementById('lastCheck').textContent = newStatus.data.last_check ? `Last check: ${fmtDate(newStatus.data.last_check)}` : 'No check yet';
-      setInstanceVersion(newStatus.data.version);
-    } else {
-      setInstanceHealth('offline', 'Offline');
-      document.getElementById('lastCheck').textContent = newStatus.error || 'Unable to reach host';
-      setInstanceVersion(null);
-    }
+  let status = hostStatuses[currentInstance.id];
+  if (!status) {
+    applyInstanceStatusToHeader(null);
+    hostStatuses[currentInstance.id] = status = await fetchInstanceStatus(currentInstance);
   }
+  applyInstanceStatusToHeader(status);
   renderInstances(allInstances);
   await refreshAll();
   await loadOsUpdates();
@@ -890,19 +893,10 @@ async function loadInstances() {
       currentInstance = allInstances[0] || currentInstance;
     }
     select.value = currentInstance.id;
-    setInstanceHealth('unknown', 'Checking...');
-    document.getElementById('lastCheck').textContent = 'Checking...';
-    await loadInstanceStatuses();
-    const status = hostStatuses[currentInstance.id];
-    if (status) {
-      if (status.ok) {
-        setInstanceHealth('online', 'Online');
-        document.getElementById('lastCheck').textContent = status.data.last_check ? `Last check: ${fmtDate(status.data.last_check)}` : 'No check yet';
-      } else {
-        setInstanceHealth('offline', 'Offline');
-        document.getElementById('lastCheck').textContent = status.error || 'Unable to reach host';
-      }
-    }
+    applyInstanceStatusToHeader(hostStatuses[currentInstance.id]);
+    // Kick off status fetches without blocking the rest of init;
+    // cards and header update as each host responds
+    loadInstanceStatuses();
   } catch (err) {
     console.warn('Failed to load instances', err);
   }
@@ -3311,12 +3305,8 @@ async function init() {
     document.getElementById('autoRecreateToggle').checked = storedValue;
   }
   await loadInstances();
-  await refreshAll();
-  await loadContainers();
-  // Check for application updates on startup
-  await checkForUpdates(false);
-  // Check for OS package updates on startup
-  await loadOsUpdates();
+  // Load all data in parallel instead of serially blocking on each step
+  await Promise.all([refreshAll(), loadContainers(), checkForUpdates(false), loadOsUpdates()]);
   startRefreshTimer();
   setInterval(loadContainers, 15000);
   setInterval(loadHostResources, 30000); // Auto-refresh host resources
