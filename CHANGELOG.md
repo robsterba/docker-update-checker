@@ -6,49 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
-## [v1.1.1] — 2026-09-26
-
-### Added
-
-- **Tabbed dashboard UI**
-  - Sections reorganized into tabs: Overview, Images, Containers, Stacks, Compose, System
-  - Active tab persisted across reloads; optional fixed startup tab
-  - Image table scrolls within the viewport with a sticky header
-  - Removed always-empty CPU/Memory gauges in favor of a compact host stat row
-
-- **Persistent filter and sort settings**
-  - Image table sort control: status priority (default), image name, recently checked
-  - Image filter, container filter, and "show stopped" toggle persist across reloads
-
-- **Preferences menu**
-  - Dashboard: auto-refresh frequency, startup tab, recent jobs count
-  - Scheduled checks: registry check interval (server-side, persisted to `app_settings.json`, survives restarts)
-  - Update behavior: auto-recreate after pull
-  - Appearance: theme (light/dark/system)
-
-- **Remote host persistence API**
-  - `GET/POST /api/instances/remote` reads and replaces the remote host list in `REMOTE_INSTANCES_FILE`
-  - Add/edit/remove remote hosts from the UI now persists via Save
-
-- **Configuration API**
-  - `GET/POST /api/config` now reports and accepts `check_interval_minutes`, rescheduling the scheduled check job at runtime
-
-### Changed
-
-- OS package updates and container start/stop/restart/inspect now run against the selected instance instead of always the local host
-- Action modals can no longer hang on failure: all action calls check response status and surface server error messages
-- Theme "System" preference now persists correctly across reloads
-
-### Fixed
-
-- Notifications and Preferences modals failed to open (undefined `NOTIFY_*` and `AUTO_RECREATE_AFTER_PULL` references); values now load from the API
-- Image and container filter buttons reset each other's active state across tabs
-- Performance menu auto-refresh toggled the wrong item's label
-- Changing auto-recreate only updated one module's copy; `/api/status` and `/api/config` now report the current value
-- Duplicate `formatBytes` definition and various dead code removed
-
----
-
 ## [v0.4.0] — 2026-09-18
 
 ### Added

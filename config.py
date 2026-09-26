@@ -3,7 +3,7 @@ import time
 import logging
 
 # ── Version ──────────────────────────────────────────────────────────────────
-VERSION = "1.1.1"
+VERSION = "0.4.0"
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -96,9 +96,6 @@ REGISTRY_TOKEN_CACHE: dict[str, dict[str, object]] = {}
 
 # Notification settings file
 NOTIFICATION_SETTINGS_FILE = get_env("NOTIFICATION_SETTINGS_FILE", "notification_settings.json")
-
-# General application settings file (persists settings changed at runtime)
-APP_SETTINGS_FILE = get_env("APP_SETTINGS_FILE", "app_settings.json")
 
 # ── Self-Update Checker ────────────────────────────────────────────────────────────
 # Enable/disable checking for application updates
