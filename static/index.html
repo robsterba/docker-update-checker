@@ -57,7 +57,7 @@
   .host-subtitle{margin:0 0 .3rem;font-size:.8rem;font-weight:600}
   .metrics-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem}
   .host-kpis{margin-bottom:.4rem}
-  .host-resources{padding:.35rem}
+  .host-resources{padding:.35rem;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
   .stack-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.5rem}
   .stack-card{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.65rem}
   .stack-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.4rem}
@@ -262,6 +262,16 @@
   .performance-toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
   .performance-filter{padding:.3rem .6rem;border-radius:.4rem;font-size:.78rem;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s}
   .performance-filter.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  /* Tabbed navigation */
+  .tab-bar{display:flex;gap:.15rem;border-bottom:1px solid var(--border);margin-bottom:.6rem;overflow-x:auto}
+  .tab-btn{padding:.45rem .85rem;font-size:.8rem;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s}
+  .tab-btn:hover{color:var(--text)}
+  .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+  .panel-scroll{max-height:max(320px,calc(100dvh - 300px));overflow-y:auto}
+  .table-scroll{max-height:max(320px,calc(100dvh - 250px));overflow-y:auto}
+  .table-scroll th{position:sticky;top:0;background:var(--bg);z-index:1}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -320,16 +330,6 @@
       <button class="btn btn-warn" onclick="bulkUpdateAll()">Pull All Updates</button>
       <button class="btn btn-ghost" onclick="refreshAll()">Refresh All</button>
       <div class="dropdown">
-        <button class="dropdown-btn" onclick="toggleComposeMenu(event)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Compose Files
-        </button>
-        <div class="dropdown-menu hidden" id="composeMenu">
-          <button class="dropdown-menu-item" onclick="loadComposeFiles()">View All Compose Files</button>
-          <button class="dropdown-menu-item" onclick="showComposeEditor()">New Compose File</button>
-        </div>
-      </div>
-      <div class="dropdown">
         <button class="dropdown-btn" onclick="toggleToolsMenu(event)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
           Maintenance
@@ -367,7 +367,6 @@
         </div>
       </div>
     </div>
-    </div>
     <div class="toolbar-right">
       <label class="inline-toggle">
         <input type="checkbox" id="autoRecreateToggle" onchange="onAutoRecreateToggle()">
@@ -376,63 +375,47 @@
     </div>
   </div>
 
-  <!-- Combined Host Section: Hosts + KPIs + Resources -->
-  <div class="host-section">
-    <div class="host-instances">
-      <h3 class="host-subtitle">Hosts</h3>
-      <div class="instance-grid" id="instanceGrid">
-        <div class="empty" style="padding:.75rem">Loading host status…</div>
+  <nav class="tab-bar" id="tabBar">
+    <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+    <button class="tab-btn" data-tab="images" onclick="switchTab('images')">Images</button>
+    <button class="tab-btn" data-tab="containers" onclick="switchTab('containers')">Containers</button>
+    <button class="tab-btn" data-tab="stacks" onclick="switchTab('stacks')">Stacks</button>
+    <button class="tab-btn" data-tab="compose" onclick="switchTab('compose')">Compose</button>
+    <button class="tab-btn" data-tab="system" onclick="switchTab('system')">System</button>
+  </nav>
+
+  <div class="tab-panel active" id="tab-overview">
+    <div class="host-section">
+      <div class="host-instances">
+        <h3 class="host-subtitle">Hosts</h3>
+        <div class="instance-grid" id="instanceGrid">
+          <div class="empty" style="padding:.75rem">Loading host status…</div>
+        </div>
       </div>
-    </div>
-    
-    <div class="host-metrics">
-      <div class="metrics-header">
-        <h3 class="host-subtitle">Metrics</h3>
-        <button class="btn btn-ghost btn-sm" onclick="loadHostResources()" title="Refresh resources">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </button>
-      </div>
-      <div class="kpis host-kpis">
-        <div class="kpi"><div class="kpi-label">Total Images</div><div class="kpi-value" id="kpiTotal">—</div></div>
-        <div class="kpi"><div class="kpi-label">Up to Date</div><div class="kpi-value ok" id="kpiOk">—</div></div>
-        <div class="kpi"><div class="kpi-label">Updates Available</div><div class="kpi-value updates" id="kpiUpdates">—</div></div>
-        <div class="kpi"><div class="kpi-label">Unknown / Error</div><div class="kpi-value err" id="kpiErr">—</div></div>
-        <div class="kpi"><div class="kpi-label">Stacks</div><div class="kpi-value info" id="kpiStacks">—</div></div>
-      </div>
-      
-      <div class="resource-card host-resources" id="hostResourcesGrid">
-      <div class="gauge-container">
-        <div class="gauge-label">CPU Usage</div>
-        <div class="gauge-value" id="hostCpuUsage">—%</div>
-        <div class="resource-grid" style="margin-top: .5rem;">
+
+      <div class="host-metrics">
+        <div class="metrics-header">
+          <h3 class="host-subtitle">Metrics</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadHostResources()" title="Refresh resources">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+        </div>
+        <div class="kpis host-kpis">
+          <div class="kpi"><div class="kpi-label">Total Images</div><div class="kpi-value" id="kpiTotal">—</div></div>
+          <div class="kpi"><div class="kpi-label">Up to Date</div><div class="kpi-value ok" id="kpiOk">—</div></div>
+          <div class="kpi"><div class="kpi-label">Updates Available</div><div class="kpi-value updates" id="kpiUpdates">—</div></div>
+          <div class="kpi"><div class="kpi-label">Unknown / Error</div><div class="kpi-value err" id="kpiErr">—</div></div>
+          <div class="kpi"><div class="kpi-label">Stacks</div><div class="kpi-value info" id="kpiStacks">—</div></div>
+        </div>
+        <div class="resource-card host-resources" id="hostResourcesGrid">
           <div class="resource-stat">
-            <div class="resource-stat-label">Cores</div>
+            <div class="resource-stat-label">CPU Cores</div>
             <div class="resource-stat-value" id="hostCpuCores">—</div>
           </div>
           <div class="resource-stat">
-            <div class="resource-stat-label">Docker Version</div>
-            <div class="resource-stat-value" id="hostDockerVersion">—</div>
-          </div>
-        </div>
-      </div>
-      <div class="gauge-container">
-        <div class="gauge-label">Memory Usage</div>
-        <div class="gauge-value" id="hostMemoryUsage">—%</div>
-        <div class="resource-grid" style="margin-top: .5rem;">
-          <div class="resource-stat">
-            <div class="resource-stat-label">Total Memory</div>
+            <div class="resource-stat-label">Memory</div>
             <div class="resource-stat-value" id="hostMemoryTotal">—</div>
           </div>
-          <div class="resource-stat">
-            <div class="resource-stat-label">OS</div>
-            <div class="resource-stat-value" id="hostOs">—</div>
-          </div>
-        </div>
-      </div>
-      <div class="gauge-container">
-        <div class="gauge-label">Containers</div>
-        <div class="gauge-value" id="hostContainers">—</div>
-        <div class="resource-grid" style="margin-top: .5rem;">
           <div class="resource-stat">
             <div class="resource-stat-label">Running</div>
             <div class="resource-stat-value" id="hostContainersRunning">—</div>
@@ -441,28 +424,120 @@
             <div class="resource-stat-label">Stopped</div>
             <div class="resource-stat-value" id="hostContainersStopped">—</div>
           </div>
-        </div>
-      </div>
-      <div class="gauge-container">
-        <div class="gauge-label">Images</div>
-        <div class="gauge-value" id="hostImages">—</div>
-        <div class="resource-grid" style="margin-top: .5rem;">
           <div class="resource-stat">
-            <div class="resource-stat-label">Architecture</div>
-            <div class="resource-stat-value" id="hostArchitecture">—</div>
+            <div class="resource-stat-label">Docker</div>
+            <div class="resource-stat-value" id="hostDockerVersion">—</div>
           </div>
           <div class="resource-stat">
-            <div class="resource-stat-label">Kernel</div>
-            <div class="resource-stat-value" id="hostKernel">—</div>
+            <div class="resource-stat-label">OS</div>
+            <div class="resource-stat-value" id="hostOs">—</div>
           </div>
         </div>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Recent Jobs</span>
+      </div>
+      <div class="jobs-wrap">
+        <div class="jobs-scroll" id="jobsList">
+          <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
+        </div>
+      </div>
+    </div>
   </div>
-  
-  <!-- Consolidated Section: OS Package Updates, Activity Log, Recent Jobs -->
-  <div class="info-section">
-    <!-- OS Updates Card -->
+
+  <div class="tab-panel" id="tab-images">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Container Images</span>
+        <div class="filter-bar">
+          <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+          <button class="filter-btn" onclick="setFilter('update_available', this)">Updates</button>
+          <button class="filter-btn" onclick="setFilter('up_to_date', this)">Up to Date</button>
+          <button class="filter-btn" onclick="setFilter('unknown', this)">Unknown</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Status</th>
+              <th>Stack(s)</th>
+              <th>Checked</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="imageTable">
+            <tr><td colspan="5" class="empty">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <div>Loading images…</div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-containers">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Containers</span>
+        <div class="toolbar-right" style="margin-left: auto;">
+          <button class="btn btn-ghost btn-sm" onclick="loadContainers()">Refresh</button>
+          <label class="inline-toggle" style="margin-left: .75rem;">
+            <input type="checkbox" id="showAllContainers" onchange="toggleAllContainers()">
+            Show stopped
+          </label>
+        </div>
+      </div>
+      <div class="filter-bar" style="padding: .5rem .75rem; border-bottom: 1px solid var(--border);">
+        <button class="filter-btn active" onclick="setContainerFilter('all', this)">All</button>
+        <button class="filter-btn" onclick="setContainerFilter('running', this)">Running</button>
+        <button class="filter-btn" onclick="setContainerFilter('stopped', this)">Stopped</button>
+        <button class="filter-btn" onclick="setContainerFilter('unhealthy', this)">Unhealthy</button>
+      </div>
+      <div class="jobs-wrap">
+        <div class="panel-scroll" id="containersList">
+          <div style="padding:.5rem;color:var(--muted);font-size:.82rem">Loading containers…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-stacks">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Stacks</span>
+      </div>
+      <div class="jobs-wrap">
+        <div class="stack-grid" id="stackGrid">
+          <div class="empty" style="padding:1.25rem">Loading stacks…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-compose">
+    <div class="card" id="composeFilesSection">
+      <div class="card-header">
+        <span class="card-title">Compose Files</span>
+        <div class="toolbar-right" style="margin-left: auto;">
+          <button class="btn btn-primary btn-sm" onclick="showComposeEditor()">New File</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadComposeFiles()">Refresh</button>
+        </div>
+      </div>
+      <div class="jobs-wrap">
+        <div class="compose-file-list" id="composeFileList">
+          <div style="padding:1.25rem;color:var(--muted)">Loading compose files…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-system">
     <div class="card" id="osUpdatesCard">
       <div class="card-header">
         <span class="card-title">OS Package Updates</span>
@@ -487,107 +562,13 @@
     </div>
 
     <div class="card">
-      <div class="card-header" onclick="toggleActivityLog()" style="cursor:pointer">
+      <div class="card-header">
         <span class="card-title">Activity Log</span>
-        <button class="btn btn-ghost btn-sm" id="activityLogToggle" style="font-size:.7rem">Show</button>
       </div>
-      <div class="log-list" id="opLog" style="display:none">
+      <div class="log-list" id="opLog">
         <div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>
       </div>
     </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Recent Jobs</span>
-      </div>
-      <div class="jobs-wrap">
-        <div class="jobs-scroll" id="jobsList">
-          <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Stacks</span>
-      </div>
-      <div class="jobs-wrap">
-        <div class="stack-grid" id="stackGrid">
-          <div class="empty" style="padding:1.25rem">Loading stacks…</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Containers</span>
-        <div class="toolbar-right" style="margin-left: auto;">
-          <button class="btn btn-ghost btn-sm" onclick="loadContainers()">Refresh</button>
-          <label class="inline-toggle" style="margin-left: .75rem;">
-            <input type="checkbox" id="showAllContainers" onchange="toggleAllContainers()">
-            Show stopped
-          </label>
-        </div>
-      </div>
-      <div class="filter-bar" style="padding: .5rem .75rem; border-bottom: 1px solid var(--border);">
-        <button class="filter-btn active" onclick="setContainerFilter('all', this)">All</button>
-        <button class="filter-btn" onclick="setContainerFilter('running', this)">Running</button>
-        <button class="filter-btn" onclick="setContainerFilter('stopped', this)">Stopped</button>
-        <button class="filter-btn" onclick="setContainerFilter('unhealthy', this)">Unhealthy</button>
-      </div>
-      <div class="jobs-wrap">
-        <div class="jobs-scroll" id="containersList" style="max-height: 400px;">
-          <div style="padding:.5rem;color:var(--muted);font-size:.82rem">Loading containers…</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Phase 2: Compose Files Section -->
-  <div class="card" id="composeFilesSection" style="display:none">
-    <div class="card-header">
-      <span class="card-title">Compose Files</span>
-      <div class="toolbar-right" style="margin-left: auto;">
-        <button class="btn btn-primary btn-sm" onclick="showComposeEditor()">New File</button>
-        <button class="btn btn-ghost btn-sm" onclick="loadComposeFiles()">Refresh</button>
-      </div>
-    </div>
-    <div class="jobs-wrap">
-      <div class="compose-file-list" id="composeFileList">
-        <div style="padding:1.25rem;color:var(--muted)">Click "View All Compose Files" to load.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Container Images</span>
-      <div class="filter-bar">
-        <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-        <button class="filter-btn" onclick="setFilter('update_available', this)">Updates</button>
-        <button class="filter-btn" onclick="setFilter('up_to_date', this)">Up to Date</button>
-        <button class="filter-btn" onclick="setFilter('unknown', this)">Unknown</button>
-      </div>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Image</th>
-          <th>Status</th>
-          <th>Stack(s)</th>
-          <th>Checked</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="imageTable">
-        <tr><td colspan="5" class="empty">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-          <div>Loading images…</div>
-        </td></tr>
-      </tbody>
-    </table>
   </div>
 </main>
 
@@ -656,6 +637,28 @@ const STORAGE_THEME_KEY = 'docker-update-checker-theme';
 const STORAGE_AUTO_RECREATE_KEY = 'docker-update-checker-auto-recreate';
 const STORAGE_RESOURCE_REFRESH_KEY = 'docker-update-checker-resource-refresh';
 
+// Tabbed navigation
+const STORAGE_TAB_KEY = 'docker-update-checker-active-tab';
+const TAB_NAMES = ['overview', 'images', 'containers', 'stacks', 'compose', 'system'];
+let activeTab = 'overview';
+let composeLoaded = false;
+
+function switchTab(tab) {
+  if (!TAB_NAMES.includes(tab)) tab = 'overview';
+  activeTab = tab;
+  localStorage.setItem(STORAGE_TAB_KEY, tab);
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${tab}`));
+  if (tab === 'compose' && !composeLoaded) {
+    composeLoaded = true;
+    loadComposeFiles();
+  }
+}
+
+function initTabs() {
+  switchTab(localStorage.getItem(STORAGE_TAB_KEY));
+}
+
 function getStoredTheme() {
   return localStorage.getItem(STORAGE_THEME_KEY);
 }
@@ -685,10 +688,6 @@ document.addEventListener('click', function() {
   if (menu && !menu.classList.contains('hidden')) {
     menu.classList.add('hidden');
   }
-  const composeMenu = document.getElementById('composeMenu');
-  if (composeMenu && !composeMenu.classList.contains('hidden')) {
-    composeMenu.classList.add('hidden');
-  }
   const settingsMenu = document.getElementById('settingsMenu');
   if (settingsMenu && !settingsMenu.classList.contains('hidden')) {
     settingsMenu.classList.add('hidden');
@@ -698,12 +697,6 @@ document.addEventListener('click', function() {
     performanceMenu.classList.add('hidden');
   }
 });
-
-function toggleComposeMenu(event) {
-  event.stopPropagation();
-  const menu = document.getElementById('composeMenu');
-  menu.classList.toggle('hidden');
-}
 
 function toggleSettingsMenu(event) {
   event.stopPropagation();
@@ -1162,33 +1155,13 @@ function renderHostResources(resources) {
     if (el) el.textContent = value !== null && value !== undefined ? value : '—';
   };
 
-  // Debug: log resources to console
-  console.log('Rendering host resources:', resources);
-  
   // Handle error states - show error in all fields
-  if (resources.error) {
-    console.warn('Host resources error:', resources.error);
-    const errorMsg = `Error: ${resources.error}`;
-    const fields = ['hostCpuCores', 'hostDockerVersion', 'hostMemoryTotal', 'hostOs', 
-                   'hostArchitecture', 'hostKernel', 'hostContainersRunning', 
-                   'hostContainersStopped', 'hostImages', 'hostContainers',
-                   'hostCpuUsage', 'hostMemoryUsage'];
-    fields.forEach(field => setText(field, errorMsg));
+  if (resources.error || Object.keys(resources).length === 0) {
+    const fields = ['hostCpuCores', 'hostMemoryTotal', 'hostContainersRunning',
+                   'hostContainersStopped', 'hostDockerVersion', 'hostOs'];
+    fields.forEach(field => setText(field, resources.error ? `Error: ${resources.error}` : 'Error: No data'));
     return;
   }
-  
-  if (Object.keys(resources).length === 0) {
-    console.warn('Host resources returned empty object');
-    // Show error in the UI
-    const fields = ['hostCpuCores', 'hostDockerVersion', 'hostMemoryTotal', 'hostOs', 
-                   'hostArchitecture', 'hostKernel', 'hostContainersRunning', 
-                   'hostContainersStopped', 'hostImages', 'hostContainers',
-                   'hostCpuUsage', 'hostMemoryUsage'];
-    fields.forEach(field => setText(field, 'Error: No data'));
-    return;
-  }
-  
-  console.log('Host resources data:', resources);
 
   // CPU information
   setText('hostCpuCores', resources.cpu_cores || resources.CPU_Cores || resources.CpuCores || '—');
@@ -1200,23 +1173,10 @@ function renderHostResources(resources) {
 
   // OS information
   setText('hostOs', resources.os || resources.OperatingSystem || resources.OS || '—');
-  setText('hostArchitecture', resources.architecture || resources.Architecture || '—');
-  setText('hostKernel', resources.kernel_version || resources.KernelVersion || '—');
 
   // Container information
-  const running = resources.containers_running || resources.ContainersRunning || 0;
-  const stopped = resources.containers_stopped || resources.ContainersStopped || 0;
-  setText('hostContainersRunning', running);
-  setText('hostContainersStopped', stopped);
-  setText('hostContainers', running + stopped);
-
-  // Images
-  setText('hostImages', resources.images || resources.Images || 0);
-
-  // Note: CPU and Memory usage percentages would require live container stats
-  // For now, we'll show static info. Real-time resource usage would need websockets or polling
-  setText('hostCpuUsage', '—');
-  setText('hostMemoryUsage', '—');
+  setText('hostContainersRunning', resources.containers_running || resources.ContainersRunning || 0);
+  setText('hostContainersStopped', resources.containers_stopped || resources.ContainersStopped || 0);
 }
 
 function formatBytes(bytes) {
@@ -1437,15 +1397,6 @@ function toggleTheme() {
   document.documentElement.setAttribute('data-theme', theme);
   document.getElementById('themeBtn').innerHTML = buildThemeIcon(theme);
   setStoredTheme(theme);
-}
-
-function toggleActivityLog() {
-  const logEl = document.getElementById('opLog');
-  const btn = document.getElementById('activityLogToggle');
-  if (!logEl || !btn) return;
-  const isHidden = logEl.style.display === 'none';
-  logEl.style.display = isHidden ? 'block' : 'none';
-  btn.textContent = isHidden ? 'Hide' : 'Show';
 }
 
 function loadTheme() {
@@ -2885,15 +2836,6 @@ async function inspectContainer(containerId) {
 let allComposeFiles = [];
 let currentEditingFile = null;
 
-function toggleComposeFilesSection() {
-  const section = document.getElementById('composeFilesSection');
-  const isHidden = section.style.display === 'none';
-  section.style.display = isHidden ? 'block' : 'none';
-  if (isHidden) {
-    loadComposeFiles();
-  }
-}
-
 async function loadComposeFiles() {
   showToast('Loading compose files...', 'info', 2000);
   try {
@@ -2903,7 +2845,6 @@ async function loadComposeFiles() {
     }
     allComposeFiles = await response.json();
     renderComposeFiles(allComposeFiles);
-    document.getElementById('composeFilesSection').style.display = 'block';
     showToast(`Loaded ${allComposeFiles.length} compose file(s)`, 'success');
   } catch (err) {
     showToast(`Failed to load compose files: ${err.message}`, 'error');
@@ -3202,6 +3143,7 @@ async function stackRestart(stackName) {
 
 async function init() {
   loadTheme();
+  initTabs();
   const storedValue = getStoredAutoRecreate();
   if (storedValue !== null) {
     document.getElementById('autoRecreateToggle').checked = storedValue;
