@@ -27,11 +27,9 @@
   .inline-toggle input{accent-color:var(--primary)}
   .host-select select{background:transparent;color:inherit;border:none;padding:.15rem .3rem;min-width:8rem;outline:none;font:inherit}
   .host-status{display:inline-flex;align-items:center;gap:.25rem;font-size:.7rem;padding:.2rem .45rem;border:1px solid var(--border);border-radius:.4rem;background:var(--surface);color:var(--muted)}
-  .host-label{font-size:.72rem;color:var(--muted);padding:.2rem .4rem;border:1px solid var(--border);border-radius:.4rem;background:var(--surface)}
   .host-status.online{border-color:var(--success);color:var(--success)}
   .host-status.offline{border-color:var(--error);color:var(--error)}
   .host-status.unknown{border-color:var(--warning);color:var(--warning)}
-  .card-subtitle{font-size:.7rem;color:var(--muted)}
   .instance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem;margin-bottom:.5rem}
   .instance-card{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.65rem;display:flex;flex-direction:column;gap:.45rem}
   .instance-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
@@ -48,16 +46,13 @@
   .kpi-value.err{color:var(--error)}
   .kpi-value.info{color:var(--info)}
 
-  .grid-2{display:grid;grid-template-columns:1.2fr .9fr;gap:.75rem;margin-bottom:.5rem}
   .host-section{display:grid;grid-template-columns:1.3fr .9fr;gap:.75rem;margin-bottom:.5rem}
   .host-instances{background:transparent}
   .host-metrics{background:transparent}
-  .info-section{margin-bottom:.5rem}
-  .info-section .card{margin-bottom:.25rem}
   .host-subtitle{margin:0 0 .3rem;font-size:.8rem;font-weight:600}
   .metrics-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem}
   .host-kpis{margin-bottom:.4rem}
-  .host-resources{padding:.35rem}
+  .host-resources{padding:.35rem;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
   .stack-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.5rem}
   .stack-card{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.65rem}
   .stack-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.4rem}
@@ -107,13 +102,9 @@
   .btn-danger{background:var(--error);color:#fff}
   .btn-danger:hover:not(:disabled){opacity:.88}
 
-  .cf-pill,.stack-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
+  .stack-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
 
   /* Loading state for host resources */
-  #hostResourcesCard{position:relative}
-  .resource-loading{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;gap:.5rem;background:var(--surface);z-index:10;color:var(--muted);font-size:.85rem}
-  .resource-loading .spinner{animation:spin 1s linear infinite}
-  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
   .stack-pill{font-family:inherit;font-weight:600}
 
   .log-list{padding:.35rem .5rem;max-height:220px;overflow-y:auto}
@@ -149,12 +140,6 @@
   .modal-title{font-weight:700;font-size:1rem;margin-bottom:1rem}
   .modal pre{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.75rem;font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--text)}
 
-  .maintenance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.85rem}
-  .maintenance-item{background:var(--surface2);border:1px solid var(--border);border-radius:.65rem;padding:.95rem}
-  .maintenance-title{font-weight:700;font-size:.86rem;margin-bottom:.35rem}
-  .maintenance-text{font-size:.78rem;color:var(--muted);line-height:1.45;margin-bottom:.75rem;min-height:3.35rem}
-  .maintenance-actions{display:flex;gap:.45rem;flex-wrap:wrap}
-  .danger-note{font-size:.76rem;color:var(--error);margin-top:.45rem;line-height:1.4}
 
   @keyframes spin{to{transform:rotate(360deg)}}
   .spin{animation:spin .8s linear infinite}
@@ -194,7 +179,6 @@
   .resource-label{font-size:.6rem;color:var(--muted);display:flex;justify-content:space-between}
 
   @media (max-width: 980px){
-    .grid-2{grid-template-columns:1fr}
     .host-section{grid-template-columns:1fr}
   }
   @media (max-width: 760px){
@@ -245,23 +229,20 @@
 
   /* Performance/Resource Monitoring Styles */
   .resource-card{background:var(--surface);border:1px solid var(--border);border-radius:.5rem;padding:.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.5rem}
-  .gauge-container{text-align:center;padding:.35rem}
-  .gauge-label{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem}
-  .gauge-value{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:.2rem}
-  .gauge{position:relative;width:80px;height:80px;margin:0 auto;border-radius:50%;background:conic-gradient(var(--primary) 0%, var(--primary) var(--gauge-percent, 0%), var(--border) var(--gauge-percent, 0%), var(--border) 100%);display:flex;align-items:center;justify-content:center}
-  .gauge::before{content:'';position:absolute;width:80%;height:80%;background:var(--surface);border-radius:50%}
-  .gauge-text{position:relative;z-index:1;font-size:.75rem;font-weight:600;color:var(--text)}
   .resource-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.4rem}
   .resource-stat{background:var(--surface2);border:1px solid var(--border);border-radius:.4rem;padding:.45rem;text-align:center}
   .resource-stat-label{font-size:.65rem;color:var(--muted);margin-bottom:.2rem}
   .resource-stat-value{font-size:.85rem;font-weight:600;font-variant-numeric:tabular-nums}
-  .stack-resources{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
-  .stack-resource{background:var(--surface2);border:1px solid var(--border);border-radius:.4rem;padding:.25rem .5rem;font-size:.7rem}
-  .stack-resource-label{color:var(--muted);margin-right:.25rem}
-  .stack-resource-value{font-weight:600;color:var(--text)}
-  .performance-toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
-  .performance-filter{padding:.3rem .6rem;border-radius:.4rem;font-size:.78rem;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s}
-  .performance-filter.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  /* Tabbed navigation */
+  .tab-bar{display:flex;gap:.15rem;border-bottom:1px solid var(--border);margin-bottom:.6rem;overflow-x:auto}
+  .tab-btn{padding:.45rem .85rem;font-size:.8rem;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s}
+  .tab-btn:hover{color:var(--text)}
+  .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+  .panel-scroll{max-height:max(320px,calc(100dvh - 300px));overflow-y:auto}
+  .table-scroll{max-height:max(320px,calc(100dvh - 250px));overflow-y:auto}
+  .table-scroll th{position:sticky;top:0;background:var(--bg);z-index:1}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -320,16 +301,6 @@
       <button class="btn btn-warn" onclick="bulkUpdateAll()">Pull All Updates</button>
       <button class="btn btn-ghost" onclick="refreshAll()">Refresh All</button>
       <div class="dropdown">
-        <button class="dropdown-btn" onclick="toggleComposeMenu(event)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Compose Files
-        </button>
-        <div class="dropdown-menu hidden" id="composeMenu">
-          <button class="dropdown-menu-item" onclick="loadComposeFiles()">View All Compose Files</button>
-          <button class="dropdown-menu-item" onclick="showComposeEditor()">New Compose File</button>
-        </div>
-      </div>
-      <div class="dropdown">
         <button class="dropdown-btn" onclick="toggleToolsMenu(event)">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
           Maintenance
@@ -367,7 +338,6 @@
         </div>
       </div>
     </div>
-    </div>
     <div class="toolbar-right">
       <label class="inline-toggle">
         <input type="checkbox" id="autoRecreateToggle" onchange="onAutoRecreateToggle()">
@@ -376,63 +346,47 @@
     </div>
   </div>
 
-  <!-- Combined Host Section: Hosts + KPIs + Resources -->
-  <div class="host-section">
-    <div class="host-instances">
-      <h3 class="host-subtitle">Hosts</h3>
-      <div class="instance-grid" id="instanceGrid">
-        <div class="empty" style="padding:.75rem">Loading host status…</div>
+  <nav class="tab-bar" id="tabBar">
+    <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+    <button class="tab-btn" data-tab="images" onclick="switchTab('images')">Images</button>
+    <button class="tab-btn" data-tab="containers" onclick="switchTab('containers')">Containers</button>
+    <button class="tab-btn" data-tab="stacks" onclick="switchTab('stacks')">Stacks</button>
+    <button class="tab-btn" data-tab="compose" onclick="switchTab('compose')">Compose</button>
+    <button class="tab-btn" data-tab="system" onclick="switchTab('system')">System</button>
+  </nav>
+
+  <div class="tab-panel active" id="tab-overview">
+    <div class="host-section">
+      <div class="host-instances">
+        <h3 class="host-subtitle">Hosts</h3>
+        <div class="instance-grid" id="instanceGrid">
+          <div class="empty" style="padding:.75rem">Loading host status…</div>
+        </div>
       </div>
-    </div>
-    
-    <div class="host-metrics">
-      <div class="metrics-header">
-        <h3 class="host-subtitle">Metrics</h3>
-        <button class="btn btn-ghost btn-sm" onclick="loadHostResources()" title="Refresh resources">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </button>
-      </div>
-      <div class="kpis host-kpis">
-        <div class="kpi"><div class="kpi-label">Total Images</div><div class="kpi-value" id="kpiTotal">—</div></div>
-        <div class="kpi"><div class="kpi-label">Up to Date</div><div class="kpi-value ok" id="kpiOk">—</div></div>
-        <div class="kpi"><div class="kpi-label">Updates Available</div><div class="kpi-value updates" id="kpiUpdates">—</div></div>
-        <div class="kpi"><div class="kpi-label">Unknown / Error</div><div class="kpi-value err" id="kpiErr">—</div></div>
-        <div class="kpi"><div class="kpi-label">Stacks</div><div class="kpi-value info" id="kpiStacks">—</div></div>
-      </div>
-      
-      <div class="resource-card host-resources" id="hostResourcesGrid">
-      <div class="gauge-container">
-        <div class="gauge-label">CPU Usage</div>
-        <div class="gauge-value" id="hostCpuUsage">—%</div>
-        <div class="resource-grid" style="margin-top: .5rem;">
+
+      <div class="host-metrics">
+        <div class="metrics-header">
+          <h3 class="host-subtitle">Metrics</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadHostResources()" title="Refresh resources">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+        </div>
+        <div class="kpis host-kpis">
+          <div class="kpi"><div class="kpi-label">Total Images</div><div class="kpi-value" id="kpiTotal">—</div></div>
+          <div class="kpi"><div class="kpi-label">Up to Date</div><div class="kpi-value ok" id="kpiOk">—</div></div>
+          <div class="kpi"><div class="kpi-label">Updates Available</div><div class="kpi-value updates" id="kpiUpdates">—</div></div>
+          <div class="kpi"><div class="kpi-label">Unknown / Error</div><div class="kpi-value err" id="kpiErr">—</div></div>
+          <div class="kpi"><div class="kpi-label">Stacks</div><div class="kpi-value info" id="kpiStacks">—</div></div>
+        </div>
+        <div class="resource-card host-resources" id="hostResourcesGrid">
           <div class="resource-stat">
-            <div class="resource-stat-label">Cores</div>
+            <div class="resource-stat-label">CPU Cores</div>
             <div class="resource-stat-value" id="hostCpuCores">—</div>
           </div>
           <div class="resource-stat">
-            <div class="resource-stat-label">Docker Version</div>
-            <div class="resource-stat-value" id="hostDockerVersion">—</div>
-          </div>
-        </div>
-      </div>
-      <div class="gauge-container">
-        <div class="gauge-label">Memory Usage</div>
-        <div class="gauge-value" id="hostMemoryUsage">—%</div>
-        <div class="resource-grid" style="margin-top: .5rem;">
-          <div class="resource-stat">
-            <div class="resource-stat-label">Total Memory</div>
+            <div class="resource-stat-label">Memory</div>
             <div class="resource-stat-value" id="hostMemoryTotal">—</div>
           </div>
-          <div class="resource-stat">
-            <div class="resource-stat-label">OS</div>
-            <div class="resource-stat-value" id="hostOs">—</div>
-          </div>
-        </div>
-      </div>
-      <div class="gauge-container">
-        <div class="gauge-label">Containers</div>
-        <div class="gauge-value" id="hostContainers">—</div>
-        <div class="resource-grid" style="margin-top: .5rem;">
           <div class="resource-stat">
             <div class="resource-stat-label">Running</div>
             <div class="resource-stat-value" id="hostContainersRunning">—</div>
@@ -441,28 +395,125 @@
             <div class="resource-stat-label">Stopped</div>
             <div class="resource-stat-value" id="hostContainersStopped">—</div>
           </div>
-        </div>
-      </div>
-      <div class="gauge-container">
-        <div class="gauge-label">Images</div>
-        <div class="gauge-value" id="hostImages">—</div>
-        <div class="resource-grid" style="margin-top: .5rem;">
           <div class="resource-stat">
-            <div class="resource-stat-label">Architecture</div>
-            <div class="resource-stat-value" id="hostArchitecture">—</div>
+            <div class="resource-stat-label">Docker</div>
+            <div class="resource-stat-value" id="hostDockerVersion">—</div>
           </div>
           <div class="resource-stat">
-            <div class="resource-stat-label">Kernel</div>
-            <div class="resource-stat-value" id="hostKernel">—</div>
+            <div class="resource-stat-label">OS</div>
+            <div class="resource-stat-value" id="hostOs">—</div>
           </div>
         </div>
       </div>
     </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Recent Jobs</span>
+      </div>
+      <div class="jobs-wrap">
+        <div class="jobs-scroll" id="jobsList">
+          <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
+        </div>
+      </div>
+    </div>
   </div>
-  
-  <!-- Consolidated Section: OS Package Updates, Activity Log, Recent Jobs -->
-  <div class="info-section">
-    <!-- OS Updates Card -->
+
+  <div class="tab-panel" id="tab-images">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Container Images</span>
+        <div class="filter-bar">
+          <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">All</button>
+          <button class="filter-btn" data-filter="update_available" onclick="setFilter('update_available', this)">Updates</button>
+          <button class="filter-btn" data-filter="up_to_date" onclick="setFilter('up_to_date', this)">Up to Date</button>
+          <button class="filter-btn" data-filter="unknown" onclick="setFilter('unknown', this)">Unknown</button>
+          <select class="config-input select" id="imageSortSelect" style="width:auto;padding:.2rem .4rem;font-size:.72rem" onchange="setImageSort(this.value)" title="Sort order">
+            <option value="status">Sort: Status priority</option>
+            <option value="name">Sort: Image name</option>
+            <option value="checked">Sort: Recently checked</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Status</th>
+              <th>Stack(s)</th>
+              <th>Checked</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="imageTable">
+            <tr><td colspan="5" class="empty">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              <div>Loading images…</div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-containers">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Containers</span>
+        <div class="toolbar-right" style="margin-left: auto;">
+          <button class="btn btn-ghost btn-sm" onclick="loadContainers()">Refresh</button>
+          <label class="inline-toggle" style="margin-left: .75rem;">
+            <input type="checkbox" id="showAllContainers" onchange="toggleAllContainers()">
+            Show stopped
+          </label>
+        </div>
+      </div>
+      <div class="filter-bar" style="padding: .5rem .75rem; border-bottom: 1px solid var(--border);">
+        <button class="filter-btn active" data-filter="all" onclick="setContainerFilter('all', this)">All</button>
+        <button class="filter-btn" data-filter="running" onclick="setContainerFilter('running', this)">Running</button>
+        <button class="filter-btn" data-filter="stopped" onclick="setContainerFilter('stopped', this)">Stopped</button>
+        <button class="filter-btn" data-filter="unhealthy" onclick="setContainerFilter('unhealthy', this)">Unhealthy</button>
+      </div>
+      <div class="jobs-wrap">
+        <div class="panel-scroll" id="containersList">
+          <div style="padding:.5rem;color:var(--muted);font-size:.82rem">Loading containers…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-stacks">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Stacks</span>
+      </div>
+      <div class="jobs-wrap">
+        <div class="stack-grid" id="stackGrid">
+          <div class="empty" style="padding:1.25rem">Loading stacks…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-compose">
+    <div class="card" id="composeFilesSection">
+      <div class="card-header">
+        <span class="card-title">Compose Files</span>
+        <div class="toolbar-right" style="margin-left: auto;">
+          <button class="btn btn-primary btn-sm" onclick="showComposeEditor()">New File</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadComposeFiles()">Refresh</button>
+        </div>
+      </div>
+      <div class="jobs-wrap">
+        <div class="compose-file-list" id="composeFileList">
+          <div style="padding:1.25rem;color:var(--muted)">Loading compose files…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="tab-system">
     <div class="card" id="osUpdatesCard">
       <div class="card-header">
         <span class="card-title">OS Package Updates</span>
@@ -487,107 +538,13 @@
     </div>
 
     <div class="card">
-      <div class="card-header" onclick="toggleActivityLog()" style="cursor:pointer">
+      <div class="card-header">
         <span class="card-title">Activity Log</span>
-        <button class="btn btn-ghost btn-sm" id="activityLogToggle" style="font-size:.7rem">Show</button>
       </div>
-      <div class="log-list" id="opLog" style="display:none">
+      <div class="log-list" id="opLog">
         <div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>
       </div>
     </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Recent Jobs</span>
-      </div>
-      <div class="jobs-wrap">
-        <div class="jobs-scroll" id="jobsList">
-          <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <div class="grid-2">
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Stacks</span>
-      </div>
-      <div class="jobs-wrap">
-        <div class="stack-grid" id="stackGrid">
-          <div class="empty" style="padding:1.25rem">Loading stacks…</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Containers</span>
-        <div class="toolbar-right" style="margin-left: auto;">
-          <button class="btn btn-ghost btn-sm" onclick="loadContainers()">Refresh</button>
-          <label class="inline-toggle" style="margin-left: .75rem;">
-            <input type="checkbox" id="showAllContainers" onchange="toggleAllContainers()">
-            Show stopped
-          </label>
-        </div>
-      </div>
-      <div class="filter-bar" style="padding: .5rem .75rem; border-bottom: 1px solid var(--border);">
-        <button class="filter-btn active" onclick="setContainerFilter('all', this)">All</button>
-        <button class="filter-btn" onclick="setContainerFilter('running', this)">Running</button>
-        <button class="filter-btn" onclick="setContainerFilter('stopped', this)">Stopped</button>
-        <button class="filter-btn" onclick="setContainerFilter('unhealthy', this)">Unhealthy</button>
-      </div>
-      <div class="jobs-wrap">
-        <div class="jobs-scroll" id="containersList" style="max-height: 400px;">
-          <div style="padding:.5rem;color:var(--muted);font-size:.82rem">Loading containers…</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Phase 2: Compose Files Section -->
-  <div class="card" id="composeFilesSection" style="display:none">
-    <div class="card-header">
-      <span class="card-title">Compose Files</span>
-      <div class="toolbar-right" style="margin-left: auto;">
-        <button class="btn btn-primary btn-sm" onclick="showComposeEditor()">New File</button>
-        <button class="btn btn-ghost btn-sm" onclick="loadComposeFiles()">Refresh</button>
-      </div>
-    </div>
-    <div class="jobs-wrap">
-      <div class="compose-file-list" id="composeFileList">
-        <div style="padding:1.25rem;color:var(--muted)">Click "View All Compose Files" to load.</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">Container Images</span>
-      <div class="filter-bar">
-        <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-        <button class="filter-btn" onclick="setFilter('update_available', this)">Updates</button>
-        <button class="filter-btn" onclick="setFilter('up_to_date', this)">Up to Date</button>
-        <button class="filter-btn" onclick="setFilter('unknown', this)">Unknown</button>
-      </div>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Image</th>
-          <th>Status</th>
-          <th>Stack(s)</th>
-          <th>Checked</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="imageTable">
-        <tr><td colspan="5" class="empty">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-          <div>Loading images…</div>
-        </td></tr>
-      </tbody>
-    </table>
   </div>
 </main>
 
@@ -628,7 +585,7 @@
 <!-- Host Overview Modal -->
 <div class="modal-backdrop" id="hostOverviewModalBackdrop" onclick="closeHostOverviewModal(event)">
   <div class="modal" style="max-width:700px">
-    <div class="modal-title">Host Overview</div>
+    <div class="modal-title" id="hostOverviewTitle">Host Overview</div>
     <div id="hostOverviewContent"></div>
     <div style="margin-top:1rem;text-align:right">
       <button class="btn btn-ghost btn-sm" onclick="closeHostOverviewModal()">Close</button>
@@ -644,10 +601,9 @@ let allStacks = [];
 let allJobs = [];
 let allInstances = [];
 let hostStatuses = {};
-let instanceVersions = {};
-let hostResources = {};
 let currentInstance = { id: 'local', name: 'Local host', url: '' };
 let activeFilter = 'all';
+let activeImageSort = 'status';
 let checking = false;
 let theme = 'light';
 let resourceRefreshInterval = null;
@@ -656,12 +612,64 @@ const STORAGE_THEME_KEY = 'docker-update-checker-theme';
 const STORAGE_AUTO_RECREATE_KEY = 'docker-update-checker-auto-recreate';
 const STORAGE_RESOURCE_REFRESH_KEY = 'docker-update-checker-resource-refresh';
 
+// Tabbed navigation
+const STORAGE_REFRESH_KEY = 'docker-update-checker-refresh-interval';
+let refreshTimer = null;
+
+function getRefreshIntervalSeconds() {
+  const v = parseInt(localStorage.getItem(STORAGE_REFRESH_KEY), 10);
+  return Number.isFinite(v) && v >= 5 ? v : 10;
+}
+
+function startRefreshTimer() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(refreshAll, getRefreshIntervalSeconds() * 1000);
+}
+
+const STORAGE_TAB_KEY = 'docker-update-checker-active-tab';
+const STORAGE_STARTUP_TAB_KEY = 'docker-update-checker-startup-tab';
+const STORAGE_MAX_JOBS_KEY = 'docker-update-checker-max-jobs';
+const TAB_NAMES = ['overview', 'images', 'containers', 'stacks', 'compose', 'system'];
+let activeTab = 'overview';
+let composeLoaded = false;
+
+function switchTab(tab) {
+  if (!TAB_NAMES.includes(tab)) tab = 'overview';
+  activeTab = tab;
+  localStorage.setItem(STORAGE_TAB_KEY, tab);
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.toggle('active', panel.id === `tab-${tab}`));
+  if (tab === 'compose' && !composeLoaded) {
+    composeLoaded = true;
+    loadComposeFiles();
+  }
+}
+
+function getStartupTab() {
+  const pref = localStorage.getItem(STORAGE_STARTUP_TAB_KEY);
+  return TAB_NAMES.includes(pref) ? pref : 'last';
+}
+
+function getMaxJobs() {
+  const v = parseInt(localStorage.getItem(STORAGE_MAX_JOBS_KEY), 10);
+  return [10, 20, 30, 50].includes(v) ? v : MAX_JOBS;
+}
+
+function initTabs() {
+  const pref = getStartupTab();
+  switchTab(pref === 'last' ? (localStorage.getItem(STORAGE_TAB_KEY) || 'overview') : pref);
+}
+
 function getStoredTheme() {
   return localStorage.getItem(STORAGE_THEME_KEY);
 }
 
 function setStoredTheme(value) {
-  localStorage.setItem(STORAGE_THEME_KEY, value);
+  if (value === null) {
+    localStorage.removeItem(STORAGE_THEME_KEY);
+  } else {
+    localStorage.setItem(STORAGE_THEME_KEY, value);
+  }
 }
 
 function getStoredAutoRecreate() {
@@ -685,10 +693,6 @@ document.addEventListener('click', function() {
   if (menu && !menu.classList.contains('hidden')) {
     menu.classList.add('hidden');
   }
-  const composeMenu = document.getElementById('composeMenu');
-  if (composeMenu && !composeMenu.classList.contains('hidden')) {
-    composeMenu.classList.add('hidden');
-  }
   const settingsMenu = document.getElementById('settingsMenu');
   if (settingsMenu && !settingsMenu.classList.contains('hidden')) {
     settingsMenu.classList.add('hidden');
@@ -698,12 +702,6 @@ document.addEventListener('click', function() {
     performanceMenu.classList.add('hidden');
   }
 });
-
-function toggleComposeMenu(event) {
-  event.stopPropagation();
-  const menu = document.getElementById('composeMenu');
-  menu.classList.toggle('hidden');
-}
 
 function toggleSettingsMenu(event) {
   event.stopPropagation();
@@ -746,6 +744,16 @@ async function safeInstanceFetch(path, options = {}) {
   } catch (err) {
     return { __error: err.message || 'Connection failed' };
   }
+}
+
+async function requestJson(path, options = {}) {
+  const r = await instanceFetch(path, options);
+  let d = null;
+  try { d = await r.json(); } catch (err) { /* non-JSON response */ }
+  if (!r.ok) {
+    throw new Error((d && (d.message || d.error)) || `${r.status} ${r.statusText}` || 'Request failed');
+  }
+  return d ?? {};
 }
 
 async function fetchInstanceStatus(instance) {
@@ -830,7 +838,6 @@ async function selectInstance(instanceId) {
   document.getElementById('instanceSelect').value = currentInstance.id;
   
   // Clear all caches
-  hostResources = {};
   allStacks = [];
   allImages = [];
   allJobs = [];
@@ -864,6 +871,7 @@ async function selectInstance(instanceId) {
   }
   renderInstances(allInstances);
   await refreshAll();
+  await loadOsUpdates();
 }
 
 async function refreshAll() {
@@ -948,6 +956,7 @@ function showUpdateInfo() {
   }
   
   modal.classList.add('open');
+  document.getElementById('hostOverviewTitle').textContent = 'Application Update';
   
   let html = `
     <div style="padding: 1rem;">
@@ -994,15 +1003,15 @@ function showUpdateInfo() {
 }
 
 // OS Package Updates
-let osUpdateInfo = {};
-
 async function loadOsUpdates() {
   const contentEl = document.getElementById('osUpdatesContent');
   
   try {
-    const response = await fetch('/api/host/os-updates');
+    const response = await instanceFetch('/host/os-updates');
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
     const data = await response.json();
-    osUpdateInfo = data;
     
     if (data.error && data.error.includes("disabled")) {
       if (contentEl) {
@@ -1135,23 +1144,16 @@ function renderOsUpdates(data) {
 
 async function loadHostResources() {
   try {
-    console.log('Loading host resources...');
-    hostResources = {};
-    
     const d = await safeInstanceFetch('/host/resources');
-    console.log('Host resources response:', d);
     
     if (d.__error) {
       console.warn('Host resources error:', d.__error);
-      hostResources = {};
       renderHostResources({ error: d.__error });
       return;
     }
-    hostResources = d;
     renderHostResources(d);
   } catch (err) {
     console.warn('Failed to load host resources:', err);
-    hostResources = {};
     renderHostResources({ error: err.message || 'Connection failed' });
   }
 }
@@ -1162,33 +1164,13 @@ function renderHostResources(resources) {
     if (el) el.textContent = value !== null && value !== undefined ? value : '—';
   };
 
-  // Debug: log resources to console
-  console.log('Rendering host resources:', resources);
-  
   // Handle error states - show error in all fields
-  if (resources.error) {
-    console.warn('Host resources error:', resources.error);
-    const errorMsg = `Error: ${resources.error}`;
-    const fields = ['hostCpuCores', 'hostDockerVersion', 'hostMemoryTotal', 'hostOs', 
-                   'hostArchitecture', 'hostKernel', 'hostContainersRunning', 
-                   'hostContainersStopped', 'hostImages', 'hostContainers',
-                   'hostCpuUsage', 'hostMemoryUsage'];
-    fields.forEach(field => setText(field, errorMsg));
+  if (resources.error || Object.keys(resources).length === 0) {
+    const fields = ['hostCpuCores', 'hostMemoryTotal', 'hostContainersRunning',
+                   'hostContainersStopped', 'hostDockerVersion', 'hostOs'];
+    fields.forEach(field => setText(field, resources.error ? `Error: ${resources.error}` : 'Error: No data'));
     return;
   }
-  
-  if (Object.keys(resources).length === 0) {
-    console.warn('Host resources returned empty object');
-    // Show error in the UI
-    const fields = ['hostCpuCores', 'hostDockerVersion', 'hostMemoryTotal', 'hostOs', 
-                   'hostArchitecture', 'hostKernel', 'hostContainersRunning', 
-                   'hostContainersStopped', 'hostImages', 'hostContainers',
-                   'hostCpuUsage', 'hostMemoryUsage'];
-    fields.forEach(field => setText(field, 'Error: No data'));
-    return;
-  }
-  
-  console.log('Host resources data:', resources);
 
   // CPU information
   setText('hostCpuCores', resources.cpu_cores || resources.CPU_Cores || resources.CpuCores || '—');
@@ -1200,23 +1182,10 @@ function renderHostResources(resources) {
 
   // OS information
   setText('hostOs', resources.os || resources.OperatingSystem || resources.OS || '—');
-  setText('hostArchitecture', resources.architecture || resources.Architecture || '—');
-  setText('hostKernel', resources.kernel_version || resources.KernelVersion || '—');
 
   // Container information
-  const running = resources.containers_running || resources.ContainersRunning || 0;
-  const stopped = resources.containers_stopped || resources.ContainersStopped || 0;
-  setText('hostContainersRunning', running);
-  setText('hostContainersStopped', stopped);
-  setText('hostContainers', running + stopped);
-
-  // Images
-  setText('hostImages', resources.images || resources.Images || 0);
-
-  // Note: CPU and Memory usage percentages would require live container stats
-  // For now, we'll show static info. Real-time resource usage would need websockets or polling
-  setText('hostCpuUsage', '—');
-  setText('hostMemoryUsage', '—');
+  setText('hostContainersRunning', resources.containers_running || resources.ContainersRunning || 0);
+  setText('hostContainersStopped', resources.containers_stopped || resources.ContainersStopped || 0);
 }
 
 function formatBytes(bytes) {
@@ -1244,6 +1213,7 @@ function renderHostOverviewModal(resources) {
   const content = document.getElementById('hostOverviewContent');
   
   modal.classList.add('open');
+  document.getElementById('hostOverviewTitle').textContent = 'Host Overview';
   
   if (resources.__error || resources.error) {
     content.innerHTML = `
@@ -1393,7 +1363,7 @@ async function showContainerResources() {
 }
 
 function toggleResourceRefresh() {
-  const btn = document.querySelector('#performanceMenu .dropdown-menu-item:nth-last-child(2)');
+  const btn = document.querySelector('#performanceMenu .dropdown-menu-item:last-child');
   if (!btn) {
     console.warn('Could not find auto-refresh button');
     return;
@@ -1439,15 +1409,6 @@ function toggleTheme() {
   setStoredTheme(theme);
 }
 
-function toggleActivityLog() {
-  const logEl = document.getElementById('opLog');
-  const btn = document.getElementById('activityLogToggle');
-  if (!logEl || !btn) return;
-  const isHidden = logEl.style.display === 'none';
-  logEl.style.display = isHidden ? 'block' : 'none';
-  btn.textContent = isHidden ? 'Hide' : 'Show';
-}
-
 function loadTheme() {
   const stored = getStoredTheme();
   theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -1491,9 +1452,41 @@ function onAutoRecreateToggle() {
 
 function setFilter(f, btn) {
   activeFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  localStorage.setItem(STORAGE_IMAGE_FILTER_KEY, f);
+  btn.closest('.filter-bar').querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderTable(allImages);
+}
+
+function setImageSort(sort) {
+  activeImageSort = ['status', 'name', 'checked'].includes(sort) ? sort : 'status';
+  localStorage.setItem(STORAGE_IMAGE_SORT_KEY, activeImageSort);
+  renderTable(allImages);
+}
+
+// Restore persisted filter/sort settings (called once at startup, before data loads)
+function initFilters() {
+  const imgFilter = localStorage.getItem(STORAGE_IMAGE_FILTER_KEY);
+  if (['all', 'update_available', 'up_to_date', 'unknown'].includes(imgFilter)) {
+    activeFilter = imgFilter;
+    document.querySelectorAll('#tab-images .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === imgFilter));
+  }
+  const sort = localStorage.getItem(STORAGE_IMAGE_SORT_KEY);
+  const sortSelect = document.getElementById('imageSortSelect');
+  if (sortSelect) {
+    sortSelect.value = ['status', 'name', 'checked'].includes(sort) ? sort : 'status';
+    activeImageSort = sortSelect.value;
+  }
+  const cFilter = localStorage.getItem(STORAGE_CONTAINER_FILTER_KEY);
+  if (['all', 'running', 'stopped', 'unhealthy'].includes(cFilter)) {
+    containerFilter = cFilter;
+    document.querySelectorAll('#tab-containers .filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === cFilter));
+  }
+  const showStopped = localStorage.getItem(STORAGE_SHOW_STOPPED_KEY);
+  if (showStopped !== null) {
+    const el = document.getElementById('showAllContainers');
+    if (el) el.checked = showStopped === 'true';
+  }
 }
 
 function badge(status) {
@@ -1522,7 +1515,10 @@ function escHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function escAttr(s) {
-  return String(s || '').replace(/'/g,"\\'");
+  return String(s || '')
+    .replace(/&/g,'&amp;')
+    .replace(/'/g,"\\'")
+    .replace(/"/g,'&quot;');
 }
 
 function getAutoRecreate() {
@@ -1603,7 +1599,7 @@ function renderJobs(jobs) {
     return;
   }
 
-  const displayedJobs = jobs.slice(0, MAX_JOBS);
+  const displayedJobs = jobs.slice(0, getMaxJobs());
 
   el.innerHTML = displayedJobs.map(job => {
     const pct = Math.max(0, Math.min(100, Math.round(((job.progress || 0) / Math.max(job.total_steps || 1, 1)) * 100)));
@@ -1661,8 +1657,13 @@ function renderTable(images) {
     return;
   }
 
-  const order = { update_available: 0, registry_error: 1, not_pulled: 2, unknown: 3, up_to_date: 4 };
-  filtered.sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+  const statusOrder = { update_available: 0, registry_error: 1, not_pulled: 2, unknown: 3, up_to_date: 4 };
+  const sorters = {
+    status: (a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) || a.image.localeCompare(b.image),
+    name: (a, b) => a.image.localeCompare(b.image),
+    checked: (a, b) => new Date(b.checked_at || 0) - new Date(a.checked_at || 0),
+  };
+  filtered.sort(sorters[activeImageSort] || sorters.status);
 
   tbody.innerHTML = filtered.map(img => {
     const stacks = (img.stacks || []).length
@@ -1721,7 +1722,6 @@ async function loadStatus() {
 
 async function loadImages() {
   const d = await safeInstanceFetch('/images');
-  console.log('Images /images response:', d);
   if (d.__error) {
     allImages = [];
     renderTable([]);
@@ -1748,13 +1748,10 @@ async function loadImages() {
 async function loadStacks() {
   // Try Phase 2 endpoint first, fall back to Phase 1 if not available
   let d = await safeInstanceFetch('/stacks/all');
-  console.log('Stacks /stacks/all response:', d);
   if (d.__error) {
     // Fall back to original endpoint for backward compatibility
-    console.log('Falling back to /stacks endpoint');
     d = await safeInstanceFetch('/stacks');
-    console.log('Stacks /stacks response:', d);
-  }
+    }
   if (d.__error) {
     console.error('Failed to load stacks:', d.__error);
     allStacks = {};
@@ -1818,8 +1815,11 @@ async function triggerCheck() {
   icon.classList.add('spin');
 
   try {
-    await instanceFetch('/check', { method: 'POST' });
+    const r = await instanceFetch('/check', { method: 'POST' });
+    if (!r.ok) throw new Error(await r.text());
     await refreshAll();
+  } catch (err) {
+    showToast(`Check failed: ${err.message || 'Connection error'}`, 'error');
   } finally {
     setTimeout(() => {
       checking = false;
@@ -1831,8 +1831,14 @@ async function triggerCheck() {
 
 async function recheckImage(imageRef) {
   showModal('Re-checking…', `<p style="color:var(--muted)">Checking <code>${escHtml(imageRef)}</code>…</p>`);
-  const r = await instanceFetch(`/check/${encodeURIComponent(imageRef)}`, { method: 'POST' });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson(`/check/${encodeURIComponent(imageRef)}`, { method: 'POST' });
+  } catch (err) {
+    showModal('Check Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   if (d.status === 'error') {
     showModal('Check Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p>`);
   } else {
@@ -1850,12 +1856,18 @@ async function recheckImage(imageRef) {
 
 async function pullImage(imageRef) {
   showModal('Pulling Image', `<p style="color:var(--muted)">Pulling <code>${escHtml(imageRef)}</code>…<br>This may take a minute.</p>`);
-  const r = await instanceFetch(`/update/${encodeURIComponent(imageRef)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ auto_recreate: getAutoRecreate() })
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson(`/update/${encodeURIComponent(imageRef)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_recreate: getAutoRecreate() })
+    });
+  } catch (err) {
+    showModal('Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   if (d.status === 'success') {
     showModal('Pull Complete', `<p style="color:var(--success)">✓ Image pulled successfully.</p><p style="margin-top:.5rem">New status: ${badge(d.result.status)}</p><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   } else {
@@ -1867,12 +1879,18 @@ async function pullImage(imageRef) {
 async function recreate(composePath) {
   if (!confirm(`Run docker compose up -d on:\n${composePath}\n\nThis will recreate updated containers. Continue?`)) return;
   showModal('Recreating Containers', `<p style="color:var(--muted)">Running <code>docker compose up -d</code>…<br>This may take a moment.</p>`);
-  const r = await instanceFetch('/compose/recreate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ compose_path: composePath })
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson('/compose/recreate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ compose_path: composePath })
+    });
+  } catch (err) {
+    showModal('Recreate Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   if (d.status === 'success') {
     showModal('Recreate Complete', `<p style="color:var(--success);margin-bottom:.75rem">✓ Containers recreated successfully.</p><pre>${escHtml(d.output || '')}</pre><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   } else {
@@ -1884,12 +1902,18 @@ async function recreate(composePath) {
 async function bulkUpdateAll() {
   if (!confirm('Pull all images that have updates or are not yet pulled?')) return;
   showModal('Bulk Pull Started', `<p style="color:var(--muted)">Starting bulk update for all stacks…</p>`);
-  const r = await instanceFetch('/bulk/update', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ auto_recreate: getAutoRecreate() })
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson('/bulk/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_recreate: getAutoRecreate() })
+    });
+  } catch (err) {
+    showModal('Bulk Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   showModal('Bulk Pull Started', `
     <p>Bulk update has started for <strong>all stacks</strong>.</p>
     <p style="margin-top:.6rem">Auto-recreate: <strong>${d.auto_recreate ? 'enabled' : 'disabled'}</strong></p>
@@ -1901,12 +1925,18 @@ async function bulkUpdateAll() {
 async function bulkUpdateStack(stackName) {
   if (!confirm(`Pull all outdated images for stack "${stackName}"?`)) return;
   showModal('Stack Bulk Pull Started', `<p style="color:var(--muted)">Starting bulk update for <code>${escHtml(stackName)}</code>…</p>`);
-  const r = await instanceFetch('/bulk/update', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ stack: stackName, auto_recreate: getAutoRecreate() })
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson('/bulk/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stack: stackName, auto_recreate: getAutoRecreate() })
+    });
+  } catch (err) {
+    showModal('Stack Bulk Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   showModal('Stack Bulk Pull Started', `
     <p>Bulk update has started for stack <strong>${escHtml(stackName)}</strong>.</p>
     <p style="margin-top:.6rem">Auto-recreate: <strong>${d.auto_recreate ? 'enabled' : 'disabled'}</strong></p>
@@ -1918,10 +1948,14 @@ async function bulkUpdateStack(stackName) {
 async function recreateStack(stackName) {
   if (!confirm(`Recreate all compose files for stack "${stackName}"?`)) return;
   showModal('Stack Recreate Started', `<p style="color:var(--muted)">Starting recreate for stack <code>${escHtml(stackName)}</code>…</p>`);
-  const r = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/recreate`, {
-    method: 'POST'
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson(`/stacks/${encodeURIComponent(stackName)}/recreate`, { method: 'POST' });
+  } catch (err) {
+    showModal('Stack Recreate Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   showModal('Stack Recreate Started', `
     <p>Recreate has started for stack <strong>${escHtml(stackName)}</strong>.</p>
     <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
@@ -1931,8 +1965,14 @@ async function recreateStack(stackName) {
 
 async function sendTestNotification() {
   showModal('Sending Test Notification', `<p style="color:var(--muted)">Sending test notification…</p>`);
-  const r = await instanceFetch('/notify/test', { method: 'POST' });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson('/notify/test', { method: 'POST' });
+  } catch (err) {
+    showModal('Test Notification Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   if (d.status === 'success') {
     showModal('Test Notification Sent', `<p style="color:var(--success)">✓ Test notification sent successfully.</p>`);
   } else {
@@ -1943,12 +1983,18 @@ async function sendTestNotification() {
 
 async function runPrune(endpoint, title, bodyHtml) {
   showModal(title, bodyHtml);
-  const r = await instanceFetch(endpoint.url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(endpoint.body || {})
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson(endpoint.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(endpoint.body || {})
+    });
+  } catch (err) {
+    showModal('Cleanup Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
 
   if (d.status === 'started') {
     showModal(title, `
@@ -2118,7 +2164,6 @@ async function showPerformanceMonitoring() {
 
 // Configuration state
 let currentConfigSection = null;
-let currentConfigData = {};
 
 function showNotificationConfig() {
   currentConfigSection = 'notifications';
@@ -2127,7 +2172,7 @@ function showNotificationConfig() {
       <div class="config-section-title">Notification Settings</div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyEnabled" ${NOTIFY_ENABLED ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyEnabled">
           <span>Enable Notifications</span>
         </label>
       </div>
@@ -2142,75 +2187,75 @@ function showNotificationConfig() {
         <label class="config-label">Backend:</label>
         <select class="config-input select" id="configBackend">
           <option value="">None</option>
-          <option value="webhook" ${NOTIFY_BACKEND === 'webhook' ? 'selected' : ''}>Webhook</option>
-          <option value="mqtt" ${NOTIFY_BACKEND === 'mqtt' ? 'selected' : ''}>MQTT</option>
-          <option value="email" ${NOTIFY_BACKEND === 'email' ? 'selected' : ''}>Email</option>
+          <option value="webhook">Webhook</option>
+          <option value="mqtt">MQTT</option>
+          <option value="email">Email</option>
         </select>
       </div>
     </div>
 
-    <div class="config-section" id="webhookConfigSection" style="display:${NOTIFY_BACKEND === 'webhook' ? 'block' : 'none'}">
+    <div class="config-section" id="webhookConfigSection" style="display:none">
       <div class="config-section-title">Webhook Settings</div>
       <div class="config-row">
         <label class="config-label">URL:</label>
-        <input type="text" class="config-input" id="configWebhookUrl" placeholder="https://homeassistant.local:8123/api/webhook/..." value="${NOTIFY_WEBHOOK_URL || ''}">
+        <input type="text" class="config-input" id="configWebhookUrl" placeholder="https://homeassistant.local:8123/api/webhook/..." value="">
       </div>
       <div class="config-row">
         <label class="config-label">Method:</label>
         <select class="config-input select" id="configWebhookMethod">
-          <option value="POST" ${(NOTIFY_WEBHOOK_METHOD || 'POST') === 'POST' ? 'selected' : ''}>POST</option>
-          <option value="PUT" ${(NOTIFY_WEBHOOK_METHOD || 'POST') === 'PUT' ? 'selected' : ''}>PUT</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
         </select>
       </div>
       <div class="config-row">
         <label class="config-label">Timeout (s):</label>
-        <input type="number" class="config-input" id="configWebhookTimeout" value="${NOTIFY_WEBHOOK_TIMEOUT || 10}">
+        <input type="number" class="config-input" id="configWebhookTimeout" value="">
       </div>
     </div>
 
-    <div class="config-section" id="mqttConfigSection" style="display:${NOTIFY_BACKEND === 'mqtt' ? 'block' : 'none'}">
+    <div class="config-section" id="mqttConfigSection" style="display:none">
       <div class="config-section-title">MQTT Settings</div>
       <div class="config-row">
         <label class="config-label">Host:</label>
-        <input type="text" class="config-input" id="configMqttHost" placeholder="mqtt.example.com" value="${NOTIFY_MQTT_HOST || ''}">
+        <input type="text" class="config-input" id="configMqttHost" placeholder="mqtt.example.com" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Port:</label>
-        <input type="number" class="config-input" id="configMqttPort" placeholder="1883" value="${NOTIFY_MQTT_PORT || 1883}">
+        <input type="number" class="config-input" id="configMqttPort" placeholder="1883" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Topic:</label>
-        <input type="text" class="config-input" id="configMqttTopic" placeholder="docker/update-checker" value="${NOTIFY_MQTT_TOPIC || ''}">
+        <input type="text" class="config-input" id="configMqttTopic" placeholder="docker/update-checker" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Username:</label>
-        <input type="text" class="config-input" id="configMqttUsername" placeholder="optional" value="${NOTIFY_MQTT_USERNAME || ''}">
+        <input type="text" class="config-input" id="configMqttUsername" placeholder="optional" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Password:</label>
-        <input type="password" class="config-input" id="configMqttPassword" placeholder="optional" value="${NOTIFY_MQTT_PASSWORD || ''}">
+        <input type="password" class="config-input" id="configMqttPassword" placeholder="optional" value="">
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configMqttRetain" ${NOTIFY_MQTT_RETAIN === 'true' ? 'checked' : ''}>
+          <input type="checkbox" id="configMqttRetain">
           <span>Retain Messages</span>
         </label>
       </div>
     </div>
 
-    <div class="config-section" id="emailConfigSection" style="display:${NOTIFY_BACKEND === 'email' ? 'block' : 'none'}">
+    <div class="config-section" id="emailConfigSection" style="display:none">
       <div class="config-section-title">Email Settings</div>
       <div class="config-row">
         <label class="config-label">SMTP Host:</label>
-        <input type="text" class="config-input" id="configEmailHost" placeholder="smtp.example.com" value="${NOTIFY_EMAIL_HOST || ''}">
+        <input type="text" class="config-input" id="configEmailHost" placeholder="smtp.example.com" value="">
       </div>
       <div class="config-row">
         <label class="config-label">SMTP Port:</label>
-        <input type="number" class="config-input" id="configEmailPort" placeholder="587" value="${NOTIFY_EMAIL_PORT || 587}">
+        <input type="number" class="config-input" id="configEmailPort" placeholder="587" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Username:</label>
-        <input type="text" class="config-input" id="configEmailUsername" placeholder="optional" value="${NOTIFY_EMAIL_USERNAME || ''}">
+        <input type="text" class="config-input" id="configEmailUsername" placeholder="optional" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Password:</label>
@@ -2218,15 +2263,15 @@ function showNotificationConfig() {
       </div>
       <div class="config-row">
         <label class="config-label">From:</label>
-        <input type="email" class="config-input" id="configEmailFrom" placeholder="docker-checker@yourdomain.com" value="${NOTIFY_EMAIL_FROM || ''}">
+        <input type="email" class="config-input" id="configEmailFrom" placeholder="docker-checker@yourdomain.com" value="">
       </div>
       <div class="config-row">
         <label class="config-label">To:</label>
-        <input type="email" class="config-input" id="configEmailTo" placeholder="you@yourdomain.com" value="${NOTIFY_EMAIL_TO || ''}">
+        <input type="email" class="config-input" id="configEmailTo" placeholder="you@yourdomain.com" value="">
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configEmailTls" ${NOTIFY_EMAIL_USE_TLS !== 'false' ? 'checked' : ''}>
+          <input type="checkbox" id="configEmailTls">
           <span>Use TLS</span>
         </label>
       </div>
@@ -2236,37 +2281,37 @@ function showNotificationConfig() {
       <div class="config-section-title">Notification Triggers</div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyUpdates" ${NOTIFY_ON_UPDATES_FOUND !== 'false' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyUpdates">
           <span>Updates Found</span>
         </label>
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyPullSuccess" ${NOTIFY_ON_PULL_SUCCESS === 'true' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyPullSuccess">
           <span>Pull Success</span>
         </label>
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyPullError" ${NOTIFY_ON_PULL_ERROR !== 'false' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyPullError">
           <span>Pull Error</span>
         </label>
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyRecreateSuccess" ${NOTIFY_ON_RECREATE_SUCCESS === 'true' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyRecreateSuccess">
           <span>Recreate Success</span>
         </label>
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyRecreateError" ${NOTIFY_ON_RECREATE_ERROR !== 'false' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyRecreateError">
           <span>Recreate Error</span>
         </label>
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyBulkComplete" ${NOTIFY_ON_BULK_COMPLETE !== 'false' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyBulkComplete">
           <span>Bulk Complete</span>
         </label>
       </div>
@@ -2354,7 +2399,7 @@ function addRemoteHost() {
   
   allInstances.push(newHost);
   renderRemoteHostsList();
-  showToast(`Added remote host: ${name}`, 'success');
+  showToast(`Added remote host: ${name} — click Save to persist`, 'success');
   
   // Clear inputs
   document.getElementById('newHostName').value = '';
@@ -2384,13 +2429,68 @@ function removeRemoteHost(instanceId) {
   showToast('Remote host removed', 'success');
 }
 
-function showPreferencesConfig() {
+async function showPreferencesConfig() {
   currentConfigSection = 'preferences';
-  const autoRecreateChecked = getStoredAutoRecreate() !== null ? getStoredAutoRecreate() : AUTO_RECREATE_AFTER_PULL;
-  
+  const autoRecreateChecked = getStoredAutoRecreate() ?? false;
+  const storedTheme = getStoredTheme();
+
+  let checkInterval = '';
+  try {
+    const r = await instanceFetch('/config');
+    if (r.ok) {
+      const d = await r.json();
+      checkInterval = d.check_interval_minutes ?? '';
+    }
+  } catch (err) {
+    // Leave blank; the server default applies on save
+  }
+
+  const tabOptions = ['last', ...TAB_NAMES].map(t =>
+    `<option value="${t}" ${getStartupTab() === t ? 'selected' : ''}>${t === 'last' ? 'Remember last tab' : t.charAt(0).toUpperCase() + t.slice(1)}</option>`
+  ).join('');
+  const jobOptions = [10, 20, 30, 50].map(n =>
+    `<option value="${n}" ${getMaxJobs() === n ? 'selected' : ''}>${n}</option>`
+  ).join('');
+
   const html = `
     <div class="config-section">
-      <div class="config-section-title">Display Preferences</div>
+      <div class="config-section-title">Dashboard</div>
+      <div class="config-row">
+        <label class="config-label">Auto-refresh (seconds):</label>
+        <input type="number" class="config-input" id="configRefreshInterval" value="${getRefreshIntervalSeconds()}" min="5">
+      </div>
+      <div class="config-description">
+        How often the dashboard refreshes data (default: 10 seconds, minimum: 5).
+      </div>
+      <div class="config-row">
+        <label class="config-label">Startup tab:</label>
+        <select class="config-input select" id="configStartupTab">${tabOptions}</select>
+      </div>
+      <div class="config-description">
+        Which tab the dashboard opens on.
+      </div>
+      <div class="config-row">
+        <label class="config-label">Recent jobs shown:</label>
+        <select class="config-input select" id="configMaxJobs">${jobOptions}</select>
+      </div>
+      <div class="config-description">
+        Number of recent jobs displayed on the Overview tab (default: ${MAX_JOBS}).
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Scheduled Checks</div>
+      <div class="config-row">
+        <label class="config-label">Check interval (minutes):</label>
+        <input type="number" class="config-input" id="configCheckInterval" value="${checkInterval}" min="1" max="1440">
+      </div>
+      <div class="config-description">
+        How often the server re-checks all images against their registries. Persisted server-side and survives restarts.
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Update Behavior</div>
       <div class="config-row">
         <label class="config-toggle">
           <input type="checkbox" id="configAutoRecreate" ${autoRecreateChecked ? 'checked' : ''}>
@@ -2403,38 +2503,27 @@ function showPreferencesConfig() {
     </div>
 
     <div class="config-section">
-      <div class="config-section-title">Theme</div>
+      <div class="config-section-title">Appearance</div>
       <div class="config-row">
         <label class="config-label">Theme:</label>
         <select class="config-input select" id="configTheme">
-          <option value="light" ${theme === 'light' ? 'selected' : ''}>Light</option>
-          <option value="dark" ${theme === 'dark' ? 'selected' : ''}>Dark</option>
-          <option value="system" ${theme === 'system' || (theme !== 'light' && theme !== 'dark') ? 'selected' : ''}>System</option>
+          <option value="light" ${storedTheme === 'light' ? 'selected' : ''}>Light</option>
+          <option value="dark" ${storedTheme === 'dark' ? 'selected' : ''}>Dark</option>
+          <option value="system" ${storedTheme === null ? 'selected' : ''}>System</option>
         </select>
       </div>
       <div class="config-description">
         Choose your preferred color theme. "System" follows your OS preference.
       </div>
     </div>
-
-    <div class="config-section">
-      <div class="config-section-title">Polling Intervals</div>
-      <div class="config-row">
-        <label class="config-label">Auto-refresh (seconds):</label>
-        <input type="number" class="config-input" id="configRefreshInterval" value="10" min="5">
-      </div>
-      <div class="config-description">
-        How often the dashboard refreshes data (default: 10 seconds).
-      </div>
-    </div>
   `;
-  
+
   document.getElementById('configModalTitle').textContent = 'Preferences';
   document.getElementById('configModalBody').innerHTML = html;
   document.getElementById('configModalBackdrop').classList.add('open');
 }
 
-function saveConfig() {
+async function saveConfig() {
   if (!currentConfigSection) return;
   
   switch (currentConfigSection) {
@@ -2442,10 +2531,10 @@ function saveConfig() {
       saveNotificationConfig();
       break;
     case 'remoteHosts':
-      saveRemoteHostsConfig();
+      await saveRemoteHostsConfig();
       break;
     case 'preferences':
-      savePreferencesConfig();
+      await savePreferencesConfig();
       break;
   }
   
@@ -2603,19 +2692,41 @@ function saveNotificationConfig() {
   });
 }
 
-function saveRemoteHostsConfig() {
-  // This would require backend API to save remote instances
-  showToast('Remote hosts saved (backend API needed for persistence)', 'success');
+async function saveRemoteHostsConfig() {
+  const hosts = allInstances
+    .filter(i => i.id !== 'local')
+    .map(i => ({ name: i.name, url: i.url, description: i.description || '' }));
+  try {
+    const response = await fetch('/api/instances/remote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(hosts)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || `Server returned ${response.status}`);
+    showToast(data.message || 'Remote hosts saved', 'success');
+    await loadInstances();
+  } catch (error) {
+    showToast(`Failed to save remote hosts: ${error.message}`, 'error');
+  }
 }
 
-function savePreferencesConfig() {
-  // Save auto-recreate
+async function savePreferencesConfig() {
+  // Auto-recreate
   const autoRecreate = document.getElementById('configAutoRecreate').checked;
   setStoredAutoRecreate(autoRecreate);
   document.getElementById('autoRecreateToggle').checked = autoRecreate;
-  syncAutoRecreateSetting(autoRecreate);
-  
-  // Save theme
+
+  // Dashboard settings
+  const seconds = Math.max(5, parseInt(document.getElementById('configRefreshInterval').value, 10) || 10);
+  localStorage.setItem(STORAGE_REFRESH_KEY, String(seconds));
+  startRefreshTimer();
+
+  localStorage.setItem(STORAGE_STARTUP_TAB_KEY, document.getElementById('configStartupTab').value);
+  localStorage.setItem(STORAGE_MAX_JOBS_KEY, document.getElementById('configMaxJobs').value);
+  renderJobs(allJobs);
+
+  // Theme
   const themeSelect = document.getElementById('configTheme');
   const newTheme = themeSelect.value;
   if (newTheme === 'system') {
@@ -2623,20 +2734,34 @@ function savePreferencesConfig() {
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     document.documentElement.setAttribute('data-theme', systemDark ? 'dark' : 'light');
     document.getElementById('themeBtn').innerHTML = buildThemeIcon(systemDark ? 'dark' : 'light');
+    theme = systemDark ? 'dark' : 'light';
   } else {
     setStoredTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
     document.getElementById('themeBtn').innerHTML = buildThemeIcon(newTheme);
+    theme = newTheme;
   }
-  theme = newTheme;
-  
+
+  // Server-side settings (check interval + auto-recreate)
+  const checkInterval = Math.max(1, parseInt(document.getElementById('configCheckInterval').value, 10) || 0);
+  try {
+    const r = await instanceFetch('/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_recreate: autoRecreate, check_interval_minutes: checkInterval })
+    });
+    if (!r.ok) throw new Error(await r.text());
+  } catch (err) {
+    showToast(`Failed to save server settings: ${err.message}`, 'error');
+    return;
+  }
+
   showToast('Preferences saved', 'success');
 }
 
 // Container management state
 let allContainers = [];
 let containerFilter = 'all';
-let showAllContainers = false;
 
 function getContainerFilter() {
   return document.getElementById('showAllContainers')?.checked || false;
@@ -2644,13 +2769,14 @@ function getContainerFilter() {
 
 function setContainerFilter(filter, btn) {
   containerFilter = filter;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  localStorage.setItem(STORAGE_CONTAINER_FILTER_KEY, filter);
+  btn.closest('.filter-bar').querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   loadContainers();
 }
 
 function toggleAllContainers() {
-  showAllContainers = getContainerFilter();
+  localStorage.setItem(STORAGE_SHOW_STOPPED_KEY, getContainerFilter() ? 'true' : 'false');
   loadContainers();
 }
 
@@ -2672,14 +2798,6 @@ function containerStatusBadge(status) {
   if (status === 'removal in progress') return '<span class="badge warning">Removing</span>';
   if (status === 'paused') return '<span class="badge warning">Paused</span>';
   return `<span class="badge unknown">${status}</span>`;
-}
-
-function formatBytes(bytes) {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 function renderContainers(containers) {
@@ -2793,10 +2911,9 @@ async function startContainer(containerId) {
   if (!confirm(`Start container ${containerId}?`)) return;
   showToast('Starting container...', 'info', 3000);
   try {
-    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}/start`, {
+    const data = await requestJson(`/containers/${encodeURIComponent(containerId)}/start`, {
       method: 'POST'
     });
-    const data = await response.json();
     if (data.status === 'success') {
       showToast(data.message || 'Container started', 'success');
       await loadContainers();
@@ -2812,10 +2929,9 @@ async function stopContainer(containerId) {
   if (!confirm(`Stop container ${containerId}?`)) return;
   showToast('Stopping container...', 'info', 3000);
   try {
-    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}/stop`, {
+    const data = await requestJson(`/containers/${encodeURIComponent(containerId)}/stop`, {
       method: 'POST'
     });
-    const data = await response.json();
     if (data.status === 'success') {
       showToast(data.message || 'Container stopped', 'success');
       await loadContainers();
@@ -2831,10 +2947,9 @@ async function restartContainer(containerId) {
   if (!confirm(`Restart container ${containerId}?`)) return;
   showToast('Restarting container...', 'info', 3000);
   try {
-    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}/restart`, {
+    const data = await requestJson(`/containers/${encodeURIComponent(containerId)}/restart`, {
       method: 'POST'
     });
-    const data = await response.json();
     if (data.status === 'success') {
       showToast(data.message || 'Container restarted', 'success');
       await loadContainers();
@@ -2849,7 +2964,7 @@ async function restartContainer(containerId) {
 async function inspectContainer(containerId) {
   showModal('Container Details', '<p style="color:var(--muted)">Loading details...</p>');
   try {
-    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}`);
+    const response = await instanceFetch(`/containers/${encodeURIComponent(containerId)}`);
     if (!response.ok) {
       showModal('Error', `<p style="color:var(--error)">Failed to load details: ${response.statusText}</p>`);
       return;
@@ -2885,15 +3000,6 @@ async function inspectContainer(containerId) {
 let allComposeFiles = [];
 let currentEditingFile = null;
 
-function toggleComposeFilesSection() {
-  const section = document.getElementById('composeFilesSection');
-  const isHidden = section.style.display === 'none';
-  section.style.display = isHidden ? 'block' : 'none';
-  if (isHidden) {
-    loadComposeFiles();
-  }
-}
-
 async function loadComposeFiles() {
   showToast('Loading compose files...', 'info', 2000);
   try {
@@ -2903,7 +3009,6 @@ async function loadComposeFiles() {
     }
     allComposeFiles = await response.json();
     renderComposeFiles(allComposeFiles);
-    document.getElementById('composeFilesSection').style.display = 'block';
     showToast(`Loaded ${allComposeFiles.length} compose file(s)`, 'success');
   } catch (err) {
     showToast(`Failed to load compose files: ${err.message}`, 'error');
@@ -3141,12 +3246,11 @@ async function stackUp(stackName) {
   if (!confirm(`Start all containers in stack "${stackName}"?`)) return;
   showToast('Starting stack...', 'info', 3000);
   try {
-    const response = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/up`, {
+    const data = await requestJson(`/stacks/${encodeURIComponent(stackName)}/up`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
-    const data = await response.json();
     if (data.status === 'success' || data.status === 'partial_success') {
       showToast(`Stack start ${data.status === 'success' ? 'succeeded' : 'completed with errors'}`, data.status === 'success' ? 'success' : 'warning');
       await loadPhase2Stacks();
@@ -3162,12 +3266,11 @@ async function stackDown(stackName) {
   if (!confirm(`Stop all containers in stack "${stackName}"?\n\nThis will stop and remove containers defined in the compose files.`)) return;
   showToast('Stopping stack...', 'info', 3000);
   try {
-    const response = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/down`, {
+    const data = await requestJson(`/stacks/${encodeURIComponent(stackName)}/down`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
-    const data = await response.json();
     if (data.status === 'success' || data.status === 'partial_success') {
       showToast(`Stack stop ${data.status === 'success' ? 'succeeded' : 'completed with errors'}`, data.status === 'success' ? 'success' : 'warning');
       await loadPhase2Stacks();
@@ -3183,12 +3286,11 @@ async function stackRestart(stackName) {
   if (!confirm(`Restart all containers in stack "${stackName}"?`)) return;
   showToast('Restarting stack...', 'info', 3000);
   try {
-    const response = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/restart`, {
+    const data = await requestJson(`/stacks/${encodeURIComponent(stackName)}/restart`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
-    const data = await response.json();
     if (data.status === 'success' || data.status === 'partial_success') {
       showToast(`Stack restart ${data.status === 'success' ? 'succeeded' : 'completed with errors'}`, data.status === 'success' ? 'success' : 'warning');
       await loadPhase2Stacks();
@@ -3202,6 +3304,8 @@ async function stackRestart(stackName) {
 
 async function init() {
   loadTheme();
+  initTabs();
+  initFilters();
   const storedValue = getStoredAutoRecreate();
   if (storedValue !== null) {
     document.getElementById('autoRecreateToggle').checked = storedValue;
@@ -3209,12 +3313,11 @@ async function init() {
   await loadInstances();
   await refreshAll();
   await loadContainers();
-  await loadHostResources(); // Ensure host resources are loaded on page init
   // Check for application updates on startup
   await checkForUpdates(false);
   // Check for OS package updates on startup
   await loadOsUpdates();
-  setInterval(refreshAll, 10000);
+  startRefreshTimer();
   setInterval(loadContainers, 15000);
   setInterval(loadHostResources, 30000); // Auto-refresh host resources
   setInterval(loadOsUpdates, 3600000); // Auto-refresh OS updates every hour
