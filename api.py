@@ -1,4 +1,5 @@
 from flask import send_from_directory, jsonify, request, Response
+import json
 import threading
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,8 @@ from app import (
     AUTO_RECREATE_AFTER_PULL,
     CHECK_INTERVAL_MINUTES,
     get_all_instances,
+    load_remote_instances,
+    normalize_remote_instance,
     proxy_local_request,
     proxy_remote_request,
     derive_stack_name,
@@ -80,7 +83,7 @@ from notifier import (
     notify_pull_result,
     notify_recreate_result,
 )
-from config import NOTIFY_ENABLED, NOTIFY_BACKEND, DEFAULT_COMPOSE_TIMEOUT, VERSION, GITHUB_REPO, SELF_UPDATE_CHECK_ENABLED, OS_UPDATE_CHECK_ENABLED
+from config import NOTIFY_ENABLED, NOTIFY_BACKEND, DEFAULT_COMPOSE_TIMEOUT, VERSION, GITHUB_REPO, SELF_UPDATE_CHECK_ENABLED, OS_UPDATE_CHECK_ENABLED, REMOTE_INSTANCES_FILE
 
 
 # ── Routes (moved from app.py) ─────────────────────────────────────────────────
@@ -207,6 +210,75 @@ def api_status():
 @app.route("/api/instances")
 def api_instances():
     return jsonify(get_all_instances())
+
+
+@app.route("/api/instances/remote", methods=["GET"])
+def api_get_remote_instances():
+    """List the currently configured remote instances."""
+    return jsonify(load_remote_instances())
+
+
+@app.route("/api/instances/remote", methods=["POST"])
+def api_set_remote_instances():
+    """Replace the persisted list of remote instances.
+
+    Accepts either a JSON array of hosts or {"hosts": [...]} where each host
+    has "name" and "url" (plus optional "description"). Entries are
+    normalized the same way as at load time, so ids are derived, not trusted.
+    Hosts sourced from the REMOTE_INSTANCES env var cannot be removed here;
+    they are merged back in at load time.
+    """
+    if not REMOTE_INSTANCES_FILE:
+        return jsonify({
+            "status": "error",
+            "message": "Remote host persistence is not configured. Set REMOTE_INSTANCES_FILE to a writable path.",
+        }), 400
+
+    data = request.get_json(silent=True)
+    hosts = data.get("hosts") if isinstance(data, dict) else data
+    if not isinstance(hosts, list):
+        return jsonify({
+            "status": "error",
+            "message": "Request body must be a list of hosts, or an object with a \"hosts\" list.",
+        }), 400
+
+    normalized = []
+    seen = set()
+    for item in hosts:
+        entry = normalize_remote_instance(item)
+        if not entry:
+            return jsonify({
+                "status": "error",
+                "message": f"Invalid host entry: {item!r} - a name and URL are required.",
+            }), 400
+        if entry["id"] in seen:
+            continue
+        seen.add(entry["id"])
+        normalized.append({
+            "name": entry["name"],
+            "url": entry["url"],
+            "description": entry["description"],
+        })
+
+    try:
+        path = Path(REMOTE_INSTANCES_FILE).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(normalized, f, indent=2)
+            f.write("\n")
+    except Exception as e:
+        log_op("instances", "remote_hosts", "error", f"Failed to save remote hosts: {e}")
+        return jsonify({
+            "status": "error",
+            "message": f"Failed to write {REMOTE_INSTANCES_FILE}: {e}",
+        }), 500
+
+    log_op("instances", "remote_hosts", "success", f"Saved {len(normalized)} remote host(s)")
+    return jsonify({
+        "status": "success",
+        "message": f"Saved {len(normalized)} remote host(s)",
+        "count": len(normalized),
+    })
 
 
 @app.route("/api/config", methods=["GET", "POST"])

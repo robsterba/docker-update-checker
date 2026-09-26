@@ -27,11 +27,9 @@
   .inline-toggle input{accent-color:var(--primary)}
   .host-select select{background:transparent;color:inherit;border:none;padding:.15rem .3rem;min-width:8rem;outline:none;font:inherit}
   .host-status{display:inline-flex;align-items:center;gap:.25rem;font-size:.7rem;padding:.2rem .45rem;border:1px solid var(--border);border-radius:.4rem;background:var(--surface);color:var(--muted)}
-  .host-label{font-size:.72rem;color:var(--muted);padding:.2rem .4rem;border:1px solid var(--border);border-radius:.4rem;background:var(--surface)}
   .host-status.online{border-color:var(--success);color:var(--success)}
   .host-status.offline{border-color:var(--error);color:var(--error)}
   .host-status.unknown{border-color:var(--warning);color:var(--warning)}
-  .card-subtitle{font-size:.7rem;color:var(--muted)}
   .instance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem;margin-bottom:.5rem}
   .instance-card{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.65rem;display:flex;flex-direction:column;gap:.45rem}
   .instance-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
@@ -48,12 +46,9 @@
   .kpi-value.err{color:var(--error)}
   .kpi-value.info{color:var(--info)}
 
-  .grid-2{display:grid;grid-template-columns:1.2fr .9fr;gap:.75rem;margin-bottom:.5rem}
   .host-section{display:grid;grid-template-columns:1.3fr .9fr;gap:.75rem;margin-bottom:.5rem}
   .host-instances{background:transparent}
   .host-metrics{background:transparent}
-  .info-section{margin-bottom:.5rem}
-  .info-section .card{margin-bottom:.25rem}
   .host-subtitle{margin:0 0 .3rem;font-size:.8rem;font-weight:600}
   .metrics-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem}
   .host-kpis{margin-bottom:.4rem}
@@ -107,13 +102,9 @@
   .btn-danger{background:var(--error);color:#fff}
   .btn-danger:hover:not(:disabled){opacity:.88}
 
-  .cf-pill,.stack-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
+  .stack-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
 
   /* Loading state for host resources */
-  #hostResourcesCard{position:relative}
-  .resource-loading{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;gap:.5rem;background:var(--surface);z-index:10;color:var(--muted);font-size:.85rem}
-  .resource-loading .spinner{animation:spin 1s linear infinite}
-  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
   .stack-pill{font-family:inherit;font-weight:600}
 
   .log-list{padding:.35rem .5rem;max-height:220px;overflow-y:auto}
@@ -149,12 +140,6 @@
   .modal-title{font-weight:700;font-size:1rem;margin-bottom:1rem}
   .modal pre{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.75rem;font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--text)}
 
-  .maintenance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.85rem}
-  .maintenance-item{background:var(--surface2);border:1px solid var(--border);border-radius:.65rem;padding:.95rem}
-  .maintenance-title{font-weight:700;font-size:.86rem;margin-bottom:.35rem}
-  .maintenance-text{font-size:.78rem;color:var(--muted);line-height:1.45;margin-bottom:.75rem;min-height:3.35rem}
-  .maintenance-actions{display:flex;gap:.45rem;flex-wrap:wrap}
-  .danger-note{font-size:.76rem;color:var(--error);margin-top:.45rem;line-height:1.4}
 
   @keyframes spin{to{transform:rotate(360deg)}}
   .spin{animation:spin .8s linear infinite}
@@ -194,7 +179,6 @@
   .resource-label{font-size:.6rem;color:var(--muted);display:flex;justify-content:space-between}
 
   @media (max-width: 980px){
-    .grid-2{grid-template-columns:1fr}
     .host-section{grid-template-columns:1fr}
   }
   @media (max-width: 760px){
@@ -245,23 +229,10 @@
 
   /* Performance/Resource Monitoring Styles */
   .resource-card{background:var(--surface);border:1px solid var(--border);border-radius:.5rem;padding:.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.5rem}
-  .gauge-container{text-align:center;padding:.35rem}
-  .gauge-label{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.25rem}
-  .gauge-value{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums;margin-bottom:.2rem}
-  .gauge{position:relative;width:80px;height:80px;margin:0 auto;border-radius:50%;background:conic-gradient(var(--primary) 0%, var(--primary) var(--gauge-percent, 0%), var(--border) var(--gauge-percent, 0%), var(--border) 100%);display:flex;align-items:center;justify-content:center}
-  .gauge::before{content:'';position:absolute;width:80%;height:80%;background:var(--surface);border-radius:50%}
-  .gauge-text{position:relative;z-index:1;font-size:.75rem;font-weight:600;color:var(--text)}
   .resource-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.4rem}
   .resource-stat{background:var(--surface2);border:1px solid var(--border);border-radius:.4rem;padding:.45rem;text-align:center}
   .resource-stat-label{font-size:.65rem;color:var(--muted);margin-bottom:.2rem}
   .resource-stat-value{font-size:.85rem;font-weight:600;font-variant-numeric:tabular-nums}
-  .stack-resources{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem}
-  .stack-resource{background:var(--surface2);border:1px solid var(--border);border-radius:.4rem;padding:.25rem .5rem;font-size:.7rem}
-  .stack-resource-label{color:var(--muted);margin-right:.25rem}
-  .stack-resource-value{font-weight:600;color:var(--text)}
-  .performance-toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
-  .performance-filter{padding:.3rem .6rem;border-radius:.4rem;font-size:.78rem;border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all .15s}
-  .performance-filter.active{background:var(--primary);color:#fff;border-color:var(--primary)}
   /* Tabbed navigation */
   .tab-bar{display:flex;gap:.15rem;border-bottom:1px solid var(--border);margin-bottom:.6rem;overflow-x:auto}
   .tab-btn{padding:.45rem .85rem;font-size:.8rem;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s}
@@ -609,7 +580,7 @@
 <!-- Host Overview Modal -->
 <div class="modal-backdrop" id="hostOverviewModalBackdrop" onclick="closeHostOverviewModal(event)">
   <div class="modal" style="max-width:700px">
-    <div class="modal-title">Host Overview</div>
+    <div class="modal-title" id="hostOverviewTitle">Host Overview</div>
     <div id="hostOverviewContent"></div>
     <div style="margin-top:1rem;text-align:right">
       <button class="btn btn-ghost btn-sm" onclick="closeHostOverviewModal()">Close</button>
@@ -625,8 +596,6 @@ let allStacks = [];
 let allJobs = [];
 let allInstances = [];
 let hostStatuses = {};
-let instanceVersions = {};
-let hostResources = {};
 let currentInstance = { id: 'local', name: 'Local host', url: '' };
 let activeFilter = 'all';
 let checking = false;
@@ -638,6 +607,19 @@ const STORAGE_AUTO_RECREATE_KEY = 'docker-update-checker-auto-recreate';
 const STORAGE_RESOURCE_REFRESH_KEY = 'docker-update-checker-resource-refresh';
 
 // Tabbed navigation
+const STORAGE_REFRESH_KEY = 'docker-update-checker-refresh-interval';
+let refreshTimer = null;
+
+function getRefreshIntervalSeconds() {
+  const v = parseInt(localStorage.getItem(STORAGE_REFRESH_KEY), 10);
+  return Number.isFinite(v) && v >= 5 ? v : 10;
+}
+
+function startRefreshTimer() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(refreshAll, getRefreshIntervalSeconds() * 1000);
+}
+
 const STORAGE_TAB_KEY = 'docker-update-checker-active-tab';
 const TAB_NAMES = ['overview', 'images', 'containers', 'stacks', 'compose', 'system'];
 let activeTab = 'overview';
@@ -741,6 +723,16 @@ async function safeInstanceFetch(path, options = {}) {
   }
 }
 
+async function requestJson(path, options = {}) {
+  const r = await instanceFetch(path, options);
+  let d = null;
+  try { d = await r.json(); } catch (err) { /* non-JSON response */ }
+  if (!r.ok) {
+    throw new Error((d && (d.message || d.error)) || `${r.status} ${r.statusText}` || 'Request failed');
+  }
+  return d ?? {};
+}
+
 async function fetchInstanceStatus(instance) {
   try {
     const response = await fetch(`${API}/api/instances/${encodeURIComponent(instance.id)}/status`);
@@ -823,7 +815,6 @@ async function selectInstance(instanceId) {
   document.getElementById('instanceSelect').value = currentInstance.id;
   
   // Clear all caches
-  hostResources = {};
   allStacks = [];
   allImages = [];
   allJobs = [];
@@ -857,6 +848,7 @@ async function selectInstance(instanceId) {
   }
   renderInstances(allInstances);
   await refreshAll();
+  await loadOsUpdates();
 }
 
 async function refreshAll() {
@@ -941,6 +933,7 @@ function showUpdateInfo() {
   }
   
   modal.classList.add('open');
+  document.getElementById('hostOverviewTitle').textContent = 'Application Update';
   
   let html = `
     <div style="padding: 1rem;">
@@ -987,15 +980,15 @@ function showUpdateInfo() {
 }
 
 // OS Package Updates
-let osUpdateInfo = {};
-
 async function loadOsUpdates() {
   const contentEl = document.getElementById('osUpdatesContent');
   
   try {
-    const response = await fetch('/api/host/os-updates');
+    const response = await instanceFetch('/host/os-updates');
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
     const data = await response.json();
-    osUpdateInfo = data;
     
     if (data.error && data.error.includes("disabled")) {
       if (contentEl) {
@@ -1128,23 +1121,16 @@ function renderOsUpdates(data) {
 
 async function loadHostResources() {
   try {
-    console.log('Loading host resources...');
-    hostResources = {};
-    
     const d = await safeInstanceFetch('/host/resources');
-    console.log('Host resources response:', d);
     
     if (d.__error) {
       console.warn('Host resources error:', d.__error);
-      hostResources = {};
       renderHostResources({ error: d.__error });
       return;
     }
-    hostResources = d;
     renderHostResources(d);
   } catch (err) {
     console.warn('Failed to load host resources:', err);
-    hostResources = {};
     renderHostResources({ error: err.message || 'Connection failed' });
   }
 }
@@ -1204,6 +1190,7 @@ function renderHostOverviewModal(resources) {
   const content = document.getElementById('hostOverviewContent');
   
   modal.classList.add('open');
+  document.getElementById('hostOverviewTitle').textContent = 'Host Overview';
   
   if (resources.__error || resources.error) {
     content.innerHTML = `
@@ -1353,7 +1340,7 @@ async function showContainerResources() {
 }
 
 function toggleResourceRefresh() {
-  const btn = document.querySelector('#performanceMenu .dropdown-menu-item:nth-last-child(2)');
+  const btn = document.querySelector('#performanceMenu .dropdown-menu-item:last-child');
   if (!btn) {
     console.warn('Could not find auto-refresh button');
     return;
@@ -1442,7 +1429,7 @@ function onAutoRecreateToggle() {
 
 function setFilter(f, btn) {
   activeFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.closest('.filter-bar').querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderTable(allImages);
 }
@@ -1473,7 +1460,10 @@ function escHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function escAttr(s) {
-  return String(s || '').replace(/'/g,"\\'");
+  return String(s || '')
+    .replace(/&/g,'&amp;')
+    .replace(/'/g,"\\'")
+    .replace(/"/g,'&quot;');
 }
 
 function getAutoRecreate() {
@@ -1672,7 +1662,6 @@ async function loadStatus() {
 
 async function loadImages() {
   const d = await safeInstanceFetch('/images');
-  console.log('Images /images response:', d);
   if (d.__error) {
     allImages = [];
     renderTable([]);
@@ -1699,13 +1688,10 @@ async function loadImages() {
 async function loadStacks() {
   // Try Phase 2 endpoint first, fall back to Phase 1 if not available
   let d = await safeInstanceFetch('/stacks/all');
-  console.log('Stacks /stacks/all response:', d);
   if (d.__error) {
     // Fall back to original endpoint for backward compatibility
-    console.log('Falling back to /stacks endpoint');
     d = await safeInstanceFetch('/stacks');
-    console.log('Stacks /stacks response:', d);
-  }
+    }
   if (d.__error) {
     console.error('Failed to load stacks:', d.__error);
     allStacks = {};
@@ -1769,8 +1755,11 @@ async function triggerCheck() {
   icon.classList.add('spin');
 
   try {
-    await instanceFetch('/check', { method: 'POST' });
+    const r = await instanceFetch('/check', { method: 'POST' });
+    if (!r.ok) throw new Error(await r.text());
     await refreshAll();
+  } catch (err) {
+    showToast(`Check failed: ${err.message || 'Connection error'}`, 'error');
   } finally {
     setTimeout(() => {
       checking = false;
@@ -1782,8 +1771,14 @@ async function triggerCheck() {
 
 async function recheckImage(imageRef) {
   showModal('Re-checking…', `<p style="color:var(--muted)">Checking <code>${escHtml(imageRef)}</code>…</p>`);
-  const r = await instanceFetch(`/check/${encodeURIComponent(imageRef)}`, { method: 'POST' });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson(`/check/${encodeURIComponent(imageRef)}`, { method: 'POST' });
+  } catch (err) {
+    showModal('Check Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   if (d.status === 'error') {
     showModal('Check Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p>`);
   } else {
@@ -1801,12 +1796,18 @@ async function recheckImage(imageRef) {
 
 async function pullImage(imageRef) {
   showModal('Pulling Image', `<p style="color:var(--muted)">Pulling <code>${escHtml(imageRef)}</code>…<br>This may take a minute.</p>`);
-  const r = await instanceFetch(`/update/${encodeURIComponent(imageRef)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ auto_recreate: getAutoRecreate() })
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson(`/update/${encodeURIComponent(imageRef)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_recreate: getAutoRecreate() })
+    });
+  } catch (err) {
+    showModal('Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   if (d.status === 'success') {
     showModal('Pull Complete', `<p style="color:var(--success)">✓ Image pulled successfully.</p><p style="margin-top:.5rem">New status: ${badge(d.result.status)}</p><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   } else {
@@ -1818,12 +1819,18 @@ async function pullImage(imageRef) {
 async function recreate(composePath) {
   if (!confirm(`Run docker compose up -d on:\n${composePath}\n\nThis will recreate updated containers. Continue?`)) return;
   showModal('Recreating Containers', `<p style="color:var(--muted)">Running <code>docker compose up -d</code>…<br>This may take a moment.</p>`);
-  const r = await instanceFetch('/compose/recreate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ compose_path: composePath })
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson('/compose/recreate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ compose_path: composePath })
+    });
+  } catch (err) {
+    showModal('Recreate Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   if (d.status === 'success') {
     showModal('Recreate Complete', `<p style="color:var(--success);margin-bottom:.75rem">✓ Containers recreated successfully.</p><pre>${escHtml(d.output || '')}</pre><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   } else {
@@ -1835,12 +1842,18 @@ async function recreate(composePath) {
 async function bulkUpdateAll() {
   if (!confirm('Pull all images that have updates or are not yet pulled?')) return;
   showModal('Bulk Pull Started', `<p style="color:var(--muted)">Starting bulk update for all stacks…</p>`);
-  const r = await instanceFetch('/bulk/update', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ auto_recreate: getAutoRecreate() })
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson('/bulk/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auto_recreate: getAutoRecreate() })
+    });
+  } catch (err) {
+    showModal('Bulk Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   showModal('Bulk Pull Started', `
     <p>Bulk update has started for <strong>all stacks</strong>.</p>
     <p style="margin-top:.6rem">Auto-recreate: <strong>${d.auto_recreate ? 'enabled' : 'disabled'}</strong></p>
@@ -1852,12 +1865,18 @@ async function bulkUpdateAll() {
 async function bulkUpdateStack(stackName) {
   if (!confirm(`Pull all outdated images for stack "${stackName}"?`)) return;
   showModal('Stack Bulk Pull Started', `<p style="color:var(--muted)">Starting bulk update for <code>${escHtml(stackName)}</code>…</p>`);
-  const r = await instanceFetch('/bulk/update', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ stack: stackName, auto_recreate: getAutoRecreate() })
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson('/bulk/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stack: stackName, auto_recreate: getAutoRecreate() })
+    });
+  } catch (err) {
+    showModal('Stack Bulk Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   showModal('Stack Bulk Pull Started', `
     <p>Bulk update has started for stack <strong>${escHtml(stackName)}</strong>.</p>
     <p style="margin-top:.6rem">Auto-recreate: <strong>${d.auto_recreate ? 'enabled' : 'disabled'}</strong></p>
@@ -1869,10 +1888,14 @@ async function bulkUpdateStack(stackName) {
 async function recreateStack(stackName) {
   if (!confirm(`Recreate all compose files for stack "${stackName}"?`)) return;
   showModal('Stack Recreate Started', `<p style="color:var(--muted)">Starting recreate for stack <code>${escHtml(stackName)}</code>…</p>`);
-  const r = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/recreate`, {
-    method: 'POST'
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson(`/stacks/${encodeURIComponent(stackName)}/recreate`, { method: 'POST' });
+  } catch (err) {
+    showModal('Stack Recreate Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   showModal('Stack Recreate Started', `
     <p>Recreate has started for stack <strong>${escHtml(stackName)}</strong>.</p>
     <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
@@ -1882,8 +1905,14 @@ async function recreateStack(stackName) {
 
 async function sendTestNotification() {
   showModal('Sending Test Notification', `<p style="color:var(--muted)">Sending test notification…</p>`);
-  const r = await instanceFetch('/notify/test', { method: 'POST' });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson('/notify/test', { method: 'POST' });
+  } catch (err) {
+    showModal('Test Notification Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
   if (d.status === 'success') {
     showModal('Test Notification Sent', `<p style="color:var(--success)">✓ Test notification sent successfully.</p>`);
   } else {
@@ -1894,12 +1923,18 @@ async function sendTestNotification() {
 
 async function runPrune(endpoint, title, bodyHtml) {
   showModal(title, bodyHtml);
-  const r = await instanceFetch(endpoint.url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(endpoint.body || {})
-  });
-  const d = await r.json();
+  let d;
+  try {
+    d = await requestJson(endpoint.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(endpoint.body || {})
+    });
+  } catch (err) {
+    showModal('Cleanup Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    await refreshAll();
+    return;
+  }
 
   if (d.status === 'started') {
     showModal(title, `
@@ -2069,7 +2104,6 @@ async function showPerformanceMonitoring() {
 
 // Configuration state
 let currentConfigSection = null;
-let currentConfigData = {};
 
 function showNotificationConfig() {
   currentConfigSection = 'notifications';
@@ -2078,7 +2112,7 @@ function showNotificationConfig() {
       <div class="config-section-title">Notification Settings</div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyEnabled" ${NOTIFY_ENABLED ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyEnabled">
           <span>Enable Notifications</span>
         </label>
       </div>
@@ -2093,75 +2127,75 @@ function showNotificationConfig() {
         <label class="config-label">Backend:</label>
         <select class="config-input select" id="configBackend">
           <option value="">None</option>
-          <option value="webhook" ${NOTIFY_BACKEND === 'webhook' ? 'selected' : ''}>Webhook</option>
-          <option value="mqtt" ${NOTIFY_BACKEND === 'mqtt' ? 'selected' : ''}>MQTT</option>
-          <option value="email" ${NOTIFY_BACKEND === 'email' ? 'selected' : ''}>Email</option>
+          <option value="webhook">Webhook</option>
+          <option value="mqtt">MQTT</option>
+          <option value="email">Email</option>
         </select>
       </div>
     </div>
 
-    <div class="config-section" id="webhookConfigSection" style="display:${NOTIFY_BACKEND === 'webhook' ? 'block' : 'none'}">
+    <div class="config-section" id="webhookConfigSection" style="display:none">
       <div class="config-section-title">Webhook Settings</div>
       <div class="config-row">
         <label class="config-label">URL:</label>
-        <input type="text" class="config-input" id="configWebhookUrl" placeholder="https://homeassistant.local:8123/api/webhook/..." value="${NOTIFY_WEBHOOK_URL || ''}">
+        <input type="text" class="config-input" id="configWebhookUrl" placeholder="https://homeassistant.local:8123/api/webhook/..." value="">
       </div>
       <div class="config-row">
         <label class="config-label">Method:</label>
         <select class="config-input select" id="configWebhookMethod">
-          <option value="POST" ${(NOTIFY_WEBHOOK_METHOD || 'POST') === 'POST' ? 'selected' : ''}>POST</option>
-          <option value="PUT" ${(NOTIFY_WEBHOOK_METHOD || 'POST') === 'PUT' ? 'selected' : ''}>PUT</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
         </select>
       </div>
       <div class="config-row">
         <label class="config-label">Timeout (s):</label>
-        <input type="number" class="config-input" id="configWebhookTimeout" value="${NOTIFY_WEBHOOK_TIMEOUT || 10}">
+        <input type="number" class="config-input" id="configWebhookTimeout" value="">
       </div>
     </div>
 
-    <div class="config-section" id="mqttConfigSection" style="display:${NOTIFY_BACKEND === 'mqtt' ? 'block' : 'none'}">
+    <div class="config-section" id="mqttConfigSection" style="display:none">
       <div class="config-section-title">MQTT Settings</div>
       <div class="config-row">
         <label class="config-label">Host:</label>
-        <input type="text" class="config-input" id="configMqttHost" placeholder="mqtt.example.com" value="${NOTIFY_MQTT_HOST || ''}">
+        <input type="text" class="config-input" id="configMqttHost" placeholder="mqtt.example.com" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Port:</label>
-        <input type="number" class="config-input" id="configMqttPort" placeholder="1883" value="${NOTIFY_MQTT_PORT || 1883}">
+        <input type="number" class="config-input" id="configMqttPort" placeholder="1883" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Topic:</label>
-        <input type="text" class="config-input" id="configMqttTopic" placeholder="docker/update-checker" value="${NOTIFY_MQTT_TOPIC || ''}">
+        <input type="text" class="config-input" id="configMqttTopic" placeholder="docker/update-checker" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Username:</label>
-        <input type="text" class="config-input" id="configMqttUsername" placeholder="optional" value="${NOTIFY_MQTT_USERNAME || ''}">
+        <input type="text" class="config-input" id="configMqttUsername" placeholder="optional" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Password:</label>
-        <input type="password" class="config-input" id="configMqttPassword" placeholder="optional" value="${NOTIFY_MQTT_PASSWORD || ''}">
+        <input type="password" class="config-input" id="configMqttPassword" placeholder="optional" value="">
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configMqttRetain" ${NOTIFY_MQTT_RETAIN === 'true' ? 'checked' : ''}>
+          <input type="checkbox" id="configMqttRetain">
           <span>Retain Messages</span>
         </label>
       </div>
     </div>
 
-    <div class="config-section" id="emailConfigSection" style="display:${NOTIFY_BACKEND === 'email' ? 'block' : 'none'}">
+    <div class="config-section" id="emailConfigSection" style="display:none">
       <div class="config-section-title">Email Settings</div>
       <div class="config-row">
         <label class="config-label">SMTP Host:</label>
-        <input type="text" class="config-input" id="configEmailHost" placeholder="smtp.example.com" value="${NOTIFY_EMAIL_HOST || ''}">
+        <input type="text" class="config-input" id="configEmailHost" placeholder="smtp.example.com" value="">
       </div>
       <div class="config-row">
         <label class="config-label">SMTP Port:</label>
-        <input type="number" class="config-input" id="configEmailPort" placeholder="587" value="${NOTIFY_EMAIL_PORT || 587}">
+        <input type="number" class="config-input" id="configEmailPort" placeholder="587" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Username:</label>
-        <input type="text" class="config-input" id="configEmailUsername" placeholder="optional" value="${NOTIFY_EMAIL_USERNAME || ''}">
+        <input type="text" class="config-input" id="configEmailUsername" placeholder="optional" value="">
       </div>
       <div class="config-row">
         <label class="config-label">Password:</label>
@@ -2169,15 +2203,15 @@ function showNotificationConfig() {
       </div>
       <div class="config-row">
         <label class="config-label">From:</label>
-        <input type="email" class="config-input" id="configEmailFrom" placeholder="docker-checker@yourdomain.com" value="${NOTIFY_EMAIL_FROM || ''}">
+        <input type="email" class="config-input" id="configEmailFrom" placeholder="docker-checker@yourdomain.com" value="">
       </div>
       <div class="config-row">
         <label class="config-label">To:</label>
-        <input type="email" class="config-input" id="configEmailTo" placeholder="you@yourdomain.com" value="${NOTIFY_EMAIL_TO || ''}">
+        <input type="email" class="config-input" id="configEmailTo" placeholder="you@yourdomain.com" value="">
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configEmailTls" ${NOTIFY_EMAIL_USE_TLS !== 'false' ? 'checked' : ''}>
+          <input type="checkbox" id="configEmailTls">
           <span>Use TLS</span>
         </label>
       </div>
@@ -2187,37 +2221,37 @@ function showNotificationConfig() {
       <div class="config-section-title">Notification Triggers</div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyUpdates" ${NOTIFY_ON_UPDATES_FOUND !== 'false' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyUpdates">
           <span>Updates Found</span>
         </label>
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyPullSuccess" ${NOTIFY_ON_PULL_SUCCESS === 'true' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyPullSuccess">
           <span>Pull Success</span>
         </label>
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyPullError" ${NOTIFY_ON_PULL_ERROR !== 'false' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyPullError">
           <span>Pull Error</span>
         </label>
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyRecreateSuccess" ${NOTIFY_ON_RECREATE_SUCCESS === 'true' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyRecreateSuccess">
           <span>Recreate Success</span>
         </label>
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyRecreateError" ${NOTIFY_ON_RECREATE_ERROR !== 'false' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyRecreateError">
           <span>Recreate Error</span>
         </label>
       </div>
       <div class="config-row">
         <label class="config-toggle">
-          <input type="checkbox" id="configNotifyBulkComplete" ${NOTIFY_ON_BULK_COMPLETE !== 'false' ? 'checked' : ''}>
+          <input type="checkbox" id="configNotifyBulkComplete">
           <span>Bulk Complete</span>
         </label>
       </div>
@@ -2305,7 +2339,7 @@ function addRemoteHost() {
   
   allInstances.push(newHost);
   renderRemoteHostsList();
-  showToast(`Added remote host: ${name}`, 'success');
+  showToast(`Added remote host: ${name} — click Save to persist`, 'success');
   
   // Clear inputs
   document.getElementById('newHostName').value = '';
@@ -2337,7 +2371,7 @@ function removeRemoteHost(instanceId) {
 
 function showPreferencesConfig() {
   currentConfigSection = 'preferences';
-  const autoRecreateChecked = getStoredAutoRecreate() !== null ? getStoredAutoRecreate() : AUTO_RECREATE_AFTER_PULL;
+  const autoRecreateChecked = getStoredAutoRecreate() ?? false;
   
   const html = `
     <div class="config-section">
@@ -2372,10 +2406,10 @@ function showPreferencesConfig() {
       <div class="config-section-title">Polling Intervals</div>
       <div class="config-row">
         <label class="config-label">Auto-refresh (seconds):</label>
-        <input type="number" class="config-input" id="configRefreshInterval" value="10" min="5">
+        <input type="number" class="config-input" id="configRefreshInterval" value="${getRefreshIntervalSeconds()}" min="5">
       </div>
       <div class="config-description">
-        How often the dashboard refreshes data (default: 10 seconds).
+        How often the dashboard refreshes data (default: 10 seconds, minimum: 5).
       </div>
     </div>
   `;
@@ -2385,7 +2419,7 @@ function showPreferencesConfig() {
   document.getElementById('configModalBackdrop').classList.add('open');
 }
 
-function saveConfig() {
+async function saveConfig() {
   if (!currentConfigSection) return;
   
   switch (currentConfigSection) {
@@ -2393,7 +2427,7 @@ function saveConfig() {
       saveNotificationConfig();
       break;
     case 'remoteHosts':
-      saveRemoteHostsConfig();
+      await saveRemoteHostsConfig();
       break;
     case 'preferences':
       savePreferencesConfig();
@@ -2554,9 +2588,23 @@ function saveNotificationConfig() {
   });
 }
 
-function saveRemoteHostsConfig() {
-  // This would require backend API to save remote instances
-  showToast('Remote hosts saved (backend API needed for persistence)', 'success');
+async function saveRemoteHostsConfig() {
+  const hosts = allInstances
+    .filter(i => i.id !== 'local')
+    .map(i => ({ name: i.name, url: i.url, description: i.description || '' }));
+  try {
+    const response = await fetch('/api/instances/remote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(hosts)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || `Server returned ${response.status}`);
+    showToast(data.message || 'Remote hosts saved', 'success');
+    await loadInstances();
+  } catch (error) {
+    showToast(`Failed to save remote hosts: ${error.message}`, 'error');
+  }
 }
 
 function savePreferencesConfig() {
@@ -2581,13 +2629,17 @@ function savePreferencesConfig() {
   }
   theme = newTheme;
   
+  // Save refresh interval
+  const seconds = Math.max(5, parseInt(document.getElementById('configRefreshInterval').value, 10) || 10);
+  localStorage.setItem(STORAGE_REFRESH_KEY, String(seconds));
+  startRefreshTimer();
+  
   showToast('Preferences saved', 'success');
 }
 
 // Container management state
 let allContainers = [];
 let containerFilter = 'all';
-let showAllContainers = false;
 
 function getContainerFilter() {
   return document.getElementById('showAllContainers')?.checked || false;
@@ -2595,13 +2647,12 @@ function getContainerFilter() {
 
 function setContainerFilter(filter, btn) {
   containerFilter = filter;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.closest('.filter-bar').querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   loadContainers();
 }
 
 function toggleAllContainers() {
-  showAllContainers = getContainerFilter();
   loadContainers();
 }
 
@@ -2623,14 +2674,6 @@ function containerStatusBadge(status) {
   if (status === 'removal in progress') return '<span class="badge warning">Removing</span>';
   if (status === 'paused') return '<span class="badge warning">Paused</span>';
   return `<span class="badge unknown">${status}</span>`;
-}
-
-function formatBytes(bytes) {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 function renderContainers(containers) {
@@ -2744,10 +2787,9 @@ async function startContainer(containerId) {
   if (!confirm(`Start container ${containerId}?`)) return;
   showToast('Starting container...', 'info', 3000);
   try {
-    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}/start`, {
+    const data = await requestJson(`/containers/${encodeURIComponent(containerId)}/start`, {
       method: 'POST'
     });
-    const data = await response.json();
     if (data.status === 'success') {
       showToast(data.message || 'Container started', 'success');
       await loadContainers();
@@ -2763,10 +2805,9 @@ async function stopContainer(containerId) {
   if (!confirm(`Stop container ${containerId}?`)) return;
   showToast('Stopping container...', 'info', 3000);
   try {
-    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}/stop`, {
+    const data = await requestJson(`/containers/${encodeURIComponent(containerId)}/stop`, {
       method: 'POST'
     });
-    const data = await response.json();
     if (data.status === 'success') {
       showToast(data.message || 'Container stopped', 'success');
       await loadContainers();
@@ -2782,10 +2823,9 @@ async function restartContainer(containerId) {
   if (!confirm(`Restart container ${containerId}?`)) return;
   showToast('Restarting container...', 'info', 3000);
   try {
-    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}/restart`, {
+    const data = await requestJson(`/containers/${encodeURIComponent(containerId)}/restart`, {
       method: 'POST'
     });
-    const data = await response.json();
     if (data.status === 'success') {
       showToast(data.message || 'Container restarted', 'success');
       await loadContainers();
@@ -2800,7 +2840,7 @@ async function restartContainer(containerId) {
 async function inspectContainer(containerId) {
   showModal('Container Details', '<p style="color:var(--muted)">Loading details...</p>');
   try {
-    const response = await fetch(`${API}/api/containers/${encodeURIComponent(containerId)}`);
+    const response = await instanceFetch(`/containers/${encodeURIComponent(containerId)}`);
     if (!response.ok) {
       showModal('Error', `<p style="color:var(--error)">Failed to load details: ${response.statusText}</p>`);
       return;
@@ -3082,12 +3122,11 @@ async function stackUp(stackName) {
   if (!confirm(`Start all containers in stack "${stackName}"?`)) return;
   showToast('Starting stack...', 'info', 3000);
   try {
-    const response = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/up`, {
+    const data = await requestJson(`/stacks/${encodeURIComponent(stackName)}/up`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
-    const data = await response.json();
     if (data.status === 'success' || data.status === 'partial_success') {
       showToast(`Stack start ${data.status === 'success' ? 'succeeded' : 'completed with errors'}`, data.status === 'success' ? 'success' : 'warning');
       await loadPhase2Stacks();
@@ -3103,12 +3142,11 @@ async function stackDown(stackName) {
   if (!confirm(`Stop all containers in stack "${stackName}"?\n\nThis will stop and remove containers defined in the compose files.`)) return;
   showToast('Stopping stack...', 'info', 3000);
   try {
-    const response = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/down`, {
+    const data = await requestJson(`/stacks/${encodeURIComponent(stackName)}/down`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
-    const data = await response.json();
     if (data.status === 'success' || data.status === 'partial_success') {
       showToast(`Stack stop ${data.status === 'success' ? 'succeeded' : 'completed with errors'}`, data.status === 'success' ? 'success' : 'warning');
       await loadPhase2Stacks();
@@ -3124,12 +3162,11 @@ async function stackRestart(stackName) {
   if (!confirm(`Restart all containers in stack "${stackName}"?`)) return;
   showToast('Restarting stack...', 'info', 3000);
   try {
-    const response = await instanceFetch(`/stacks/${encodeURIComponent(stackName)}/restart`, {
+    const data = await requestJson(`/stacks/${encodeURIComponent(stackName)}/restart`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
-    const data = await response.json();
     if (data.status === 'success' || data.status === 'partial_success') {
       showToast(`Stack restart ${data.status === 'success' ? 'succeeded' : 'completed with errors'}`, data.status === 'success' ? 'success' : 'warning');
       await loadPhase2Stacks();
@@ -3151,12 +3188,11 @@ async function init() {
   await loadInstances();
   await refreshAll();
   await loadContainers();
-  await loadHostResources(); // Ensure host resources are loaded on page init
   // Check for application updates on startup
   await checkForUpdates(false);
   // Check for OS package updates on startup
   await loadOsUpdates();
-  setInterval(refreshAll, 10000);
+  startRefreshTimer();
   setInterval(loadContainers, 15000);
   setInterval(loadHostResources, 30000); // Auto-refresh host resources
   setInterval(loadOsUpdates, 3600000); // Auto-refresh OS updates every hour
