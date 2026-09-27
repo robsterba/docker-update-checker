@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.2.0] — 2026-09-26
+
+### Changed
+
+- **Standard web theme (style.md) applied across the dashboard**
+  - Light and dark palettes remapped to the brand palette: deep plum-charcoal (`#2A2539`), slate charcoal (`#353044`), muted violet-gray (`#5E5373`), pale lavender (`#DBD8E3`)
+  - Dark theme uses the inverted accent (light fill, dark text) per the spec
+  - Status colors (success/warning/error/info) use the spec's muted light and brightened dark variants
+  - Badge, notification, and validation tints derived from the new status colors — no hard-coded hex values remain outside the token definitions
+  - Modals, compose editor, and code blocks use the inset surface token; inputs use the spec's stronger border
+
+### Added
+
+- Focus-visible ring per the spec, and a 0.25s background/color transition when switching themes
+
+---
+
 ## [v1.1.2] — 2026-09-26
 
 ### Changed
