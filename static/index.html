@@ -6,46 +6,138 @@
 <title>Docker Update Checker</title>
 <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 <style>
-  /* Tokens per style.md (Rob Sterba web theme spec) */
-  :root,[data-theme="light"]{color-scheme:light;--bg:#DBD8E3;--surface:#FFFFFF;--surface2:#EFEDF5;--inset:#C9C5D5;--border:#C0BCCC;--border-strong:#5E5373;--text:#2A2539;--muted:#5E5373;--faint:#A9A4B8;--primary:#353044;--primary-h:#5E5373;--on-accent:#DBD8E3;--success:#4C6B57;--warning:#8A6D3B;--error:#8C3A3A;--info:#4A5D7A;--on-status:#FFFFFF;--badge-up:rgba(76,107,87,.12);--badge-update:rgba(138,109,59,.14);--badge-err:rgba(140,58,58,.12);--badge-unk:rgba(94,83,115,.14);--badge-run:rgba(74,93,122,.12);--shadow-sm:0 1px 2px rgba(42,37,57,.15);--shadow-md:0 4px 12px rgba(42,37,57,.18);--shadow-lg:0 12px 32px rgba(42,37,57,.22);--focus-ring:0 0 0 3px rgba(94,83,115,.45)}
-  [data-theme="dark"]{color-scheme:dark;--bg:#2A2539;--surface:#353044;--surface2:#3E3850;--inset:#232030;--border:#4A4460;--border-strong:#5E5373;--text:#DBD8E3;--muted:#B3AEC4;--faint:#6B6480;--primary:#DBD8E3;--primary-h:#EFEDF5;--on-accent:#2A2539;--success:#7FA891;--warning:#C9A56A;--error:#C97A7A;--info:#8FA5C4;--on-status:#2A2539;--badge-up:rgba(127,168,145,.16);--badge-update:rgba(201,165,106,.16);--badge-err:rgba(201,122,122,.16);--badge-unk:rgba(179,174,196,.16);--badge-run:rgba(143,165,196,.16);--shadow-sm:0 1px 2px rgba(0,0,0,.35);--shadow-md:0 4px 12px rgba(0,0,0,.4);--shadow-lg:0 12px 32px rgba(0,0,0,.5);--focus-ring:0 0 0 3px rgba(219,216,227,.35)}
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  html{font-family:'Inter',system-ui,sans-serif;font-size:14px;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
-  body{min-height:100dvh;display:flex;flex-direction:column;background:var(--bg);transition:background-color .25s ease,color .25s ease}
-  :focus-visible{outline:none;box-shadow:var(--focus-ring)}
-  a{color:var(--primary);text-decoration:none}
-  button{cursor:pointer;border:none;font:inherit;background:none}
-  code{font-family:'JetBrains Mono','Fira Mono',monospace}
+  /* Design tokens per style.md (Standard Web Theme Spec) — verbatim */
+  :root,
+  [data-theme="light"] {
+    color-scheme: light;
 
-  header{background:var(--surface);border-bottom:1px solid var(--border);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100}
+    /* Surfaces */
+    --bg-page:        #DBD8E3;  /* pale lavender page background */
+    --bg-surface:     #FFFFFF;  /* cards, panels */
+    --bg-surface-alt: #EFEDF5;  /* subtle raised areas, inputs */
+    --bg-inset:       #C9C5D5;  /* wells, code blocks, pressed states */
+
+    /* Text */
+    --text-primary:   #2A2539;
+    --text-secondary: #5E5373;
+    --text-disabled:  #A9A4B8;
+    --text-inverse:   #DBD8E3;  /* text on dark fills */
+
+    /* Brand / accents */
+    --accent:         #353044;  /* primary buttons, links, active nav */
+    --accent-hover:   #5E5373;
+    --accent-pressed: #2A2539;
+    --accent-border:  #5E5373;
+    --on-accent:      #DBD8E3;
+
+    /* Lines & dividers */
+    --border-default: #5E5373;
+    --border-subtle:  #C0BCCC;
+
+    /* Status (derived neutrals) */
+    --success:        #4C6B57;
+    --warning:        #8A6D3B;
+    --danger:         #8C3A3A;
+    --info:           #4A5D7A;
+
+    /* Elevation & focus */
+    --shadow-sm: 0 1px 2px rgba(42, 37, 57, 0.15);
+    --shadow-md: 0 4px 12px rgba(42, 37, 57, 0.18);
+    --shadow-lg: 0 12px 32px rgba(42, 37, 57, 0.22);
+    --focus-ring: 0 0 0 3px rgba(94, 83, 115, 0.45);
+  }
+
+  [data-theme="dark"] {
+    color-scheme: dark;
+
+    /* Surfaces */
+    --bg-page:        #2A2539;
+    --bg-surface:     #353044;
+    --bg-surface-alt: #3E3850;
+    --bg-inset:       #232030;
+
+    /* Text */
+    --text-primary:   #DBD8E3;
+    --text-secondary: #B3AEC4;
+    --text-disabled:  #6B6480;
+    --text-inverse:   #2A2539;  /* text on light fills */
+
+    /* Brand / accents (accent inverts: light fill, dark text) */
+    --accent:         #DBD8E3;
+    --accent-hover:   #EFEDF5;
+    --accent-pressed: #C9C5D5;
+    --accent-border:  #5E5373;
+    --on-accent:      #2A2539;
+
+    /* Lines & dividers */
+    --border-default: #5E5373;
+    --border-subtle:  #4A4460;
+
+    /* Status (brightened for dark backgrounds) */
+    --success:        #7FA891;
+    --warning:        #C9A56A;
+    --danger:         #C97A7A;
+    --info:           #8FA5C4;
+
+    /* Elevation & focus */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.40);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.50);
+    --focus-ring: 0 0 0 3px rgba(219, 216, 227, 0.35);
+  }
+
+  /* Derived tokens (no hex values; style.md tinted badge recipe 5.1/6.2) */
+  :root {
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --tint-info:    color-mix(in srgb, var(--info) 15%, transparent);
+    --tint-success: color-mix(in srgb, var(--success) 15%, transparent);
+    --tint-warning: color-mix(in srgb, var(--warning) 18%, transparent);
+    --tint-danger:  color-mix(in srgb, var(--danger) 18%, transparent);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:14px;background:var(--bg-page);color:var(--text-primary)}
+  body{min-height:100dvh;display:flex;flex-direction:column;background:var(--bg-page);color:var(--text-primary);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased;transition:background-color .25s ease,color .25s ease}
+  h1,h2,h3,h4{color:var(--text-primary);line-height:1.25}
+  a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}
+  a:hover{color:var(--accent-hover)}
+  button{cursor:pointer;border:none;font:inherit;background:none}
+  input,select,textarea{background:var(--bg-surface-alt);color:var(--text-primary);border:1px solid var(--border-default);border-radius:6px;padding:.5rem .75rem;font:inherit}
+  input[type="checkbox"],input[type="radio"]{width:auto;padding:0;accent-color:var(--accent)}
+  :focus-visible{outline:none;box-shadow:var(--focus-ring)}
+  hr,.divider{border:none;border-top:1px solid var(--border-subtle)}
+  code,pre{background:var(--bg-inset);border-radius:6px;font-family:var(--font-mono)}
+  code{padding:.1rem .35rem}
+  pre{padding:1rem;overflow-x:auto}
+
+  header{background:var(--bg-surface);border-bottom:1px solid var(--border-subtle);padding:.75rem 1.5rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;z-index:100}
   .logo{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.05rem;letter-spacing:-.01em}
-  .logo svg{color:var(--primary)}
+  .logo svg{color:var(--accent)}
   .header-actions{margin-left:auto;display:flex;align-items:center;gap:.35rem}
   main{flex:1;padding:.5rem;max-width:1280px;margin-inline:auto;width:100%}
 
   .toolbar{display:flex;gap:.4rem;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:.5rem}
   .toolbar-left,.toolbar-right{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
-  .inline-toggle{display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;color:var(--muted);padding:.25rem .45rem;border:1px solid var(--border);border-radius:.4rem;background:var(--surface)}
-  .inline-toggle input{accent-color:var(--primary)}
+  .inline-toggle{display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;color:var(--text-secondary);padding:.25rem .45rem;border:1px solid var(--border-subtle);border-radius:.4rem;background:var(--bg-surface)}
+  .inline-toggle input{accent-color:var(--accent)}
   .host-select select{background:transparent;color:inherit;border:none;padding:.15rem .3rem;min-width:8rem;outline:none;font:inherit}
-  .host-status{display:inline-flex;align-items:center;gap:.25rem;font-size:.7rem;padding:.2rem .45rem;border:1px solid var(--border);border-radius:.4rem;background:var(--surface);color:var(--muted)}
+  .host-status{display:inline-flex;align-items:center;gap:.25rem;font-size:.7rem;padding:.2rem .45rem;border:1px solid var(--border-subtle);border-radius:.4rem;background:var(--bg-surface);color:var(--text-secondary)}
   .host-status.online{border-color:var(--success);color:var(--success)}
-  .host-status.offline{border-color:var(--error);color:var(--error)}
+  .host-status.offline{border-color:var(--danger);color:var(--danger)}
   .host-status.unknown{border-color:var(--warning);color:var(--warning)}
   .instance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem;margin-bottom:.5rem}
-  .instance-card{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.65rem;display:flex;flex-direction:column;gap:.45rem}
+  .instance-card{background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:.5rem;padding:.65rem;display:flex;flex-direction:column;gap:.45rem}
   .instance-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem}
   .instance-card-name{font-weight:700;font-size:.92rem}
-  .instance-card-meta{font-size:.78rem;color:var(--muted);line-height:1.4}
+  .instance-card-meta{font-size:.78rem;color:var(--text-secondary);line-height:1.4}
   .instance-card-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
 
   .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem;margin-bottom:.5rem}
-  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:.5rem;padding:.65rem .85rem;text-align:center}
-  .kpi-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem}
+  .kpi{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:.5rem;padding:.65rem .85rem;text-align:center}
+  .kpi-label{font-size:.75rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem}
   .kpi-value{font-size:1.75rem;font-weight:700;font-variant-numeric:tabular-nums}
   .kpi-value.updates{color:var(--warning)}
   .kpi-value.ok{color:var(--success)}
-  .kpi-value.err{color:var(--error)}
+  .kpi-value.err{color:var(--danger)}
   .kpi-value.info{color:var(--info)}
 
   .host-section{display:grid;grid-template-columns:1.3fr .9fr;gap:.75rem;margin-bottom:.5rem}
@@ -56,129 +148,130 @@
   .host-kpis{margin-bottom:.4rem}
   .host-resources{padding:.35rem;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
   .stack-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.5rem}
-  .stack-card{background:var(--surface2);border:1px solid var(--border);border-radius:.5rem;padding:.65rem}
+  .stack-card{background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:.5rem;padding:.65rem}
   .stack-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.4rem}
   .stack-name{font-weight:700;font-size:.82rem}
-  .stack-meta{font-size:.7rem;color:var(--muted);line-height:1.3}
+  .stack-meta{font-size:.7rem;color:var(--text-secondary);line-height:1.3}
   .stack-badges{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.65rem}
   .stack-actions{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.7rem}
 
   .dropdown{position:relative;display:inline-block}
-  .dropdown-btn{display:inline-flex;align-items:center;gap:.25rem;padding:.3rem .65rem;border-radius:.4rem;font-size:.75rem;font-weight:500;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:background .15s;cursor:pointer}
-  .dropdown-btn:hover{background:var(--surface2)}
-  .dropdown-menu{position:absolute;top:100%;right:0;margin-top:.25rem;background:var(--surface);border:1px solid var(--border);border-radius:.4rem;box-shadow:var(--shadow-md);z-index:50;min-width:160px;overflow:hidden}
+  .dropdown-btn{display:inline-flex;align-items:center;gap:.25rem;padding:.3rem .65rem;border-radius:.4rem;font-size:.75rem;font-weight:500;border:1px solid var(--border-subtle);background:var(--bg-surface);color:var(--text-primary);transition:background .15s;cursor:pointer}
+  .dropdown-btn:hover{background:var(--bg-surface-alt)}
+  .dropdown-menu{position:absolute;top:100%;right:0;margin-top:.25rem;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:.4rem;box-shadow:var(--shadow-md);z-index:50;min-width:160px;overflow:hidden}
   .dropdown-menu.hidden{display:none}
-  .dropdown-menu-item{display:block;width:100%;text-align:left;padding:.35rem .65rem;font-size:.75rem;color:var(--text);background:none;border:none;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border)}
+  .dropdown-menu-item{display:block;width:100%;text-align:left;padding:.35rem .65rem;font-size:.75rem;color:var(--text-primary);background:none;border:none;cursor:pointer;transition:background .12s;border-bottom:1px solid var(--border-subtle)}
   .dropdown-menu-item:last-child{border-bottom:none}
-  .dropdown-menu-item:hover{background:var(--surface2)}
+  .dropdown-menu-item:hover{background:var(--bg-surface-alt)}
 
-  .card{background:transparent;border:none;border-radius:0;overflow:hidden;margin-bottom:.35rem}
-  .card-header{padding:.4rem .65rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.4rem;flex-wrap:wrap}
+  .card{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:.35rem}
+  .card-header{padding:.4rem .65rem;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between;gap:.4rem;flex-wrap:wrap}
   .card-title{font-weight:600;font-size:.95rem}
-  table{width:100%;border-collapse:collapse}
-  th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:.4rem .5rem;border-bottom:1px solid var(--border);white-space:nowrap}
-  td{padding:.4rem .5rem;border-bottom:1px solid var(--border);font-size:.85rem;vertical-align:middle}
+  table{width:100%;border-collapse:collapse;background:var(--bg-surface)}
+  th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-secondary);padding:.4rem .5rem;border-bottom:1px solid var(--border-subtle);white-space:nowrap;background:var(--bg-surface-alt)}
+  td{padding:.4rem .5rem;border-bottom:1px solid var(--border-subtle);font-size:.85rem;vertical-align:middle}
   tr:last-child td{border-bottom:none}
-  tr:hover td{background:var(--surface2)}
-  .img-name{font-family:'JetBrains Mono','Fira Mono',monospace;font-size:.8rem;word-break:break-all}
+  tr:hover td{background:var(--bg-surface-alt)}
+  .img-name{font-family:var(--font-mono);font-size:.8rem;word-break:break-all}
   .stack-col{display:flex;flex-wrap:wrap;gap:.3rem}
 
-  .badge{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .45rem;border-radius:999px;font-size:.65rem;font-weight:600;white-space:nowrap}
-  .badge.up_to_date{background:var(--badge-up);color:var(--success)}
-  .badge.update_available{background:var(--badge-update);color:var(--warning)}
-  .badge.registry_error{background:var(--badge-err);color:var(--error)}
-  .badge.not_pulled,.badge.unknown{background:var(--badge-unk);color:var(--muted)}
-  .badge.running,.badge.started,.badge.info{background:var(--badge-run);color:var(--info)}
-  .badge.success{background:var(--badge-up);color:var(--success)}
-  .badge.error{background:var(--badge-err);color:var(--error)}
+  .badge{display:inline-flex;align-items:center;gap:.3rem;padding:4px 10px;border-radius:12px;font-size:.8rem;font-weight:500;text-transform:uppercase;white-space:nowrap}
+  .badge.up_to_date,.badge.success{background:var(--tint-success);color:var(--success)}
+  .badge.update_available{background:var(--tint-warning);color:var(--warning)}
+  .badge.registry_error,.badge.error{background:var(--tint-danger);color:var(--danger)}
+  .badge.not_pulled,.badge.unknown{background:var(--bg-surface-alt);color:var(--text-secondary)}
+  .badge.running,.badge.started,.badge.info{background:var(--tint-info);color:var(--info)}
 
-  .btn{display:inline-flex;align-items:center;gap:.25rem;padding:.3rem .7rem;border-radius:.4rem;font-size:.75rem;font-weight:500;transition:background .15s,color .15s,opacity .15s;white-space:nowrap}
-  .btn:disabled{opacity:.45;cursor:not-allowed}
-  .btn-primary{background:var(--primary);color:var(--on-accent)}
-  .btn-primary:hover:not(:disabled){background:var(--primary-h)}
-  .btn-ghost{border:1px solid var(--border);color:var(--text)}
-  .btn-ghost:hover:not(:disabled){background:var(--surface2)}
+  .btn{display:inline-flex;align-items:center;gap:.25rem;padding:.3rem .7rem;border-radius:6px;border:1px solid transparent;font-size:.75rem;font-weight:500;white-space:nowrap;transition:background-color .15s ease,color .15s ease,border-color .15s ease,transform .05s ease}
+  .btn:active:not(:disabled){transform:translateY(1px)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn-primary{background:var(--accent);border-color:var(--accent-border);color:var(--on-accent);font-weight:600}
+  .btn-primary:hover:not(:disabled){background:var(--accent-hover)}
+  .btn-primary:active:not(:disabled){background:var(--accent-pressed)}
+  .btn-ghost{background:transparent;border-color:var(--border-default);color:var(--text-primary)}
+  .btn-ghost:hover:not(:disabled){background:var(--bg-surface-alt);color:var(--text-primary)}
   .btn-sm{padding:.25rem .5rem;font-size:.7rem}
-  .btn-warn{background:var(--warning);color:var(--on-status)}
+  .btn-warn{background:var(--warning);border-color:var(--warning);color:var(--text-inverse);font-weight:600}
   .btn-warn:hover:not(:disabled){opacity:.85}
-  .btn-danger{background:var(--error);color:var(--on-status)}
+  .btn-danger{background:var(--danger);border-color:var(--danger);color:var(--text-inverse);font-weight:600}
   .btn-danger:hover:not(:disabled){opacity:.88}
 
-  .stack-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:.35rem;padding:.1rem .45rem;font-size:.7rem;font-family:monospace;color:var(--muted);margin:.1rem}
+  .stack-pill{display:inline-block;background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:12px;padding:4px 10px;font-size:.7rem;font-family:inherit;color:var(--text-primary);margin:.1rem}
 
   /* Loading state for host resources */
   .stack-pill{font-family:inherit;font-weight:600}
 
   .log-list{padding:.35rem .5rem;max-height:220px;overflow-y:auto}
-  .log-entry{display:flex;gap:.5rem;align-items:flex-start;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.75rem}
+  .log-entry{display:flex;gap:.5rem;align-items:flex-start;padding:.3rem 0;border-bottom:1px solid var(--border-subtle);font-size:.75rem}
   .log-entry:last-child{border-bottom:none}
-  .log-time{color:var(--faint);font-family:monospace;white-space:nowrap;min-width:9rem}
+  .log-time{color:var(--text-disabled);font-family:var(--font-mono);white-space:nowrap;min-width:9rem}
   .log-action{font-weight:600;min-width:6rem}
-  .log-msg{color:var(--muted);word-break:break-all}
+  .log-msg{color:var(--text-secondary);word-break:break-all}
   .log-status.success{color:var(--success)}
-  .log-status.error{color:var(--error)}
+  .log-status.error{color:var(--danger)}
   .log-status.started{color:var(--warning)}
 
   .jobs-wrap{padding:.4rem .5rem}
   .jobs-scroll{max-height:280px;overflow-y:auto}
-  .job{border:1px solid var(--border);border-radius:.45rem;padding:.5rem .6rem;background:var(--surface2);margin-bottom:.4rem}
+  .job{border:1px solid var(--border-subtle);border-radius:.5rem;padding:.5rem .6rem;background:var(--bg-surface-alt);margin-bottom:.4rem}
   .job:last-child{margin-bottom:0}
   .job-head{display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start;margin-bottom:.45rem}
   .job-title{font-weight:700;font-size:.84rem}
-  .job-meta{font-size:.76rem;color:var(--muted);margin-top:.15rem}
-  .job-message{font-size:.8rem;color:var(--muted);margin:.4rem 0 .5rem;word-break:break-word}
-  .progress{height:.45rem;background:var(--bg);border-radius:999px;overflow:hidden;border:1px solid var(--border)}
-  .progress-bar{height:100%;background:var(--primary);width:0%;transition:width .2s ease}
-  .job-events{margin-top:.55rem;font-size:.74rem;color:var(--muted)}
-  .job-events details{border-top:1px dashed var(--border);padding-top:.45rem}
-  .job-events summary{cursor:pointer;color:var(--text)}
-  .job-event{padding:.22rem 0;border-bottom:1px dashed var(--border)}
+  .job-meta{font-size:.76rem;color:var(--text-secondary);margin-top:.15rem}
+  .job-message{font-size:.8rem;color:var(--text-secondary);margin:.4rem 0 .5rem;word-break:break-word}
+  .progress{height:.45rem;background:var(--bg-page);border-radius:999px;overflow:hidden;border:1px solid var(--border-subtle)}
+  .progress-bar{height:100%;background:var(--accent);width:0%;transition:width .2s ease}
+  .job-events{margin-top:.55rem;font-size:.74rem;color:var(--text-secondary)}
+  .job-events details{border-top:1px dashed var(--border-subtle);padding-top:.45rem}
+  .job-events summary{cursor:pointer;color:var(--text-primary)}
+  .job-event{padding:.22rem 0;border-bottom:1px dashed var(--border-subtle)}
   .job-event:last-child{border-bottom:none}
 
   .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .2s}
   .modal-backdrop.open{opacity:1;pointer-events:all}
-  .modal{background:var(--surface);border:1px solid var(--border);border-radius:.75rem;padding:1.5rem;max-width:760px;width:92%;max-height:84vh;overflow-y:auto;transform:translateY(12px);transition:transform .2s}
+  .modal{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:.75rem;padding:1.5rem;max-width:760px;width:92%;max-height:84vh;overflow-y:auto;transform:translateY(12px);transition:transform .2s}
   .modal-backdrop.open .modal{transform:none}
   .modal-title{font-weight:700;font-size:1rem;margin-bottom:1rem}
-  .modal pre{background:var(--inset);border:1px solid var(--border);border-radius:.5rem;padding:.75rem;font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--text)}
+  .modal pre{background:var(--bg-inset);border:1px solid var(--border-subtle);border-radius:.5rem;padding:.75rem;font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--text-primary)}
 
 
   @keyframes spin{to{transform:rotate(360deg)}}
   .spin{animation:spin .8s linear infinite}
 
-  .theme-btn{padding:.25rem;border-radius:.35rem;color:var(--muted);transition:color .15s,background .15s}
-  .theme-btn:hover{background:var(--surface2);color:var(--text)}
+  .theme-btn{background:transparent;border:1px solid var(--border-default);border-radius:6px;padding:6px 12px;font-size:1rem;display:flex;align-items:center;gap:6px;color:var(--text-secondary);cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+  .theme-btn:hover{background:var(--bg-surface-alt);border-color:var(--accent-hover);color:var(--text-primary)}
 
   .notification{position:fixed;top:12px;right:12px;padding:.65rem .85rem;border-radius:.6rem;box-shadow:var(--shadow-lg);font-size:.85rem;display:none;align-items:center;gap:.4rem;z-index:900}
   .notification.show{display:flex}
-  .notification.info{background:var(--surface);color:var(--text);border:1px solid var(--border)}
-  .notification.success{background:var(--badge-run);color:var(--info);border:1px solid color-mix(in srgb, var(--info) 35%, transparent)}
+  .notification.info{background:var(--bg-surface);color:var(--text-primary);border:1px solid var(--border-subtle)}
+  .notification.success{background:var(--tint-info);color:var(--info);border:1px solid color-mix(in srgb, var(--info) 35%, transparent)}
 
   .filter-bar{display:flex;gap:.3rem;flex-wrap:wrap;align-items:center}
-  .filter-btn{padding:.2rem .45rem;border-radius:.3rem;font-size:.68rem;border:1px solid var(--border);color:var(--muted);transition:all .15s}
-  .filter-btn.active{background:var(--primary);color:var(--on-accent);border-color:var(--primary)}
+  .filter-btn{padding:.2rem .45rem;border-radius:.3rem;font-size:.68rem;border:1px solid var(--border-subtle);color:var(--text-secondary);transition:all .15s}
+  .filter-btn:hover{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+  .filter-btn.active{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 
-  .last-check{font-size:.65rem;color:var(--muted)}
-  .empty{padding:1.5rem .5rem;text-align:center;color:var(--muted)}
+  .last-check{font-size:.65rem;color:var(--text-secondary)}
+  .empty{padding:1.5rem .5rem;text-align:center;color:var(--text-secondary)}
   .empty svg{margin-inline:auto;margin-bottom:.75rem;opacity:.4}
 
-  .container-item{background:var(--surface2);border:1px solid var(--border);border-radius:.45rem;padding:.5rem;margin-bottom:.4rem}
+  .container-item{background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:.5rem;padding:.5rem;margin-bottom:.4rem}
   .container-item:last-child{margin-bottom:0}
   .container-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.3rem}
   .container-name{font-weight:600;font-size:.78rem;word-break:break-all}
   .container-status{display:inline-flex;align-items:center;gap:.3rem}
-  .container-meta{font-size:.7rem;color:var(--muted);margin-bottom:.25rem}
+  .container-meta{font-size:.7rem;color:var(--text-secondary);margin-bottom:.25rem}
   .container-actions{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.55rem}
   .health-badge{font-size:.65rem;padding:.1rem .35rem;border-radius:.3rem;font-weight:500}
-  .health-badge.healthy{background:var(--badge-up);color:var(--success)}
-  .health-badge.unhealthy{background:var(--badge-err);color:var(--error)}
-  .health-badge.starting{background:var(--badge-unk);color:var(--warning)}
+  .health-badge.healthy{background:var(--tint-success);color:var(--success)}
+  .health-badge.unhealthy{background:var(--tint-danger);color:var(--danger)}
+  .health-badge.starting{background:var(--tint-warning);color:var(--warning)}
   .health-badge.none{display:none}
-  .resource-bar{height:.25rem;background:var(--bg);border-radius:999px;overflow:hidden;margin:.15rem 0;position:relative}
+  .resource-bar{height:.25rem;background:var(--bg-page);border-radius:999px;overflow:hidden;margin:.15rem 0;position:relative}
   .resource-fill{height:100%;border-radius:999px;transition:width .2s ease}
-  .resource-fill.cpu{background:var(--primary)}
+  .resource-fill.cpu{background:var(--accent)}
   .resource-fill.memory{background:var(--warning)}
-  .resource-label{font-size:.6rem;color:var(--muted);display:flex;justify-content:space-between}
+  .resource-label{font-size:.6rem;color:var(--text-secondary);display:flex;justify-content:space-between}
 
   @media (max-width: 980px){
     .host-section{grid-template-columns:1fr}
@@ -191,63 +284,61 @@
   }
 
   /* Version badge */
-  .version-badge{background:var(--surface2);border:1px solid var(--border);border-radius:.4rem;padding:.15rem .45rem;font-size:.65rem;color:var(--muted);font-family:monospace}
-  .update-badge{background:var(--warning);color:var(--on-status);border-radius:.4rem;padding:.2rem .5rem;font-size:.65rem;font-weight:600;cursor:pointer;transition:transform .15s}
+  .version-badge{background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:12px;padding:4px 10px;font-size:.65rem;color:var(--text-secondary);font-family:var(--font-mono)}
+  .update-badge{background:var(--warning);color:var(--text-inverse);border-radius:6px;padding:.2rem .5rem;font-size:.65rem;font-weight:600;cursor:pointer;transition:transform .15s}
   .update-badge:hover{transform:scale(1.05)}
   .update-badge.hidden{display:none}
 
   /* Settings/Configuration Styles */
   .config-form{display:flex;flex-direction:column;gap:1rem}
-  .config-section{background:var(--surface2);border:1px solid var(--border);border-radius:.6rem;padding:1rem}
-  .config-section-title{font-weight:700;font-size:.88rem;margin-bottom:.75rem;color:var(--text)}
+  .config-section{background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:.5rem;padding:1rem}
+  .config-section-title{font-weight:700;font-size:.88rem;margin-bottom:.75rem;color:var(--text-primary)}
   .config-row{display:flex;align-items:center;gap:.75rem;justify-content:space-between;flex-wrap:wrap}
-  .config-label{font-size:.82rem;color:var(--muted);min-width:140px}
-  .config-input{padding:.45rem .7rem;border-radius:.45rem;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font:inherit;font-size:.82rem;width:100%;max-width:320px}
+  .config-label{font-size:.82rem;color:var(--text-secondary);min-width:140px}
+  .config-input{padding:.45rem .7rem;border-radius:.45rem;border:1px solid var(--border-default);background:var(--bg-surface);color:var(--text-primary);font:inherit;font-size:.82rem;width:100%;max-width:320px}
   .config-input.select{padding:.45rem .5rem}
   .config-toggle{display:flex;align-items:center;gap:.5rem}
-  .config-description{font-size:.76rem;color:var(--faint);margin-top:.25rem;line-height:1.4}
-  .remote-host-item{display:flex;align-items:center;gap:.75rem;padding:.6rem;border-bottom:1px solid var(--border)}
+  .config-description{font-size:.76rem;color:var(--text-disabled);margin-top:.25rem;line-height:1.4}
+  .remote-host-item{display:flex;align-items:center;gap:.75rem;padding:.6rem;border-bottom:1px solid var(--border-subtle)}
   .remote-host-item:last-child{border-bottom:none}
   .remote-host-item input{flex:1}
   .btn-config{padding:.35rem .75rem;font-size:.78rem}
 
   /* Phase 2: Compose File Management Styles */
-  .compose-editor{background:var(--inset);border:1px solid var(--border);border-radius:.5rem;padding:1rem;font-family:monospace;font-size:.8rem;white-space:pre-wrap;word-break:break-all;max-height:500px;overflow-y:auto}
+  .compose-editor{background:var(--bg-inset);border:1px solid var(--border-subtle);border-radius:.5rem;padding:1rem;font-family:var(--font-mono);font-size:.8rem;white-space:pre-wrap;word-break:break-all;max-height:500px;overflow-y:auto}
   .compose-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}
-  .stack-status-badge{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .55rem;border-radius:999px;font-size:.72rem;font-weight:600}
-  .stack-status-badge.running{background:var(--badge-up);color:var(--success)}
-  .stack-status-badge.stopped{background:var(--badge-err);color:var(--error)}
-  .stack-status-badge.mixed{background:var(--badge-unk);color:var(--warning)}
-  .dependency-graph{background:var(--surface2);border:1px solid var(--border);border-radius:.6rem;padding:1rem;margin-top:1rem}
-  .dependency-node{display:inline-block;padding:.3rem .6rem;border:1px solid var(--border);border-radius:.4rem;margin:.25rem;font-size:.8rem}
-  .dependency-edge{color:var(--muted);font-size:.75rem;margin:.5rem 0}
+  .stack-status-badge{display:inline-flex;align-items:center;gap:.3rem;padding:4px 10px;border-radius:12px;font-size:.72rem;font-weight:600;text-transform:uppercase}
+  .stack-status-badge.running{background:var(--tint-success);color:var(--success)}
+  .stack-status-badge.stopped{background:var(--tint-danger);color:var(--danger)}
+  .stack-status-badge.mixed{background:var(--tint-warning);color:var(--warning)}
+  .dependency-graph{background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:.5rem;padding:1rem;margin-top:1rem}
+  .dependency-node{display:inline-block;padding:.3rem .6rem;border:1px solid var(--border-subtle);border-radius:.4rem;margin:.25rem;font-size:.8rem}
+  .dependency-edge{color:var(--text-secondary);font-size:.75rem;margin:.5rem 0}
   .compose-file-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.85rem}
-  .compose-file-card{background:var(--surface2);border:1px solid var(--border);border-radius:.6rem;padding:.85rem;cursor:pointer;transition:background .15s}
-  .compose-file-card:hover{background:var(--surface)}
+  .compose-file-card{background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:.5rem;padding:.85rem;cursor:pointer;transition:background .15s}
+  .compose-file-card:hover{background:var(--bg-surface)}
   .compose-file-name{font-weight:600;font-size:.86rem;margin-bottom:.3rem}
-  .compose-file-meta{font-size:.76rem;color:var(--muted)}
-  .validation-error{color:var(--error);font-size:.78rem;margin-top:.5rem;padding:.4rem .6rem;background:var(--badge-err);border-radius:.4rem}
-  .validation-success{color:var(--success);font-size:.78rem;margin-top:.5rem;padding:.4rem .6rem;background:var(--badge-up);border-radius:.4rem}
+  .compose-file-meta{font-size:.76rem;color:var(--text-secondary)}
+  .validation-error{color:var(--danger);font-size:.78rem;margin-top:.5rem;padding:.4rem .6rem;background:var(--tint-danger);border-radius:6px}
+  .validation-success{color:var(--success);font-size:.78rem;margin-top:.5rem;padding:.4rem .6rem;background:var(--tint-success);border-radius:6px}
 
   /* Performance/Resource Monitoring Styles */
-  .resource-card{background:var(--surface);border:1px solid var(--border);border-radius:.5rem;padding:.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.5rem}
+  .resource-card{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:.5rem;padding:.5rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.5rem}
   .resource-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.4rem}
-  .resource-stat{background:var(--surface2);border:1px solid var(--border);border-radius:.4rem;padding:.45rem;text-align:center}
-  .resource-stat-label{font-size:.65rem;color:var(--muted);margin-bottom:.2rem}
+  .resource-stat{background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:.4rem;padding:.45rem;text-align:center}
+  .resource-stat-label{font-size:.65rem;color:var(--text-secondary);margin-bottom:.2rem}
   .resource-stat-value{font-size:.85rem;font-weight:600;font-variant-numeric:tabular-nums}
   /* Tabbed navigation */
-  .tab-bar{display:flex;gap:.15rem;border-bottom:1px solid var(--border);margin-bottom:.6rem;overflow-x:auto}
-  .tab-btn{padding:.45rem .85rem;font-size:.8rem;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s}
-  .tab-btn:hover{color:var(--text)}
-  .tab-btn.active{color:var(--primary);border-bottom-color:var(--primary)}
+  .tab-bar{display:flex;gap:.15rem;border-bottom:1px solid var(--border-subtle);margin-bottom:.6rem;overflow-x:auto}
+  .tab-btn{padding:.45rem .85rem;font-size:.8rem;font-weight:600;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s,border-color .15s}
+  .tab-btn:hover{color:var(--text-primary)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
   .tab-panel{display:none}
   .tab-panel.active{display:block}
   .panel-scroll{max-height:max(320px,calc(100dvh - 300px));overflow-y:auto}
   .table-scroll{max-height:max(320px,calc(100dvh - 250px));overflow-y:auto}
-  .table-scroll th{position:sticky;top:0;background:var(--bg);z-index:1}
+  .table-scroll th{position:sticky;top:0;background:var(--bg-surface-alt);z-index:1}
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!-- Phase 2: YAML parser for compose file editing -->
 <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
 </head>
@@ -415,7 +506,7 @@
       </div>
       <div class="jobs-wrap">
         <div class="jobs-scroll" id="jobsList">
-          <div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>
+          <div style="padding:.25rem;color:var(--text-secondary);font-size:.82rem">No jobs yet.</div>
         </div>
       </div>
     </div>
@@ -471,7 +562,7 @@
           </label>
         </div>
       </div>
-      <div class="filter-bar" style="padding: .5rem .75rem; border-bottom: 1px solid var(--border);">
+      <div class="filter-bar" style="padding: .5rem .75rem; border-bottom: 1px solid var(--border-subtle);">
         <button class="filter-btn active" data-filter="all" onclick="setContainerFilter('all', this)">All</button>
         <button class="filter-btn" data-filter="running" onclick="setContainerFilter('running', this)">Running</button>
         <button class="filter-btn" data-filter="stopped" onclick="setContainerFilter('stopped', this)">Stopped</button>
@@ -479,7 +570,7 @@
       </div>
       <div class="jobs-wrap">
         <div class="panel-scroll" id="containersList">
-          <div style="padding:.5rem;color:var(--muted);font-size:.82rem">Loading containers…</div>
+          <div style="padding:.5rem;color:var(--text-secondary);font-size:.82rem">Loading containers…</div>
         </div>
       </div>
     </div>
@@ -509,7 +600,7 @@
       </div>
       <div class="jobs-wrap">
         <div class="compose-file-list" id="composeFileList">
-          <div style="padding:1.25rem;color:var(--muted)">Loading compose files…</div>
+          <div style="padding:1.25rem;color:var(--text-secondary)">Loading compose files…</div>
         </div>
       </div>
     </div>
@@ -531,9 +622,9 @@
       </div>
       <div id="osUpdatesContent">
         <div class="empty" style="padding: 1.25rem;">
-          <p style="margin:0;color:var(--muted);">OS update checking is disabled or not yet configured.</p>
-          <p style="margin:.5rem 0 0 0;font-size:.85rem;color:var(--faint);">
-            Enable with: <code style="background:var(--surface2);padding:.1rem .3rem;border-radius:.25rem;">OS_UPDATE_CHECK_ENABLED=true</code>
+          <p style="margin:0;color:var(--text-secondary);">OS update checking is disabled or not yet configured.</p>
+          <p style="margin:.5rem 0 0 0;font-size:.85rem;color:var(--text-disabled);">
+            Enable with: <code style="background:var(--bg-surface-alt);padding:.1rem .3rem;border-radius:.25rem;">OS_UPDATE_CHECK_ENABLED=true</code>
           </p>
         </div>
       </div>
@@ -544,7 +635,7 @@
         <span class="card-title">Activity Log</span>
       </div>
       <div class="log-list" id="opLog">
-        <div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>
+        <div style="padding:.5rem;color:var(--text-secondary);font-size:.82rem">No operations yet.</div>
       </div>
     </div>
   </div>
@@ -976,7 +1067,7 @@ function showUpdateInfo() {
   if (updateInfo.release_url) {
     html += `
       <p style="margin-bottom: 1rem;">
-        <a href="${updateInfo.release_url}" target="_blank" style="color: var(--primary);">
+        <a href="${updateInfo.release_url}" target="_blank" style="color: var(--accent);">
           View release on GitHub →
         </a>
       </p>
@@ -985,15 +1076,15 @@ function showUpdateInfo() {
   
   if (updateInfo.release_notes) {
     html += `
-      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: .5rem; padding: 1rem; margin-bottom: 1rem;">
+      <div style="background: var(--bg-surface-alt); border: 1px solid var(--border-subtle); border-radius: .5rem; padding: 1rem; margin-bottom: 1rem;">
         <h4 style="margin-bottom: .5rem;">Release Notes</h4>
-        <div style="font-size: .85rem; color: var(--muted); line-height: 1.5;">${updateInfo.release_notes}</div>
+        <div style="font-size: .85rem; color: var(--text-secondary); line-height: 1.5;">${updateInfo.release_notes}</div>
       </div>
     `;
   }
   
   html += `
-      <p style="font-size: .85rem; color: var(--muted);">
+      <p style="font-size: .85rem; color: var(--text-secondary);">
         To update, pull the latest changes from the repository and rebuild the container.
       </p>
     </div>
@@ -1017,9 +1108,9 @@ async function loadOsUpdates() {
       if (contentEl) {
         contentEl.innerHTML = `
           <div class="empty" style="padding: 1.25rem;">
-            <p style="margin:0;color:var(--muted);">OS update checking is disabled.</p>
-            <p style="margin:.5rem 0 0 0;font-size:.85rem;color:var(--faint);">
-              Enable with: <code style="background:var(--surface2);padding:.1rem .3rem;border-radius:.25rem;">OS_UPDATE_CHECK_ENABLED=true</code>
+            <p style="margin:0;color:var(--text-secondary);">OS update checking is disabled.</p>
+            <p style="margin:.5rem 0 0 0;font-size:.85rem;color:var(--text-disabled);">
+              Enable with: <code style="background:var(--bg-surface-alt);padding:.1rem .3rem;border-radius:.25rem;">OS_UPDATE_CHECK_ENABLED=true</code>
             </p>
           </div>
         `;
@@ -1028,7 +1119,7 @@ async function loadOsUpdates() {
       if (contentEl) {
         contentEl.innerHTML = `
           <div class="empty" style="padding: 1.25rem;">
-            <p style="margin:0;color:var(--error);">Error: ${escHtml(data.error)}</p>
+            <p style="margin:0;color:var(--danger);">Error: ${escHtml(data.error)}</p>
           </div>
         `;
       }
@@ -1041,7 +1132,7 @@ async function loadOsUpdates() {
     if (contentEl) {
       contentEl.innerHTML = `
         <div class="empty" style="padding: 1.25rem;">
-          <p style="margin:0;color:var(--error);">Failed to load OS updates: ${escHtml(err.message)}</p>
+          <p style="margin:0;color:var(--danger);">Failed to load OS updates: ${escHtml(err.message)}</p>
         </div>
       `;
     }
@@ -1081,7 +1172,7 @@ function renderOsUpdates(data) {
         </div>
         <div class="resource-stat">
           <div class="resource-stat-label">Security Updates</div>
-          <div class="resource-stat-value" style="color: ${security > 0 ? 'var(--error)' : 'var(--success)'};">${security}</div>
+          <div class="resource-stat-value" style="color: ${security > 0 ? 'var(--danger)' : 'var(--success)'};">${security}</div>
         </div>
       </div>
     </div>
@@ -1096,10 +1187,10 @@ function renderOsUpdates(data) {
           <table style="width: 100%;">
             <thead>
               <tr>
-                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Package</th>
-                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Current</th>
-                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Available</th>
-                <th style="text-align: center; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Security</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); padding: .6rem 1rem;">Package</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); padding: .6rem 1rem;">Current</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); padding: .6rem 1rem;">Available</th>
+                <th style="text-align: center; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); padding: .6rem 1rem;">Security</th>
               </tr>
             </thead>
             <tbody>
@@ -1107,12 +1198,12 @@ function renderOsUpdates(data) {
     
     packages.slice(0, 20).forEach(pkg => {
       const securityBadge = pkg.security ? 
-        '<span style="color: var(--error);">✓</span>' :
-        '<span style="color: var(--muted);">−</span>';
+        '<span style="color: var(--danger);">✓</span>' :
+        '<span style="color: var(--text-secondary);">−</span>';
       html += `
               <tr>
                 <td style="padding: .7rem 1rem; font-family: monospace;">${escHtml(pkg.name)}</td>
-                <td style="padding: .7rem 1rem; font-family: monospace; color: var(--muted);">${escHtml(pkg.current)}</td>
+                <td style="padding: .7rem 1rem; font-family: monospace; color: var(--text-secondary);">${escHtml(pkg.current)}</td>
                 <td style="padding: .7rem 1rem; font-family: monospace;">${escHtml(pkg.available)}</td>
                 <td style="padding: .7rem 1rem; text-align: center;">${securityBadge}</td>
               </tr>
@@ -1220,7 +1311,7 @@ function renderHostOverviewModal(resources) {
       <div class="empty" style="padding: 2rem; text-align: center;">
         <div style="font-size: 1.5rem; margin-bottom: .5rem;">&#9888;</div>
         <div>Error loading host resources</div>
-        <div style="color: var(--muted); font-size: .85rem; margin-top: .5rem;">
+        <div style="color: var(--text-secondary); font-size: .85rem; margin-top: .5rem;">
           ${resources.__error || resources.error || 'Connection failed'}
         </div>
       </div>
@@ -1260,7 +1351,7 @@ function renderHostOverviewModal(resources) {
   html += `
     <div class="resource-card">
       <h4 style="margin-bottom: .5rem;">CPU</h4>
-      <div style="font-size: 2rem; font-weight: 600; color: var(--primary);">
+      <div style="font-size: 2rem; font-weight: 600; color: var(--accent);">
         ${resources.cpu_usage_percent !== undefined ? resources.cpu_usage_percent + '%' : '—'}
       </div>
       <div class="resource-grid" style="margin-top: .5rem;">
@@ -1270,8 +1361,8 @@ function renderHostOverviewModal(resources) {
         </div>
       </div>
       <div style="margin-top: .5rem;">
-        <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
-          <div style="height: 100%; width: ${resources.cpu_usage_percent || 0}%; background: var(--primary); border-radius: 4px;"></div>
+        <div style="height: 8px; background: var(--border-subtle); border-radius: 4px; overflow: hidden;">
+          <div style="height: 100%; width: ${resources.cpu_usage_percent || 0}%; background: var(--accent); border-radius: 4px;"></div>
         </div>
       </div>
     </div>
@@ -1281,7 +1372,7 @@ function renderHostOverviewModal(resources) {
   html += `
     <div class="resource-card">
       <h4 style="margin-bottom: .5rem;">Memory</h4>
-      <div style="font-size: 2rem; font-weight: 600; color: var(--primary);">
+      <div style="font-size: 2rem; font-weight: 600; color: var(--accent);">
         ${resources.memory_usage_percent !== undefined ? resources.memory_usage_percent + '%' : '—'}
       </div>
       <div class="resource-grid" style="margin-top: .5rem;">
@@ -1295,7 +1386,7 @@ function renderHostOverviewModal(resources) {
         </div>
       </div>
       <div style="margin-top: .5rem;">
-        <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
+        <div style="height: 8px; background: var(--border-subtle); border-radius: 4px; overflow: hidden;">
           <div style="height: 100%; width: ${resources.memory_usage_percent || 0}%; background: var(--success); border-radius: 4px;"></div>
         </div>
       </div>
@@ -1306,7 +1397,7 @@ function renderHostOverviewModal(resources) {
   html += `
     <div class="resource-card">
       <h4 style="margin-bottom: .5rem;">Disk</h4>
-      <div style="font-size: 2rem; font-weight: 600; color: var(--primary);">
+      <div style="font-size: 2rem; font-weight: 600; color: var(--accent);">
         ${resources.disk_usage_percent !== undefined ? resources.disk_usage_percent + '%' : '—'}
       </div>
       <div class="resource-grid" style="margin-top: .5rem;">
@@ -1320,7 +1411,7 @@ function renderHostOverviewModal(resources) {
         </div>
       </div>
       <div style="margin-top: .5rem;">
-        <div style="height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
+        <div style="height: 8px; background: var(--border-subtle); border-radius: 4px; overflow: hidden;">
           <div style="height: 100%; width: ${resources.disk_usage_percent || 0}%; background: var(--warning); border-radius: 4px;"></div>
         </div>
       </div>
@@ -1342,7 +1433,7 @@ function renderHostOverviewModal(resources) {
         </div>
         <div class="resource-stat">
           <div class="resource-stat-label">Stopped</div>
-          <div class="resource-stat-value" style="color: var(--muted);">${resources.containers_stopped || 0}</div>
+          <div class="resource-stat-value" style="color: var(--text-secondary);">${resources.containers_stopped || 0}</div>
         </div>
         <div class="resource-stat">
           <div class="resource-stat-label">Images</div>
@@ -1595,7 +1686,7 @@ function renderStacks(stacks) {
 function renderJobs(jobs) {
   const el = document.getElementById('jobsList');
   if (!jobs.length) {
-    el.innerHTML = `<div style="padding:.25rem;color:var(--muted);font-size:.82rem">No jobs yet.</div>`;
+    el.innerHTML = `<div style="padding:.25rem;color:var(--text-secondary);font-size:.82rem">No jobs yet.</div>`;
     return;
   }
 
@@ -1668,14 +1759,14 @@ function renderTable(images) {
   tbody.innerHTML = filtered.map(img => {
     const stacks = (img.stacks || []).length
       ? (img.stacks || []).map(s => `<span class="stack-pill">${escHtml(s)}</span>`).join('')
-      : '<span style="color:var(--faint);font-size:.75rem">—</span>';
+      : '<span style="color:var(--text-disabled);font-size:.75rem">—</span>';
 
     const actions = buildActions(img);
     return `<tr>
       <td><div class="img-name">${escHtml(img.image)}</div></td>
       <td>${badge(img.status)}</td>
       <td><div class="stack-col">${stacks}</div></td>
-      <td style="color:var(--muted);font-size:.78rem">${fmtDate(img.checked_at)}</td>
+      <td style="color:var(--text-secondary);font-size:.78rem">${fmtDate(img.checked_at)}</td>
       <td><div style="display:flex;gap:.4rem;flex-wrap:wrap">${actions}</div></td>
     </tr>`;
   }).join('');
@@ -1789,12 +1880,12 @@ async function loadOps() {
   const d = await safeInstanceFetch('/operations');
   const el = document.getElementById('opLog');
   if (d.__error) {
-    el.innerHTML = `<div style="padding:.5rem;color:var(--error);font-size:.82rem">Host offline: ${escHtml(d.__error)}</div>`;
+    el.innerHTML = `<div style="padding:.5rem;color:var(--danger);font-size:.82rem">Host offline: ${escHtml(d.__error)}</div>`;
     return;
   }
   const ops = d;
   if (!ops.length) {
-    el.innerHTML = `<div style="padding:.5rem;color:var(--muted);font-size:.82rem">No operations yet.</div>`;
+    el.innerHTML = `<div style="padding:.5rem;color:var(--text-secondary);font-size:.82rem">No operations yet.</div>`;
     return;
   }
   el.innerHTML = ops.slice(0, 20).map(o => `
@@ -1830,32 +1921,32 @@ async function triggerCheck() {
 }
 
 async function recheckImage(imageRef) {
-  showModal('Re-checking…', `<p style="color:var(--muted)">Checking <code>${escHtml(imageRef)}</code>…</p>`);
+  showModal('Re-checking…', `<p style="color:var(--text-secondary)">Checking <code>${escHtml(imageRef)}</code>…</p>`);
   let d;
   try {
     d = await requestJson(`/check/${encodeURIComponent(imageRef)}`, { method: 'POST' });
   } catch (err) {
-    showModal('Check Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    showModal('Check Failed', `<p style="color:var(--danger)">✗ ${escHtml(err.message)}</p>`);
     await refreshAll();
     return;
   }
   if (d.status === 'error') {
-    showModal('Check Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p>`);
+    showModal('Check Failed', `<p style="color:var(--danger)">✗ ${escHtml(d.message)}</p>`);
   } else {
     showModal('Check Result', `
       <p><strong>Image:</strong> <code>${escHtml(d.image)}</code></p>
       <p style="margin-top:.5rem"><strong>Status:</strong> ${badge(d.status)}</p>
       <p style="margin-top:.5rem"><strong>Stacks:</strong> ${(d.stacks || []).map(s => `<span class="stack-pill">${escHtml(s)}</span>`).join(' ') || '—'}</p>
-      <p style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Local digest:<br><code>${escHtml(d.local_digest || '—')}</code></p>
-      <p style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Remote digest:<br><code>${escHtml(d.remote_digest || '—')}</code></p>
-      <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
+      <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-secondary)">Local digest:<br><code>${escHtml(d.local_digest || '—')}</code></p>
+      <p style="margin-top:.5rem;font-size:.8rem;color:var(--text-secondary)">Remote digest:<br><code>${escHtml(d.remote_digest || '—')}</code></p>
+      <p style="margin-top:.75rem;font-size:.78rem;color:var(--text-secondary)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
     `);
   }
   await refreshAll();
 }
 
 async function pullImage(imageRef) {
-  showModal('Pulling Image', `<p style="color:var(--muted)">Pulling <code>${escHtml(imageRef)}</code>…<br>This may take a minute.</p>`);
+  showModal('Pulling Image', `<p style="color:var(--text-secondary)">Pulling <code>${escHtml(imageRef)}</code>…<br>This may take a minute.</p>`);
   let d;
   try {
     d = await requestJson(`/update/${encodeURIComponent(imageRef)}`, {
@@ -1864,21 +1955,21 @@ async function pullImage(imageRef) {
       body: JSON.stringify({ auto_recreate: getAutoRecreate() })
     });
   } catch (err) {
-    showModal('Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    showModal('Pull Failed', `<p style="color:var(--danger)">✗ ${escHtml(err.message)}</p>`);
     await refreshAll();
     return;
   }
   if (d.status === 'success') {
-    showModal('Pull Complete', `<p style="color:var(--success)">✓ Image pulled successfully.</p><p style="margin-top:.5rem">New status: ${badge(d.result.status)}</p><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
+    showModal('Pull Complete', `<p style="color:var(--success)">✓ Image pulled successfully.</p><p style="margin-top:.5rem">New status: ${badge(d.result.status)}</p><p style="margin-top:.75rem;font-size:.78rem;color:var(--text-secondary)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   } else {
-    showModal('Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message)}</p><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
+    showModal('Pull Failed', `<p style="color:var(--danger)">✗ ${escHtml(d.message)}</p><p style="margin-top:.75rem;font-size:.78rem;color:var(--text-secondary)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   }
   await refreshAll();
 }
 
 async function recreate(composePath) {
   if (!confirm(`Run docker compose up -d on:\n${composePath}\n\nThis will recreate updated containers. Continue?`)) return;
-  showModal('Recreating Containers', `<p style="color:var(--muted)">Running <code>docker compose up -d</code>…<br>This may take a moment.</p>`);
+  showModal('Recreating Containers', `<p style="color:var(--text-secondary)">Running <code>docker compose up -d</code>…<br>This may take a moment.</p>`);
   let d;
   try {
     d = await requestJson('/compose/recreate', {
@@ -1887,21 +1978,21 @@ async function recreate(composePath) {
       body: JSON.stringify({ compose_path: composePath })
     });
   } catch (err) {
-    showModal('Recreate Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    showModal('Recreate Failed', `<p style="color:var(--danger)">✗ ${escHtml(err.message)}</p>`);
     await refreshAll();
     return;
   }
   if (d.status === 'success') {
-    showModal('Recreate Complete', `<p style="color:var(--success);margin-bottom:.75rem">✓ Containers recreated successfully.</p><pre>${escHtml(d.output || '')}</pre><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
+    showModal('Recreate Complete', `<p style="color:var(--success);margin-bottom:.75rem">✓ Containers recreated successfully.</p><pre>${escHtml(d.output || '')}</pre><p style="margin-top:.75rem;font-size:.78rem;color:var(--text-secondary)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   } else {
-    showModal('Recreate Failed', `<p style="color:var(--error);margin-bottom:.75rem">✗ Failed</p><pre>${escHtml(d.message || '')}</pre><p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
+    showModal('Recreate Failed', `<p style="color:var(--danger);margin-bottom:.75rem">✗ Failed</p><pre>${escHtml(d.message || '')}</pre><p style="margin-top:.75rem;font-size:.78rem;color:var(--text-secondary)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>`);
   }
   await refreshAll();
 }
 
 async function bulkUpdateAll() {
   if (!confirm('Pull all images that have updates or are not yet pulled?')) return;
-  showModal('Bulk Pull Started', `<p style="color:var(--muted)">Starting bulk update for all stacks…</p>`);
+  showModal('Bulk Pull Started', `<p style="color:var(--text-secondary)">Starting bulk update for all stacks…</p>`);
   let d;
   try {
     d = await requestJson('/bulk/update', {
@@ -1910,21 +2001,21 @@ async function bulkUpdateAll() {
       body: JSON.stringify({ auto_recreate: getAutoRecreate() })
     });
   } catch (err) {
-    showModal('Bulk Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    showModal('Bulk Pull Failed', `<p style="color:var(--danger)">✗ ${escHtml(err.message)}</p>`);
     await refreshAll();
     return;
   }
   showModal('Bulk Pull Started', `
     <p>Bulk update has started for <strong>all stacks</strong>.</p>
     <p style="margin-top:.6rem">Auto-recreate: <strong>${d.auto_recreate ? 'enabled' : 'disabled'}</strong></p>
-    <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
+    <p style="margin-top:.75rem;font-size:.78rem;color:var(--text-secondary)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
   `);
   await refreshAll();
 }
 
 async function bulkUpdateStack(stackName) {
   if (!confirm(`Pull all outdated images for stack "${stackName}"?`)) return;
-  showModal('Stack Bulk Pull Started', `<p style="color:var(--muted)">Starting bulk update for <code>${escHtml(stackName)}</code>…</p>`);
+  showModal('Stack Bulk Pull Started', `<p style="color:var(--text-secondary)">Starting bulk update for <code>${escHtml(stackName)}</code>…</p>`);
   let d;
   try {
     d = await requestJson('/bulk/update', {
@@ -1933,50 +2024,50 @@ async function bulkUpdateStack(stackName) {
       body: JSON.stringify({ stack: stackName, auto_recreate: getAutoRecreate() })
     });
   } catch (err) {
-    showModal('Stack Bulk Pull Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    showModal('Stack Bulk Pull Failed', `<p style="color:var(--danger)">✗ ${escHtml(err.message)}</p>`);
     await refreshAll();
     return;
   }
   showModal('Stack Bulk Pull Started', `
     <p>Bulk update has started for stack <strong>${escHtml(stackName)}</strong>.</p>
     <p style="margin-top:.6rem">Auto-recreate: <strong>${d.auto_recreate ? 'enabled' : 'disabled'}</strong></p>
-    <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
+    <p style="margin-top:.75rem;font-size:.78rem;color:var(--text-secondary)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
   `);
   await refreshAll();
 }
 
 async function recreateStack(stackName) {
   if (!confirm(`Recreate all compose files for stack "${stackName}"?`)) return;
-  showModal('Stack Recreate Started', `<p style="color:var(--muted)">Starting recreate for stack <code>${escHtml(stackName)}</code>…</p>`);
+  showModal('Stack Recreate Started', `<p style="color:var(--text-secondary)">Starting recreate for stack <code>${escHtml(stackName)}</code>…</p>`);
   let d;
   try {
     d = await requestJson(`/stacks/${encodeURIComponent(stackName)}/recreate`, { method: 'POST' });
   } catch (err) {
-    showModal('Stack Recreate Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    showModal('Stack Recreate Failed', `<p style="color:var(--danger)">✗ ${escHtml(err.message)}</p>`);
     await refreshAll();
     return;
   }
   showModal('Stack Recreate Started', `
     <p>Recreate has started for stack <strong>${escHtml(stackName)}</strong>.</p>
-    <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
+    <p style="margin-top:.75rem;font-size:.78rem;color:var(--text-secondary)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
   `);
   await refreshAll();
 }
 
 async function sendTestNotification() {
-  showModal('Sending Test Notification', `<p style="color:var(--muted)">Sending test notification…</p>`);
+  showModal('Sending Test Notification', `<p style="color:var(--text-secondary)">Sending test notification…</p>`);
   let d;
   try {
     d = await requestJson('/notify/test', { method: 'POST' });
   } catch (err) {
-    showModal('Test Notification Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    showModal('Test Notification Failed', `<p style="color:var(--danger)">✗ ${escHtml(err.message)}</p>`);
     await refreshAll();
     return;
   }
   if (d.status === 'success') {
     showModal('Test Notification Sent', `<p style="color:var(--success)">✓ Test notification sent successfully.</p>`);
   } else {
-    showModal('Test Notification Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message || 'Notification failed')}</p>`);
+    showModal('Test Notification Failed', `<p style="color:var(--danger)">✗ ${escHtml(d.message || 'Notification failed')}</p>`);
   }
   await refreshAll();
 }
@@ -1991,7 +2082,7 @@ async function runPrune(endpoint, title, bodyHtml) {
       body: JSON.stringify(endpoint.body || {})
     });
   } catch (err) {
-    showModal('Cleanup Failed', `<p style="color:var(--error)">✗ ${escHtml(err.message)}</p>`);
+    showModal('Cleanup Failed', `<p style="color:var(--danger)">✗ ${escHtml(err.message)}</p>`);
     await refreshAll();
     return;
   }
@@ -2000,10 +2091,10 @@ async function runPrune(endpoint, title, bodyHtml) {
     showModal(title, `
       <p>${bodyHtml}</p>
       <p style="margin-top:.75rem">Cleanup job started successfully.</p>
-      <p style="margin-top:.75rem;font-size:.78rem;color:var(--muted)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
+      <p style="margin-top:.75rem;font-size:.78rem;color:var(--text-secondary)">Job ID: <code>${escHtml(d.job_id || '—')}</code></p>
     `);
   } else {
-    showModal('Cleanup Failed', `<p style="color:var(--error)">✗ ${escHtml(d.message || 'Cleanup request failed')}</p>`);
+    showModal('Cleanup Failed', `<p style="color:var(--danger)">✗ ${escHtml(d.message || 'Cleanup request failed')}</p>`);
   }
   await refreshAll();
 }
@@ -2128,10 +2219,10 @@ async function showPerformanceMonitoring() {
           <table style="width: 100%; margin-top: .5rem;">
             <thead>
               <tr>
-                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Container</th>
-                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">CPU</th>
-                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Memory</th>
-                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: .6rem 1rem;">Status</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); padding: .6rem 1rem;">Container</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); padding: .6rem 1rem;">CPU</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); padding: .6rem 1rem;">Memory</th>
+                <th style="text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-secondary); padding: .6rem 1rem;">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -2371,7 +2462,7 @@ function renderRemoteHostsList() {
       <div class="remote-host-item">
         <div style="flex:1;min-width:120px">
           <strong>${escHtml(inst.name)}</strong>
-          <div style="font-size:.76rem;color:var(--muted)">${escHtml(inst.url || inst.id)}</div>
+          <div style="font-size:.76rem;color:var(--text-secondary)">${escHtml(inst.url || inst.id)}</div>
         </div>
         <button class="btn btn-ghost btn-sm btn-config" onclick="editRemoteHost('${escAttr(inst.id)}')">Edit</button>
         <button class="btn btn-danger btn-sm btn-config" onclick="removeRemoteHost('${escAttr(inst.id)}')">Remove</button>
@@ -2804,7 +2895,7 @@ function renderContainers(containers) {
   const el = document.getElementById('containersList');
   
   if (!containers.length) {
-    el.innerHTML = `<div style="padding:.5rem;color:var(--muted);font-size:.82rem">No containers found.</div>`;
+    el.innerHTML = `<div style="padding:.5rem;color:var(--text-secondary);font-size:.82rem">No containers found.</div>`;
     return;
   }
 
@@ -2883,7 +2974,7 @@ function renderContainers(containers) {
   }).join('');
   
   if (el.innerHTML === '') {
-    el.innerHTML = `<div style="padding:.5rem;color:var(--muted);font-size:.82rem">No containers match this filter.</div>`;
+    el.innerHTML = `<div style="padding:.5rem;color:var(--text-secondary);font-size:.82rem">No containers match this filter.</div>`;
   }
 }
 
@@ -2895,7 +2986,7 @@ async function loadContainers() {
       const message = await response.text();
       renderContainers([]);
       document.getElementById('containersList').innerHTML = 
-        `<div style="padding:.5rem;color:var(--error);font-size:.82rem">Failed to load containers: ${escHtml(message)}</div>`;
+        `<div style="padding:.5rem;color:var(--danger);font-size:.82rem">Failed to load containers: ${escHtml(message)}</div>`;
       return;
     }
     allContainers = await response.json();
@@ -2903,7 +2994,7 @@ async function loadContainers() {
   } catch (err) {
     renderContainers([]);
     document.getElementById('containersList').innerHTML = 
-      `<div style="padding:.5rem;color:var(--error);font-size:.82rem">Connection failed: ${escHtml(err.message)}</div>`;
+      `<div style="padding:.5rem;color:var(--danger);font-size:.82rem">Connection failed: ${escHtml(err.message)}</div>`;
   }
 }
 
@@ -2962,11 +3053,11 @@ async function restartContainer(containerId) {
 }
 
 async function inspectContainer(containerId) {
-  showModal('Container Details', '<p style="color:var(--muted)">Loading details...</p>');
+  showModal('Container Details', '<p style="color:var(--text-secondary)">Loading details...</p>');
   try {
     const response = await instanceFetch(`/containers/${encodeURIComponent(containerId)}`);
     if (!response.ok) {
-      showModal('Error', `<p style="color:var(--error)">Failed to load details: ${response.statusText}</p>`);
+      showModal('Error', `<p style="color:var(--danger)">Failed to load details: ${response.statusText}</p>`);
       return;
     }
     const data = await response.json();
@@ -2989,7 +3080,7 @@ async function inspectContainer(containerId) {
     
     showModal('Container Details', details.join(''));
   } catch (err) {
-    showModal('Error', `<p style="color:var(--error)">Error: ${escHtml(err.message)}</p>`);
+    showModal('Error', `<p style="color:var(--danger)">Error: ${escHtml(err.message)}</p>`);
   }
 }
 
@@ -3025,7 +3116,7 @@ function renderComposeFiles(files) {
   }
   
   if (!files.length) {
-    el.innerHTML = `<div style="padding:1.25rem;color:var(--muted)">No compose files found.</div>`;
+    el.innerHTML = `<div style="padding:1.25rem;color:var(--text-secondary)">No compose files found.</div>`;
     return;
   }
   

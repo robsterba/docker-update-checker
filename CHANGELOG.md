@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.3.0] — 2026-09-26
+
+### Changed
+
+- **Dashboard restyle to fully conform to style.md (Standard Web Theme Spec)**
+  - Both token blocks (light + dark) are now included verbatim under the spec's token names (`--bg-page`, `--bg-surface`, `--accent`, `--text-primary`, ...); all component rules and inline styles were migrated off the previous renamed tokens (`--bg`, `--surface`, `--muted`, ...)
+  - Base element styles per the spec: system font stack, underlined links, `hr`/divider rule, `code`/`pre` on the inset surface with the spec monospace stack (`ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`), and form inputs (`input`/`select`/`textarea`) on `--bg-surface-alt` with `--border-default` and 6px radius
+  - Badge tint recipe per the spec: `color-mix` tints at 15% (informational) and 18% (severity) against `--success` / `--warning` / `--danger` / `--info`; badges and chips are 12px radius pills, `not_pulled`/`unknown` use the muted (surface-alt) treatment
+  - Buttons per the spec: 6px radius, accent fill reserved for the primary action with hover/pressed states, outline treatment for default/secondary buttons, and a 1px press-down on `:active`
+  - Cards are real panels now: `--bg-surface` background, subtle border, 8px radius, `--shadow-sm`; other card-like surfaces (jobs, container items, config sections, compose file cards) normalized to 8px radius
+  - Tables use the surface background with `--bg-surface-alt` headers and row hover
+  - Theme toggle styled per the spec's outline button recipe
+
+### Removed
+
+- Google Fonts (Inter) dependency; the dashboard now uses the spec's system and monospace font stacks, removing external font requests
+
+---
+
 ## [v1.2.1] — 2026-09-26
 
 ### Fixed
