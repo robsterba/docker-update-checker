@@ -1163,76 +1163,87 @@ def run_prune_job(job_id: str, prune_type: str, include_all: bool = False):
 import api
 
 # ── Scheduler ─────────────────────────────────────────────────────────────────
+# Module-level so api.py can reschedule jobs (e.g. check interval changes);
+# creating the scheduler has no side effects until start_background_workers().
 scheduler = BackgroundScheduler()
-scheduler.add_job(run_full_check, "interval",
-                  minutes=get_check_interval_minutes(), id="full_check")
-# Clean up expired registry tokens every hour to prevent memory leaks
-from config import cleanup_token_cache
-scheduler.add_job(cleanup_token_cache, "interval",
-                  hours=1, id="token_cache_cleanup")
-# Check for application updates periodically
-from docker_utils import check_for_self_update
-def check_self_update():
-    """Background job to check for application updates."""
-    if SELF_UPDATE_CHECK_ENABLED:
-        update_info = check_for_self_update(VERSION, GITHUB_REPO)
-        if update_info.get("update_available") and NOTIFY_ENABLED:
-            try:
-                from notifier import send_notification
-                send_notification(
-                    title="Application Update Available",
-                    message=f"docker-update-checker {update_info['latest_version']} is available (current: {update_info['current_version']})",
-                    event_type="self_update_available",
-                    data={
-                        "current_version": update_info["current_version"],
-                        "latest_version": update_info["latest_version"],
-                        "release_url": update_info.get("release_url"),
-                        "release_notes": update_info.get("release_notes", "")[:200]
-                    }
-                )
-            except Exception as e:
-                log.warning(f"Failed to send self-update notification: {e}")
 
-scheduler.add_job(check_self_update, "interval",
-                  hours=SELF_UPDATE_CHECK_INTERVAL_HOURS, id="self_update_check")
-# Check for OS package updates periodically
-from docker_utils import check_os_updates
-def check_os_updates_job():
-    """Background job to check for OS package updates."""
-    if OS_UPDATE_CHECK_ENABLED:
-        os_updates = check_os_updates()
-        if os_updates.get("updates_available", 0) > 0 and NOTIFY_ENABLED:
-            try:
-                packages_count = os_updates.get("updates_available", 0)
-                security_count = os_updates.get("security_updates", 0)
-                os_name = os_updates.get("os", "Unknown")
-                
-                from notifier import send_notification
-                send_notification(
-                    title=f"OS Updates Available on {os_name}",
-                    message=f"{packages_count} package(s) can be updated ({security_count} security updates)",
-                    event_type="os_updates_available",
-                    data={
-                        "os": os_name,
-                        "os_version": os_updates.get("version", ""),
-                        "updates_available": packages_count,
-                        "security_updates": security_count,
-                        "package_manager": os_updates.get("package_manager"),
-                        "packages": os_updates.get("packages", [])[:10]
-                    }
-                )
-            except Exception as e:
-                log.warning(f"Failed to send OS update notification: {e}")
+def start_background_workers():
+    """Start the background scheduler and the initial full check.
 
-scheduler.add_job(check_os_updates_job, "interval",
-                  hours=OS_UPDATE_CHECK_INTERVAL_HOURS, id="os_update_check")
-scheduler.start()
+    Only called when app.py runs as the entry point; importing this module
+    (e.g. from api.py or tooling) has no side effects.
+    """
+    scheduler.add_job(run_full_check, "interval",
+                      minutes=get_check_interval_minutes(), id="full_check")
+    # Clean up expired registry tokens every hour to prevent memory leaks
+    from config import cleanup_token_cache
+    scheduler.add_job(cleanup_token_cache, "interval",
+                      hours=1, id="token_cache_cleanup")
+    # Check for application updates periodically
+    from docker_utils import check_for_self_update
+    def check_self_update():
+        """Background job to check for application updates."""
+        if SELF_UPDATE_CHECK_ENABLED:
+            update_info = check_for_self_update(VERSION, GITHUB_REPO)
+            if update_info.get("update_available") and NOTIFY_ENABLED:
+                try:
+                    from notifier import send_notification
+                    send_notification(
+                        title="Application Update Available",
+                        message=f"docker-update-checker {update_info['latest_version']} is available (current: {update_info['current_version']})",
+                        event_type="self_update_available",
+                        data={
+                            "current_version": update_info["current_version"],
+                            "latest_version": update_info["latest_version"],
+                            "release_url": update_info.get("release_url"),
+                            "release_notes": update_info.get("release_notes", "")[:200]
+                        }
+                    )
+                except Exception as e:
+                    log.warning(f"Failed to send self-update notification: {e}")
 
-threading.Thread(
-    target=run_full_check,
-    args=(create_job("startup_check", "all", total_steps=4),),
-    daemon=True
-).start()
+    scheduler.add_job(check_self_update, "interval",
+                      hours=SELF_UPDATE_CHECK_INTERVAL_HOURS, id="self_update_check")
+    # Check for OS package updates periodically
+    from docker_utils import check_os_updates
+    def check_os_updates_job():
+        """Background job to check for OS package updates."""
+        if OS_UPDATE_CHECK_ENABLED:
+            os_updates = check_os_updates()
+            if os_updates.get("updates_available", 0) > 0 and NOTIFY_ENABLED:
+                try:
+                    packages_count = os_updates.get("updates_available", 0)
+                    security_count = os_updates.get("security_updates", 0)
+                    os_name = os_updates.get("os", "Unknown")
+
+                    from notifier import send_notification
+                    send_notification(
+                        title=f"OS Updates Available on {os_name}",
+                        message=f"{packages_count} package(s) can be updated ({security_count} security updates)",
+                        event_type="os_updates_available",
+                        data={
+                            "os": os_name,
+                            "os_version": os_updates.get("version", ""),
+                            "updates_available": packages_count,
+                            "security_updates": security_count,
+                            "package_manager": os_updates.get("package_manager"),
+                            "packages": os_updates.get("packages", [])[:10]
+                        }
+                    )
+                except Exception as e:
+                    log.warning(f"Failed to send OS update notification: {e}")
+
+    scheduler.add_job(check_os_updates_job, "interval",
+                      hours=OS_UPDATE_CHECK_INTERVAL_HOURS, id="os_update_check")
+    scheduler.start()
+
+    threading.Thread(
+        target=run_full_check,
+        args=(create_job("startup_check", "all", total_steps=4),),
+        daemon=True
+    ).start()
+    return scheduler
 
 if __name__ == "__main__":
+    start_background_workers()
     app.run(host="0.0.0.0", port=5000, debug=False)

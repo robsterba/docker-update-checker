@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.4.0] — 2026-09-27
+
+### Changed
+
+- **Dashboard restyle to the updated style.md (Standard Web Theme Spec, blue-forward palette)**
+  - Both token blocks (light + dark) updated verbatim to the new palette: Platinum (`#E7ECEF`) day page with Dusk Blue (`#274C77`) text/accents, night theme inverted to a Dusk Blue page with Platinum text and Icy Blue (`#A3CEF1`) accent fills; Steel Blue (`#6096BA`) borders/hover; Grey Olive (`#8B8C89`) secondary day text
+  - New `--highlight` / `--highlight-soft` tokens included per the spec (selected rows, info chips)
+  - Base font size increased from 14px to 16px, scaling the whole rem-based interface up for readability
+  - Smallest font sizes (filter buttons, last-check, health/version badges, resource labels) raised from .6–.68rem to a .7rem floor
+- **Versioning now driven by a single `VERSION` file at the repo root** (same model as taskd)
+  - New `version.py` reads the `VERSION` file with path candidates and a fallback; `config.py` imports `VERSION` from it instead of hard-coding the string
+  - GUI badge and `/api/version` reflect the file automatically; the Dockerfile needs no change (`COPY . .` ships the file)
+
+### Fixed
+
+- `app.py` no longer starts the background scheduler and the startup image check at import time; that work moved into `start_background_workers()`, called only when `app.py` runs as the entry point. Importing `app`/`api` (tooling, tests, future WSGI servers) is now side-effect-free. The `BackgroundScheduler` object stays module-level so the check-interval API can still reschedule jobs
+
+---
+
 ## [v1.3.0] — 2026-09-26
 
 ### Changed

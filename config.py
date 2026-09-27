@@ -2,8 +2,7 @@ import os
 import time
 import logging
 
-# ── Version ──────────────────────────────────────────────────────────────────
-VERSION = "1.3.0"
+from version import VERSION
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 

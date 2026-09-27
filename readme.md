@@ -53,7 +53,7 @@ Right now there is intentionally no automatic updating — this is meant to be s
 
 ## Version
 
-Current version: **1.1.2**
+The version lives in the `VERSION` file at the repo root; the GUI and API read it from there. Current version: **1.4.0**
 
 ---
 
