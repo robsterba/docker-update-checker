@@ -631,6 +631,10 @@ function startRefreshTimer() {
 const STORAGE_TAB_KEY = 'docker-update-checker-active-tab';
 const STORAGE_STARTUP_TAB_KEY = 'docker-update-checker-startup-tab';
 const STORAGE_MAX_JOBS_KEY = 'docker-update-checker-max-jobs';
+const STORAGE_IMAGE_FILTER_KEY = 'docker-update-checker-image-filter';
+const STORAGE_IMAGE_SORT_KEY = 'docker-update-checker-image-sort';
+const STORAGE_CONTAINER_FILTER_KEY = 'docker-update-checker-container-filter';
+const STORAGE_SHOW_STOPPED_KEY = 'docker-update-checker-show-stopped';
 const TAB_NAMES = ['overview', 'images', 'containers', 'stacks', 'compose', 'system'];
 let activeTab = 'overview';
 let composeLoaded = false;

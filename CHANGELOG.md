@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.2.1] — 2026-09-26
+
+### Fixed
+
+- Dashboard stuck on "Loading host status…" with no data loading at all
+  - `init()` threw `ReferenceError: STORAGE_IMAGE_FILTER_KEY is not defined` in `initFilters()`, aborting startup before host instances or any dashboard data could load
+  - The revert/reapply in v1.1.x restored filter-persistence code whose four localStorage key constants (`STORAGE_IMAGE_FILTER_KEY`, `STORAGE_IMAGE_SORT_KEY`, `STORAGE_CONTAINER_FILTER_KEY`, `STORAGE_SHOW_STOPPED_KEY`) were never defined; they are now declared alongside the other storage keys
+
+---
+
 ## [v1.2.0] — 2026-09-26
 
 ### Changed
