@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.3] — 2026-10-03
+
+### Documentation
+
+- **`compose.example.yaml` now documents volume mounts for the runtime settings files** (`notification_settings.json`, `taskd_settings.json`). Settings saved in the dashboard live inside the container and are silently lost whenever it is recreated (every deploy) — the example now shows how to persist them, with a warning that Docker creates a directory instead of a file if the host file does not exist yet
+- **readme**: persistence notes added to the Notifications and taskd Integration sections, covering both the volume-mount approach and the env-var alternative (`TASKD_*` lives in the compose file and survives recreation)
+
+---
+
 ## [v1.7.2] — 2026-10-03
 
 ### Fixed

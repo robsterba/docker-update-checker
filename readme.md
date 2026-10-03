@@ -136,6 +136,8 @@ Trigger controls (all optional):
 
 Use the **Test Notification** action in the dashboard to verify your configuration.
 
+Runtime settings saved in the dashboard are stored in `notification_settings.json` inside the container and are lost when it is recreated (e.g. by a deploy). To persist them, mount the file as a volume — see `compose.example.yaml`.
+
 ### taskd Integration
 
 Disabled by default. When enabled, every scan reconciles the outdated images into a [taskd](https://github.com/robsterba/taskd) instance: one long-lived parent task per host (`Container updates: <host>`) with one subtask per outdated image. Subtasks are refreshed on each scan and completed automatically once their image is up to date again (or no longer appears in any compose file). A taskd outage never fails a scan — the sync is logged and retried on the next check.
@@ -152,6 +154,7 @@ Disabled by default. When enabled, every scan reconciles the outdated images int
 Notes:
 
 - Settings can also be changed at runtime via the dashboard (**Settings → taskd Integration**, with a connection test); saved settings override the environment variables, matching the notification settings behavior.
+- UI-saved settings are stored in `taskd_settings.json` inside the container and are lost when it is recreated (e.g. by a deploy). To persist them, mount the file as a volume — see `compose.example.yaml` — or configure the integration with `TASKD_*` environment variables, which live in the compose file and survive recreation.
 - Each docker-update-checker instance syncs only its own host's results. To cover remote hosts, enable the integration on each instance, pointing at the same taskd URL — every host then owns its own parent task.
 - Do not rename the automated parent task or subtasks in taskd: the sync finds them by exact title and would create duplicates. Completing a subtask manually is fine — it is reopened automatically while the image is still outdated.
 - Images with registry errors or unknown check status are never auto-completed; "no data" is not treated as "up to date". A scan that finds no images at all (e.g. an empty or mis-mounted `COMPOSE_ROOT`) also skips completion, so a broken scan cannot mass-close your tasks.

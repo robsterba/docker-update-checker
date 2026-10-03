@@ -16,6 +16,11 @@ services:
       - ${COMPOSE_ROOT}:/compose:ro
       # Mount remote instances file if using remote host aggregation
       - ./remote_instances.json:/app/remote_instances.json:ro
+      # Persist UI-saved settings across container recreation (deploys wipe
+      # them otherwise). Create the files on the host first with touch —
+      # Docker creates a directory if the host file is missing:
+      # - ./notification_settings.json:/app/notification_settings.json
+      # - ./taskd_settings.json:/app/taskd_settings.json
     environment:
       # Path inside container where compose files live
       COMPOSE_ROOT: /compose
