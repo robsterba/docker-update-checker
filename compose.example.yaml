@@ -28,6 +28,13 @@ services:
       #NOTIFY_BACKEND: webhook
       #NOTIFY_WEBHOOK_URL: ${NOTIFY_WEBHOOK_URL}
       #NOTIFY_WEBHOOK_METHOD: POST
+      # taskd integration — sync outdated images as tasks after each scan
+      #TASKD_ENABLED: true
+      #TASKD_URL: http://taskd:8000
+      #TASKD_TIMEOUT: 10
+      #TASKD_HOST_LABEL: ""
+      #TASKD_TAGS: automated,homelab
+      #TASKD_SOURCE: docker-update-checker
 
 # For MQTT notification, uncomment and configure the following:
       # NOTIFY_BACKEND: mqtt

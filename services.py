@@ -66,6 +66,8 @@ from notifier import (
     send_notification,
 )
 
+import taskd
+
 from docker_utils import (
     check_image,
     docker_client,
@@ -769,6 +771,20 @@ def run_full_check(job_id: Optional[str] = None):
            f"Checked {len(results)} images, {updates} updates available")
 
     notify_updates_found(results)
+
+    # A scan that found no compose files carries no evidence that images were
+    # removed, so the taskd completion pass is disabled for it.
+    taskd_summary = taskd.sync_results(results, allow_completion=bool(compose_files))
+    if taskd_summary.get("status") == "success":
+        update_job(job_id, event={
+            "status": "success",
+            "message": f"taskd: {taskd_summary.get('message', '')}"
+        })
+    elif taskd_summary.get("status") == "error":
+        update_job(job_id, event={
+            "status": "error",
+            "message": f"taskd sync failed: {taskd_summary.get('message', '')}"
+        })
 
     finish_job(
         job_id,

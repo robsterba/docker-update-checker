@@ -467,6 +467,7 @@
         <div class="dropdown-menu hidden" id="settingsMenu">
           <button class="dropdown-menu-item" onclick="showNotificationConfig()">Notifications</button>
           <button class="dropdown-menu-item" onclick="showRemoteHostsConfig()">Remote Hosts</button>
+          <button class="dropdown-menu-item" onclick="showTaskdConfig()">taskd Integration</button>
           <button class="dropdown-menu-item" onclick="showPreferencesConfig()">Preferences</button>
         </div>
       </div>
@@ -2583,6 +2584,155 @@ function removeRemoteHost(instanceId) {
   showToast('Remote host removed', 'success');
 }
 
+async function showTaskdConfig() {
+  currentConfigSection = 'taskd';
+  const html = `
+    <div class="config-section">
+      <div class="config-section-title">taskd Integration</div>
+      <div class="config-row">
+        <label class="config-toggle">
+          <input type="checkbox" id="configTaskdEnabled">
+          <span>Sync outdated images as tasks</span>
+        </label>
+      </div>
+      <div class="config-description">
+        After each scan, outdated images are synced to taskd as subtasks under a
+        per-host parent task ("Container updates: &lt;host&gt;"). Subtasks are refreshed
+        on every scan and completed automatically once their image is up to date again.
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Connection</div>
+      <div class="config-row">
+        <label class="config-label">URL:</label>
+        <input type="text" class="config-input" id="configTaskdUrl" placeholder="http://taskd:8000" value="">
+      </div>
+      <div class="config-row">
+        <label class="config-label">Timeout (s):</label>
+        <input type="number" class="config-input" id="configTaskdTimeout" placeholder="10" min="1" max="60" value="">
+      </div>
+      <div class="config-row">
+        <button class="btn btn-ghost btn-sm" onclick="testTaskdConnection()">Test Connection</button>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-section-title">Task Options</div>
+      <div class="config-row">
+        <label class="config-label">Host label:</label>
+        <input type="text" class="config-input" id="configTaskdHostLabel" placeholder="defaults to this host's hostname" value="">
+      </div>
+      <div class="config-description">
+        Identifies this host in the taskd parent task title. Set this if multiple hosts share a hostname.
+      </div>
+      <div class="config-row">
+        <label class="config-label">Tags:</label>
+        <input type="text" class="config-input" id="configTaskdTags" placeholder="automated,homelab" value="">
+      </div>
+      <div class="config-row">
+        <label class="config-label">Source:</label>
+        <input type="text" class="config-input" id="configTaskdSource" placeholder="docker-update-checker" value="">
+      </div>
+      <div class="config-description">
+        The source label taskd uses to mark tasks created by this integration. Renaming it
+        orphans existing synced tasks.
+      </div>
+    </div>
+  `;
+
+  document.getElementById('configModalTitle').textContent = 'taskd Integration';
+  document.getElementById('configModalBody').innerHTML = html;
+  document.getElementById('configModalBackdrop').classList.add('open');
+
+  loadTaskdSettings();
+}
+
+function loadTaskdSettings() {
+  fetch('/api/config/taskd')
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(settings => {
+    if (document.getElementById('configTaskdEnabled')) {
+      document.getElementById('configTaskdEnabled').checked = settings.enabled || false;
+    }
+    if (document.getElementById('configTaskdUrl')) {
+      document.getElementById('configTaskdUrl').value = settings.url || '';
+    }
+    if (document.getElementById('configTaskdTimeout')) {
+      document.getElementById('configTaskdTimeout').value = settings.timeout || 10;
+    }
+    if (document.getElementById('configTaskdHostLabel')) {
+      document.getElementById('configTaskdHostLabel').value = settings.host_label || '';
+    }
+    if (document.getElementById('configTaskdTags')) {
+      document.getElementById('configTaskdTags').value = (settings.tags || []).join(',');
+    }
+    if (document.getElementById('configTaskdSource')) {
+      document.getElementById('configTaskdSource').value = settings.source || '';
+    }
+  })
+  .catch(error => {
+    console.warn('Failed to load taskd settings:', error);
+    showToast('Failed to load taskd settings', 'error');
+  });
+}
+
+function saveTaskdConfig() {
+  const settings = {
+    enabled: document.getElementById('configTaskdEnabled').checked,
+    url: document.getElementById('configTaskdUrl').value,
+    timeout: parseInt(document.getElementById('configTaskdTimeout').value) || 10,
+    host_label: document.getElementById('configTaskdHostLabel').value,
+    tags: document.getElementById('configTaskdTags').value,
+    source: document.getElementById('configTaskdSource').value,
+  };
+
+  fetch('/api/config/taskd', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings)
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    showToast(data.message || 'taskd settings saved', 'success');
+    loadTaskdSettings();
+  })
+  .catch(error => {
+    showToast(`Failed to save taskd settings: ${error.message}`, 'error');
+  });
+}
+
+function testTaskdConnection() {
+  const url = document.getElementById('configTaskdUrl').value.trim();
+  const timeout = parseInt(document.getElementById('configTaskdTimeout').value, 10) || null;
+  fetch('/api/taskd/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: url, timeout: timeout })
+  })
+  .then(response => response.json().catch(() => ({})).then(data => ({ ok: response.ok, data: data })))
+  .then(({ ok, data }) => {
+    if (ok) {
+      showToast(`taskd reachable (${data.latency_ms} ms)`, 'success');
+    } else {
+      showToast(`taskd unreachable: ${data.message || 'unknown error'}`, 'error');
+    }
+  })
+  .catch(error => {
+    showToast(`Connection test failed: ${error.message}`, 'error');
+  });
+}
+
 async function showPreferencesConfig() {
   currentConfigSection = 'preferences';
   const autoRecreateChecked = getStoredAutoRecreate() ?? false;
@@ -2685,6 +2835,9 @@ async function saveConfig() {
       break;
     case 'remoteHosts':
       await saveRemoteHostsConfig();
+      break;
+    case 'taskd':
+      saveTaskdConfig();
       break;
     case 'preferences':
       await savePreferencesConfig();

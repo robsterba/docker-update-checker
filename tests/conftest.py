@@ -19,6 +19,13 @@ os.environ["NOTIFICATION_SETTINGS_FILE"] = str(Path(tempfile.gettempdir()) / "du
 os.environ["NOTIFY_ENABLED"] = "false"
 os.environ["NOTIFY_BACKEND"] = ""
 os.environ["NOTIFY_BATCH_WINDOW"] = "0"
+os.environ["TASKD_ENABLED"] = "false"
+os.environ["TASKD_URL"] = ""
+os.environ["TASKD_TIMEOUT"] = "10"
+os.environ["TASKD_TAGS"] = "automated,homelab"
+os.environ["TASKD_SOURCE"] = "docker-update-checker"
+os.environ["TASKD_HOST_LABEL"] = ""
+os.environ["TASKD_SETTINGS_FILE"] = str(Path(tempfile.gettempdir()) / "duc-test-taskd-settings.json")
 os.environ["REMOTE_INSTANCES"] = ""
 os.environ["REMOTE_INSTANCES_FILE"] = ""
 os.environ["CHECK_INTERVAL_MINUTES"] = "60"
@@ -28,7 +35,8 @@ os.environ["OS_UPDATE_CHECK_ENABLED"] = "false"
 os.environ["LOG_LEVEL"] = "WARNING"
 
 # Remove stale settings files from previous runs so tests start clean
-for path in (os.environ["APP_SETTINGS_FILE"], os.environ["NOTIFICATION_SETTINGS_FILE"]):
+for path in (os.environ["APP_SETTINGS_FILE"], os.environ["NOTIFICATION_SETTINGS_FILE"],
+             os.environ["TASKD_SETTINGS_FILE"]):
     Path(path).unlink(missing_ok=True)
 
 import pytest  # noqa: E402

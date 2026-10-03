@@ -106,6 +106,25 @@ NOTIFICATION_SETTINGS_FILE = get_env("NOTIFICATION_SETTINGS_FILE", "notification
 # General application settings file (persists settings changed at runtime)
 APP_SETTINGS_FILE = get_env("APP_SETTINGS_FILE", "app_settings.json")
 
+# ── taskd Integration ────────────────────────────────────────────────────────
+# Syncs outdated image results as tasks into a taskd instance after each scan.
+# These env vars are defaults; the Settings UI can override them at runtime
+# (taskd_settings.json wins, matching the notification settings precedence).
+TASKD_ENABLED = get_bool_env("TASKD_ENABLED", False)
+TASKD_URL = get_env("TASKD_URL", "").strip().rstrip("/")
+TASKD_TIMEOUT = get_int_env("TASKD_TIMEOUT", 10)
+# Comma-separated tag names applied to synced tasks
+TASKD_TAGS = [
+    tag.strip().lower()
+    for tag in get_env("TASKD_TAGS", "automated,homelab").split(",")
+    if tag.strip()
+]
+TASKD_SOURCE = get_env("TASKD_SOURCE", "docker-update-checker").strip()
+# Label identifying this host in taskd; defaults to the hostname when empty
+TASKD_HOST_LABEL = get_env("TASKD_HOST_LABEL", "").strip()
+# taskd settings file (persists settings changed at runtime)
+TASKD_SETTINGS_FILE = get_env("TASKD_SETTINGS_FILE", "taskd_settings.json")
+
 # ── Self-Update Checker ────────────────────────────────────────────────────────────
 # Enable/disable checking for application updates
 SELF_UPDATE_CHECK_ENABLED = get_bool_env("SELF_UPDATE_CHECK_ENABLED", True)

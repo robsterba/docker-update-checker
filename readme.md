@@ -18,6 +18,7 @@ The current version lives in the [`VERSION`](VERSION) file; release history is i
 - **Self-update notifications** — checks GitHub for newer releases of this app and can notify you
 - **Remote instance aggregation** — monitor other docker-update-checker instances from a single dashboard
 - **Notifications** — webhook (e.g. Home Assistant), MQTT, or email; optional batching into summary notifications
+- **taskd integration** — syncs outdated images as tasks into a [taskd](https://github.com/robsterba/taskd) instance after each scan
 - **Scheduled auto-checks** — configurable interval (default: 60 minutes)
 - **Themes** — light, dusk-blue dark, and AMOLED black, with OS-preference detection and remembered preference
 
@@ -135,6 +136,26 @@ Trigger controls (all optional):
 
 Use the **Test Notification** action in the dashboard to verify your configuration.
 
+### taskd Integration
+
+Disabled by default. When enabled, every scan reconciles the outdated images into a [taskd](https://github.com/robsterba/taskd) instance: one long-lived parent task per host (`Container updates: <host>`) with one subtask per outdated image. Subtasks are refreshed on each scan and completed automatically once their image is up to date again (or no longer appears in any compose file). A taskd outage never fails a scan — the sync is logged and retried on the next check.
+
+| Variable | Default | Description |
+|---|---|---|
+| `TASKD_ENABLED` | `false` | Enable the integration |
+| `TASKD_URL` | — | taskd base URL (e.g. `http://taskd:8000`) |
+| `TASKD_TIMEOUT` | `10` | HTTP timeout for taskd requests (seconds, max 60) |
+| `TASKD_HOST_LABEL` | hostname | Identifies this host in the parent task title; set it if multiple hosts share a hostname |
+| `TASKD_TAGS` | `automated,homelab` | Comma-separated tags applied to synced tasks |
+| `TASKD_SOURCE` | `docker-update-checker` | Source label taskd uses to mark synced tasks |
+
+Notes:
+
+- Settings can also be changed at runtime via the dashboard (**Settings → taskd Integration**, with a connection test); saved settings override the environment variables, matching the notification settings behavior.
+- Each docker-update-checker instance syncs only its own host's results. To cover remote hosts, enable the integration on each instance, pointing at the same taskd URL — every host then owns its own parent task.
+- Do not rename the automated parent task or subtasks in taskd: the sync finds them by exact title and would create duplicates. Completing a subtask manually is fine — it is reopened automatically while the image is still outdated.
+- Images with registry errors or unknown check status are never auto-completed; "no data" is not treated as "up to date". A scan that finds no images at all (e.g. an empty or mis-mounted `COMPOSE_ROOT`) also skips completion, so a broken scan cannot mass-close your tasks.
+
 ### About `.env`
 
 The container does not read a `.env` file directly. If you copy `.env.example` to `.env`, Docker Compose only uses it for variable *interpolation* in `compose.yaml` (e.g. `${COMPOSE_ROOT}`). Application settings must be listed in the `environment:` block of `compose.yaml` to reach the container.
@@ -159,7 +180,7 @@ The recommended update workflow is deliberately two-step:
 
 - Do not expose the dashboard to the public internet. Bind it to your LAN or put it behind an authenticating reverse proxy or VPN.
 - The Docker socket mount grants full API access regardless of whether it is mounted `:ro` — the read-only flag applies to the socket file, not to the API operations performed through it. Treat the socket as equivalent to root access and keep the container on a trusted network.
-- `compose.yaml`, `remote_instances.json`, and `notification_settings.json` may contain host-specific details and are gitignored.
+- `compose.yaml`, `remote_instances.json`, `notification_settings.json`, and `taskd_settings.json` may contain host-specific details and are gitignored.
 
 ## API
 
@@ -210,6 +231,7 @@ docker-update-checker/
 ├── docker_utils.py           # Docker/compose helpers, image checks, registry API
 ├── jobs.py                   # job state, progress tracking, operation log
 ├── notifier.py               # notification backends (webhook, MQTT, email)
+├── taskd.py                  # taskd integration (task sync, settings, connection test)
 ├── schemas.py                # Pydantic request validation schemas
 ├── version.py                # reads the VERSION file
 ├── static/index.html         # dashboard UI (single file, no build step)
@@ -223,7 +245,7 @@ docker-update-checker/
 └── tests/                    # pytest suite
 ```
 
-Import flow: `app.py` → `services.py` (business logic, owns the Flask app) and `api.py` (routes) → `config.py`, `docker_utils.py`, `jobs.py`, `notifier.py`, `schemas.py`. There are no circular imports; importing any module has no side effects until `app.py` runs as the entry point.
+Import flow: `app.py` → `services.py` (business logic, owns the Flask app) and `api.py` (routes) → `config.py`, `docker_utils.py`, `jobs.py`, `notifier.py`, `taskd.py`, `schemas.py`. There are no circular imports; importing any module has no side effects until `app.py` runs as the entry point.
 
 ## Development
 

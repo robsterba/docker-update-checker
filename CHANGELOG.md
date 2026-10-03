@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.0] — 2026-10-03
+
+### Added
+
+- **Native taskd integration** (`taskd.py`): after every scan, outdated images are synced into a [taskd](https://github.com/robsterba/taskd) instance — one long-lived parent task per host (`Container updates: <host>`) with one subtask per outdated image. Subtasks carry the local/remote digests, stacks, and compose files in their description, are refreshed in place on each scan, reopen automatically if completed while the image is still outdated, and complete automatically once the image is up to date again (or no longer appears in any compose file). Images with registry errors or unknown check status are never auto-completed, and a scan that finds no images at all skips the completion pass — a broken compose scan can never mass-close tasks. A taskd outage is logged and retried on the next check; it never fails the scan
+- **taskd settings UI** (Settings → taskd Integration): enable toggle, URL, timeout, host label, tags, and source, plus a **Test Connection** button that probes taskd's health endpoint and reports latency
+- **API endpoints** for the integration: `GET`/`POST /api/config/taskd` (runtime-persisted settings, validated and normalized server-side) and `POST /api/taskd/test` (connection test with optional `url`/`timeout` overrides)
+- **`TASKD_*` configuration** (`TASKD_ENABLED`, `TASKD_URL`, `TASKD_TIMEOUT`, `TASKD_HOST_LABEL`, `TASKD_TAGS`, `TASKD_SOURCE`): environment defaults, overridable at runtime via the UI or settings file (file wins, matching notification settings precedence)
+- **Test suite extended to 202 tests** (`tests/test_taskd.py`): settings merge and normalization, sync gating and locking, the full reconcile lifecycle (dedupe, refresh, reopen, safe-complete, user-created and archived subtask handling, parent matching), the API endpoints, and scan-survives-taskd-outage coverage
+
+### Notes
+
+- taskd settings are resolved at sync time, so changes made in the UI take effect on the next scan without a restart — unlike notification settings, which still apply only from the environment (pre-existing behavior)
+- Each docker-update-checker instance syncs only its own host's results; enable the integration on every instance that should own a parent task in taskd
+- `taskd_settings.json` is gitignored alongside the other runtime settings files
+
+---
+
 ## [v1.6.1] — 2026-10-03
 
 ### Fixed

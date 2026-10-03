@@ -18,6 +18,7 @@ venv/
 
 # Configuration files that may contain sensitive data
 notification_settings.json
+taskd_settings.json
 remote_instances.json
 compose.yaml
 

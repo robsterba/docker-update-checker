@@ -29,6 +29,7 @@ from services import (
 )
 
 import config
+import taskd
 from docker_utils import docker_client
 
 # Import from config module
@@ -1347,6 +1348,52 @@ def api_set_notification_config():
         log_op("config_notification_save", "", "success", "Notification settings saved")
         return jsonify({"status": "success", "message": "Notification settings saved"})
 
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# ── taskd Integration API ───────────────────────────────────────────────────
+
+@app.route("/api/config/taskd", methods=["GET"])
+def api_get_taskd_config():
+    """Get current taskd integration settings."""
+    try:
+        return jsonify(taskd.get_taskd_settings())
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/config/taskd", methods=["POST"])
+def api_set_taskd_config():
+    """Save taskd integration settings."""
+    try:
+        data = request.get_json(silent=True) or {}
+        if not data:
+            return jsonify({"status": "error", "message": "No settings data provided"}), 400
+
+        success = taskd.save_taskd_settings(taskd.normalize_taskd_settings(data))
+        if not success:
+            return jsonify({"status": "error", "message": "Failed to save settings"}), 500
+
+        log_op("config_taskd_save", "", "success", "taskd settings saved")
+        return jsonify({"status": "success", "message": "taskd settings saved"})
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/api/taskd/test", methods=["POST"])
+def api_taskd_test():
+    """Test connectivity to taskd, optionally with url/timeout overrides."""
+    try:
+        data = request.get_json(silent=True) or {}
+        result = taskd.test_taskd_connection(
+            url=data.get("url") or None,
+            timeout=data.get("timeout") or None,
+        )
+        if result.get("status") == "success":
+            return jsonify(result)
+        return jsonify(result), 502
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
