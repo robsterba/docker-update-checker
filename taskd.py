@@ -27,6 +27,7 @@ from config import (
     STATUS_UP_TO_DATE,
     TASKD_SETTINGS_FILE,
 )
+from docker_utils import get_docker_host_name
 from jobs import log_op
 
 log = logging.getLogger(__name__)
@@ -137,9 +138,28 @@ def _normalize_bool(value: Any) -> bool:
     return False
 
 
+_detected_host_name: Optional[str] = None
+_host_name_lock = threading.Lock()
+
+
+def _detect_host_name() -> str:
+    """The name of the machine this instance monitors.
+
+    Preferred source is the Docker daemon, which reports the actual host
+    machine name; socket.gethostname() inside the app container returns the
+    container ID, which is meaningless in the task list. The value is
+    memoized so repeated syncs never re-query the daemon.
+    """
+    global _detected_host_name
+    with _host_name_lock:
+        if _detected_host_name is None:
+            _detected_host_name = get_docker_host_name() or socket.gethostname()
+        return _detected_host_name
+
+
 def host_key(settings: dict) -> str:
     """Stable identity of this host in taskd."""
-    return settings.get("host_label") or socket.gethostname()
+    return settings.get("host_label") or _detect_host_name()
 
 
 # ── taskd REST client ────────────────────────────────────────────────────────

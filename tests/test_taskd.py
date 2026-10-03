@@ -1,5 +1,7 @@
 """Tests for taskd.py: settings, client gating, sync lifecycle, API endpoints."""
 
+import socket
+
 import pytest
 
 import taskd
@@ -173,6 +175,43 @@ class TestSettings:
             "source": "docker-update-checker",
             "host_label": "",
         }
+
+
+# ── Host identity ────────────────────────────────────────────────────────────
+
+
+class TestHostKey:
+    @pytest.fixture(autouse=True)
+    def reset_detected_host_name(self):
+        taskd._detected_host_name = None
+        yield
+        taskd._detected_host_name = None
+
+    def test_host_label_takes_precedence(self, monkeypatch):
+        monkeypatch.setattr(taskd, "get_docker_host_name", lambda: "ignored")
+        assert taskd.host_key(make_settings(host_label="moxy")) == "moxy"
+
+    def test_docker_daemon_name_used_when_no_label(self, monkeypatch):
+        monkeypatch.setattr(taskd, "get_docker_host_name", lambda: "moxy")
+        assert taskd.host_key(make_settings(host_label="")) == "moxy"
+
+    def test_falls_back_to_container_hostname(self, monkeypatch):
+        monkeypatch.setattr(taskd, "get_docker_host_name", lambda: None)
+        assert taskd.host_key(make_settings(host_label="")) == socket.gethostname()
+
+    def test_detected_name_is_memoized(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(taskd, "get_docker_host_name",
+                            lambda: calls.append(1) or "moxy")
+        assert taskd.host_key(make_settings(host_label="")) == "moxy"
+        assert taskd.host_key(make_settings(host_label="")) == "moxy"
+        assert len(calls) == 1
+
+    def test_parent_title_uses_daemon_name(self, wire_server, monkeypatch):
+        monkeypatch.setattr(taskd, "get_docker_host_name", lambda: "moxy")
+        wire_server(make_settings(host_label=""))
+        sync_results({})
+        assert "Container updates: moxy" in wire_server.server.names()
 
 
 # ── Connection test ──────────────────────────────────────────────────────────

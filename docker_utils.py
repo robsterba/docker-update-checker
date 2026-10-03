@@ -76,6 +76,25 @@ def get_docker_client() -> Optional[docker.DockerClient]:
 docker_client = get_docker_client
 
 
+def get_docker_host_name() -> Optional[str]:
+    """Name of the Docker host machine, as reported by the daemon.
+
+    Unlike socket.gethostname(), which returns the app container's ID when
+    running containerized, the daemon reports the actual host machine name.
+
+    Returns:
+        Host name string, or None if the daemon cannot be reached.
+    """
+    client = docker_client()
+    if not client:
+        return None
+    try:
+        return client.info().get("Name") or None
+    except Exception as e:
+        log.warning(f"Could not determine Docker host name: {e}")
+        return None
+
+
 def read_dotenv(dotenv_path: Path) -> dict[str, str]:
     env: dict[str, str] = {}
     if not dotenv_path.exists():

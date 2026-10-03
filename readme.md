@@ -145,7 +145,7 @@ Disabled by default. When enabled, every scan reconciles the outdated images int
 | `TASKD_ENABLED` | `false` | Enable the integration |
 | `TASKD_URL` | — | taskd base URL (e.g. `http://taskd:8000`) |
 | `TASKD_TIMEOUT` | `10` | HTTP timeout for taskd requests (seconds, max 60) |
-| `TASKD_HOST_LABEL` | hostname | Identifies this host in the parent task title; set it if multiple hosts share a hostname |
+| `TASKD_HOST_LABEL` | Docker host name | Identifies this host in the parent task title; set it if multiple hosts share a hostname |
 | `TASKD_TAGS` | `automated,homelab` | Comma-separated tags applied to synced tasks |
 | `TASKD_SOURCE` | `docker-update-checker` | Source label taskd uses to mark synced tasks |
 

@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.2] — 2026-10-03
+
+### Fixed
+
+- **taskd parent tasks now show the real host machine name** instead of the app container's ID. The integration's host identity defaults to the Docker daemon's reported host name (new `get_docker_host_name()` in `docker_utils.py`), falling back to the container hostname only when the daemon cannot be reached; `TASKD_HOST_LABEL` still overrides both. Previously, when no label was configured, `socket.gethostname()` returned the container ID (e.g. `Container updates: 083b9e66e922`), which identified nothing. The detected name is memoized so syncs never re-query the daemon
+
+---
+
 ## [v1.7.1] — 2026-10-03
 
 ### Changed
