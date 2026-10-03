@@ -94,6 +94,50 @@
     --focus-ring: 0 0 0 3px rgba(163, 206, 241, 0.40);
   }
 
+  /* ---------- AMOLED / TRUE BLACK THEME (style.md spec section 2) ---------- */
+  [data-theme="amoled"] {
+    color-scheme: dark;
+
+    /* Surfaces — true black page so OLED pixels switch off */
+    --bg-page:        #000000;
+    --bg-surface:     #0A0C0E;
+    --bg-surface-alt: #14181C;
+    --bg-inset:       #050607;
+
+    /* Text */
+    --text-primary:   #E7ECEF;
+    --text-secondary: #A3CEF1;
+    --text-disabled:  #5E6B76;
+    --text-inverse:   #000000;  /* text on light fills */
+
+    /* Brand / accents (icy blue fill, black text) */
+    --accent:         #A3CEF1;
+    --accent-hover:   #C6E2F7;
+    --accent-pressed: #8FBDE4;
+    --accent-border:  #6096BA;
+    --on-accent:      #000000;
+
+    /* Highlights */
+    --highlight:      #A3CEF1;
+    --highlight-soft: #16222E;
+
+    /* Lines & dividers */
+    --border-default: #3D4C5A;
+    --border-subtle:  #1C242C;
+
+    /* Status (same brightened neutrals as the dusk-blue dark theme) */
+    --success:        #7FA891;
+    --warning:        #C9A56A;
+    --danger:         #C97A7A;
+    --info:           #A3CEF1;
+
+    /* Elevation & focus */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.60);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.70);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.85);
+    --focus-ring: 0 0 0 3px rgba(163, 206, 241, 0.40);
+  }
+
   /* Derived tokens (no hex values; style.md tinted badge recipe 5.1/6.2) */
   :root {
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -291,8 +335,8 @@
     th:nth-child(4),td:nth-child(4){display:none}
   }
 
-  /* Version badge */
-  .version-badge{background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:12px;padding:4px 10px;font-size:.7rem;color:var(--text-secondary);font-family:var(--font-mono)}
+  /* Version badge — spec section 7.2: sits immediately right of the app title */
+  .version-badge{background:var(--bg-surface-alt);border-radius:4px;padding:4px 8px;font-size:.85rem;font-weight:400;color:var(--text-secondary)}
   .update-badge{background:var(--warning);color:var(--text-inverse);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;font-weight:600;cursor:pointer;transition:transform .15s}
   .update-badge:hover{transform:scale(1.05)}
   .update-badge.hidden{display:none}
@@ -360,6 +404,7 @@
       <line x1="12" y1="3" x2="12" y2="15"/>
     </svg>
     Docker Update Checker
+    <span class="version-badge" id="instanceVersion">—</span>
   </div>
   <div class="header-actions">
     <label class="inline-toggle host-select">
@@ -367,7 +412,6 @@
     </label>
     <span class="host-status unknown" id="instanceHealth">Loading…</span>
     <span class="last-check" id="lastCheck">—</span>
-    <span class="version-badge" id="instanceVersion">—</span>
     <span class="update-badge hidden" id="updateAvailableBadge" onclick="showUpdateInfo()">
       Update Available!
     </span>
@@ -710,6 +754,7 @@ let theme = 'light';
 let resourceRefreshInterval = null;
 let updateInfo = null;
 const STORAGE_THEME_KEY = 'docker-update-checker-theme';
+const STORAGE_DARK_VARIANT_KEY = 'docker-update-checker-dark-variant';
 const STORAGE_AUTO_RECREATE_KEY = 'docker-update-checker-auto-recreate';
 const STORAGE_RESOURCE_REFRESH_KEY = 'docker-update-checker-resource-refresh';
 
@@ -777,6 +822,15 @@ function setStoredTheme(value) {
   }
 }
 
+/* Preferred dark variant ("dark" dusk blue | "amoled" true black) — style.md spec section 10 */
+function getStoredDarkVariant() {
+  return localStorage.getItem(STORAGE_DARK_VARIANT_KEY) === 'amoled' ? 'amoled' : 'dark';
+}
+
+function setStoredDarkVariant(value) {
+  localStorage.setItem(STORAGE_DARK_VARIANT_KEY, value === 'amoled' ? 'amoled' : 'dark');
+}
+
 function getStoredAutoRecreate() {
   const value = localStorage.getItem(STORAGE_AUTO_RECREATE_KEY);
   if (value === null) return null;
@@ -821,7 +875,7 @@ function togglePerformanceMenu(event) {
 }
 
 function buildThemeIcon(mode) {
-  return mode === 'dark'
+  return mode !== 'light'
     ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
     : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
 }
@@ -1502,7 +1556,8 @@ async function loadContainersWithResources() {
 }
 
 function toggleTheme() {
-  theme = theme === 'dark' ? 'light' : 'dark';
+  // Header toggle flips light <-> preferred dark variant only (spec section 10)
+  theme = theme === 'light' ? getStoredDarkVariant() : 'light';
   document.documentElement.setAttribute('data-theme', theme);
   document.getElementById('themeBtn').innerHTML = buildThemeIcon(theme);
   setStoredTheme(theme);
@@ -1510,7 +1565,7 @@ function toggleTheme() {
 
 function loadTheme() {
   const stored = getStoredTheme();
-  theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? getStoredDarkVariant() : 'light');
   document.documentElement.setAttribute('data-theme', theme);
   document.getElementById('themeBtn').innerHTML = buildThemeIcon(theme);
 }
@@ -2531,7 +2586,7 @@ function removeRemoteHost(instanceId) {
 async function showPreferencesConfig() {
   currentConfigSection = 'preferences';
   const autoRecreateChecked = getStoredAutoRecreate() ?? false;
-  const storedTheme = getStoredTheme();
+  const storedDarkVariant = getStoredDarkVariant();
 
   let checkInterval = '';
   try {
@@ -2604,15 +2659,14 @@ async function showPreferencesConfig() {
     <div class="config-section">
       <div class="config-section-title">Appearance</div>
       <div class="config-row">
-        <label class="config-label">Theme:</label>
-        <select class="config-input select" id="configTheme">
-          <option value="light" ${storedTheme === 'light' ? 'selected' : ''}>Light</option>
-          <option value="dark" ${storedTheme === 'dark' ? 'selected' : ''}>Dark</option>
-          <option value="system" ${storedTheme === null ? 'selected' : ''}>System</option>
-        </select>
+        <label class="config-label">Dark theme:</label>
+        <div class="config-toggle">
+          <label><input type="radio" name="configDarkVariant" value="dark" ${storedDarkVariant === 'dark' ? 'checked' : ''}> Blue (default)</label>
+          <label><input type="radio" name="configDarkVariant" value="amoled" ${storedDarkVariant === 'amoled' ? 'checked' : ''}> AMOLED Black</label>
+        </div>
       </div>
       <div class="config-description">
-        Choose your preferred color theme. "System" follows your OS preference.
+        The header toggle switches between light and your preferred dark variant. Without a saved theme, your OS preference decides light vs dark.
       </div>
     </div>
   `;
@@ -2825,20 +2879,13 @@ async function savePreferencesConfig() {
   localStorage.setItem(STORAGE_MAX_JOBS_KEY, document.getElementById('configMaxJobs').value);
   renderJobs(allJobs);
 
-  // Theme
-  const themeSelect = document.getElementById('configTheme');
-  const newTheme = themeSelect.value;
-  if (newTheme === 'system') {
-    setStoredTheme(null);
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    document.documentElement.setAttribute('data-theme', systemDark ? 'dark' : 'light');
-    document.getElementById('themeBtn').innerHTML = buildThemeIcon(systemDark ? 'dark' : 'light');
-    theme = systemDark ? 'dark' : 'light';
-  } else {
-    setStoredTheme(newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-    document.getElementById('themeBtn').innerHTML = buildThemeIcon(newTheme);
-    theme = newTheme;
+  // Dark variant preference — applies immediately when a dark theme is active
+  const darkVariant = document.querySelector('input[name="configDarkVariant"]:checked')?.value || 'dark';
+  setStoredDarkVariant(darkVariant);
+  if (theme !== 'light') {
+    theme = darkVariant;
+    document.documentElement.setAttribute('data-theme', theme);
+    document.getElementById('themeBtn').innerHTML = buildThemeIcon(theme);
   }
 
   // Server-side settings (check interval + auto-recreate)

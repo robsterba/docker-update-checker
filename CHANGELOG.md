@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.5.0] — 2026-10-02
+
+### Added
+
+- **AMOLED / true black theme** (style.md spec section 2): third token block on a true-black page with near-black surfaces, keeping the icy-blue accents and brightened status neutrals of the dusk-blue dark theme
+- **Preferred dark variant setting** (Preferences → Appearance): choose "Blue (default)" or "AMOLED Black"; applies immediately while a dark theme is active
+
+### Changed
+
+- **Theme switching conforms to the standard model (spec section 10)**: the header toggle now flips between light and the preferred dark variant only; without a saved theme, the OS preference decides light vs dark on first visit (the old "System" option was removed — first-load OS detection remains)
+- **Version badge moved beside the app title (spec section 7)**: sits immediately right of "Docker Update Checker" in the header instead of in the actions cluster, restyled per the spec (0.85rem, 4px radius, surface-alt fill, no border, no monospace)
+
+---
+
 ## [v1.4.0] — 2026-09-27
 
 ### Changed

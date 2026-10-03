@@ -37,7 +37,7 @@ Right now there is intentionally no automatic updating — this is meant to be s
   - Pull success / failure
   - Recreate success / failure
   - Bulk job completion  
-- 🌙 **Dark / light mode** toggle — preserves your last selected theme across browser reloads
+- 🌙 **Dark / light mode** toggle — flips between light and your preferred dark variant (Blue or AMOLED Black, set in Preferences), remembered across browser reloads
 - 💾 **Persistent UI preferences** — auto-recreate and theme selections are remembered in the dashboard
 - 🧪 **Test notification** — send a test notification from the UI to validate your configuration  
 - 📋 **Container Management API** — REST endpoints for programmatic container control
