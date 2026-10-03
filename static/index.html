@@ -192,12 +192,20 @@
   .kpi-value.err{color:var(--danger)}
   .kpi-value.info{color:var(--info)}
 
-  .host-section{display:grid;grid-template-columns:1.3fr .9fr;gap:.75rem;margin-bottom:.5rem}
+  .host-section{display:grid;grid-template-columns:1fr;gap:.5rem;margin-bottom:.5rem}
   .host-instances{background:transparent}
   .host-metrics{background:transparent}
   .host-subtitle{margin:0 0 .3rem;font-size:.8rem;font-weight:600}
   .metrics-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem}
-  .host-kpis{margin-bottom:.4rem}
+  /* Full-width metrics band: image KPIs and host stats compressed into two rows */
+  .host-kpis{grid-template-columns:repeat(5,minmax(0,1fr));gap:.4rem;margin-bottom:.4rem}
+  .host-kpis .kpi{padding:.4rem .5rem}
+  .host-kpis .kpi-label{font-size:.65rem;margin-bottom:.1rem}
+  .host-kpis .kpi-value{font-size:1.15rem}
+  .host-resources{grid-template-columns:repeat(6,minmax(0,1fr));gap:.4rem;padding:.4rem}
+  .host-resources .resource-stat{padding:.35rem .3rem}
+  .host-resources .resource-stat-label{font-size:.65rem;margin-bottom:.1rem}
+  .host-resources .resource-stat-value{font-size:.8rem}
   .host-resources{padding:.35rem;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))}
   .stack-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.5rem}
   .stack-card{background:var(--bg-surface-alt);border:1px solid var(--border-subtle);border-radius:.5rem;padding:.65rem}
@@ -326,12 +334,14 @@
   .resource-label{font-size:.7rem;color:var(--text-secondary);display:flex;justify-content:space-between}
 
   @media (max-width: 980px){
-    .host-section{grid-template-columns:1fr}
+    .host-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .host-resources{grid-template-columns:repeat(3,minmax(0,1fr))}
   }
   @media (max-width: 760px){
     main{padding:.75rem}
     header{padding:.6rem .75rem}
     .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .host-resources{grid-template-columns:repeat(2,minmax(0,1fr))}
     th:nth-child(4),td:nth-child(4){display:none}
   }
 
@@ -503,13 +513,6 @@
 
   <div class="tab-panel active" id="tab-overview">
     <div class="host-section">
-      <div class="host-instances">
-        <h3 class="host-subtitle">Hosts</h3>
-        <div class="instance-grid" id="instanceGrid">
-          <div class="empty" style="padding:.75rem">Loading host status…</div>
-        </div>
-      </div>
-
       <div class="host-metrics">
         <div class="metrics-header">
           <h3 class="host-subtitle">Metrics</h3>
@@ -549,6 +552,13 @@
             <div class="resource-stat-label">OS</div>
             <div class="resource-stat-value" id="hostOs">—</div>
           </div>
+        </div>
+      </div>
+
+      <div class="host-instances">
+        <h3 class="host-subtitle">Hosts</h3>
+        <div class="instance-grid" id="instanceGrid">
+          <div class="empty" style="padding:.75rem">Loading host status…</div>
         </div>
       </div>
     </div>

@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.7.1] — 2026-10-03
+
+### Changed
+
+- **Overview layout: Metrics now sits above Hosts and spans the full width**, compressed into a two-row band. Row one is the five image KPIs (Total Images, Up to Date, Updates Available, Unknown / Error, Stacks); row two is the six host stats (CPU Cores, Memory, Running, Stopped, Docker, OS). KPI values and padding are tightened so the band stays short, and both rows reflow to three columns below 980px and two below 760px. The Hosts instance grid moves below the band and also spans the full width
+
+---
+
 ## [v1.7.0] — 2026-10-03
 
 ### Added
