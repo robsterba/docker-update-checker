@@ -2,7 +2,6 @@ import os
 import time
 import logging
 
-from version import VERSION
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -116,7 +115,7 @@ OS_UPDATE_CHECK_INTERVAL_HOURS = get_int_env("OS_UPDATE_CHECK_INTERVAL_HOURS", 2
 
 def cleanup_token_cache() -> int:
     """Remove expired tokens from the registry token cache.
-    
+
     Returns:
         Number of tokens removed from the cache.
     """

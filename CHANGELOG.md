@@ -6,6 +6,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.6.0] — 2026-10-03
+
+### Added
+
+- **Test suite** (`tests/`, run with `python -m pytest`): 165 tests covering image reference parsing, compose file discovery/validation, the registry digest flow (HTTP fully mocked), job tracking, notification gating/throttling/batching, remote instance handling, the instance proxy, request schemas, and the Flask API surface via the test client — no Docker daemon or network access required
+- **CI** (`.github/workflows/ci.yml`): GitHub Actions running `ruff check` and `pytest` on Python 3.12 for pushes and pull requests
+- **Lint configuration** (`pyproject.toml`): ruff (E, W, F, B rules, 130-char lines) and pytest settings
+- **`requirements-dev.txt`** with pytest, requests-mock, and ruff
+- **`style.md` is now tracked in git** (previously ignored by the `*.md` gitignore rule; the theme spec is referenced by release history and needed on every machine)
+
+### Changed
+
+- **Import refactor: `app.py` is now a thin entry point.** All business logic (orchestration, proxying, settings, jobs) moved to a new `services.py`, which owns the Flask app object and the scheduler. `api.py` imports from `services` instead of `app`, and the `sys.modules["app"]` circular-import shim is gone — the import graph is now acyclic and importing any module stays side-effect-free
+- **`AUTO_RECREATE_AFTER_PULL` is read from `config` at call time** instead of being copied into each module and patched in three places at runtime
+- Duplicate `logging.basicConfig` removed (config.py is the single place logging is configured)
+- `paho-mqtt` pinned to 2.1.0 (all other dependencies were already pinned)
+- `.gitattributes` added: LF normalization for text files, LF enforcement for shell/systemd files
+- `.env.example`: `REMOTE_INSTANCES_FILE` no longer defaults to the example file, and a note clarifies that the container does not read `.env` directly (Compose interpolation only)
+- **readme rewritten**: version reference sourced from `VERSION`/`CHANGELOG`, stale v0.3/v0.4 feature sections removed, clone URL fixed, config defaults verified against `config.py`, complete API endpoint table, new Security section (unauthenticated API, socket mount semantics), `.env` semantics clarified, project structure updated, Development section added
+- Line endings normalized to LF across Python, compose, Dockerfile, and script files
+
+### Fixed
+
+- **Deadlock in notification batching**: `send_notification` called `_schedule_batch_timer` while holding `_batch_lock`, which then tried to re-acquire the non-reentrant lock — any batched notification (pull/recreate/bulk with `NOTIFY_SUMMARY_ENABLED=true` and `NOTIFY_BATCH_WINDOW>0`, the defaults) hung its worker thread forever once notifications were enabled
+- **`POST /api/compose/recreate` crashed with `NameError`**: `subprocess` was never imported in `api.py`
+- **Local instance proxy `stacks/all` and `update/<image>` paths crashed with `NameError`**: `get_all_stacks` / `api_update_image` were not imported
+- **Self-update and OS-update notifications never sent**: callers passed `data=` to `send_notification`, whose signature takes `extra=` (also caused `NameError` on the undefined `log` in the API's exception handlers)
+- Unused imports removed across `api.py`, `app.py`, `notifier.py`, and `scripts/os_update_agent.py`
+
+### Removed
+
+- Stale local-only working documents (Project Overview, Technical Architecture, Documentation Summary, Code Review Findings, Obsidian import guide), all dated to v1.3.0 and superseded by the readme and changelog
+
+---
+
 ## [v1.5.0] — 2026-10-02
 
 ### Added
@@ -244,16 +279,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Stack grouping and stack-level operations
   - New environment variables
 - Added this `CHANGELOG.md`
-
----
-
-## [Unreleased]
-
-### Added
-
-### Changed
-
-### Fixed
 
 ---
 

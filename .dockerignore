@@ -1,0 +1,22 @@
+# Keep the Docker image small: exclude everything not needed at runtime
+.git
+.github
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+tests
+scripts
+docs
+compose.yaml
+.env
+.env.example
+*.log
+*.bak
+notification_settings.json
+remote_instances.json
+app_settings.json
+pyproject.toml
+requirements-dev.txt

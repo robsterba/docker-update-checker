@@ -1,0 +1,5 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+  redis:
+    image: redis:7-alpine

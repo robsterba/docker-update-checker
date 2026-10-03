@@ -1,0 +1,7 @@
+services:
+  nginx:
+    image: nginx:${TAG}
+  site:
+    image: example.invalid/site@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  builder:
+    build: .

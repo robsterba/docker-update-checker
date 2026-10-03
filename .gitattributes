@@ -1,0 +1,11 @@
+# Normalize line endings: LF in the repo, checked out native
+* text=auto
+
+# Shell scripts must stay LF
+*.sh text eol=lf
+*.service text eol=lf
+*.timer text eol=lf
+Dockerfile text eol=lf
+
+# Binary
+*.ico binary

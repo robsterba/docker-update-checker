@@ -1,0 +1,19 @@
+[tool.ruff]
+target-version = "py312"
+line-length = 130
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "B",  # flake8-bugbear
+]
+
+[tool.ruff.lint.per-file-ignores]
+# app.py imports api at the bottom on purpose: importing api registers the
+# Flask routes, and it must happen after the services import above it.
+"app.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

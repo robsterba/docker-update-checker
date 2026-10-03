@@ -1,623 +1,263 @@
-# 🐳 Docker Homelab Manager
+# Docker Update Checker
 
-A self-hosted web dashboard for comprehensive Docker homelab management. Originally focused on monitoring container image updates, it now includes container lifecycle management, resource monitoring, and multi-host support.  
-Right now there is intentionally no automatic updating — this is meant to be super lightweight and manual. If you want heavier, fully automated solutions, tools like Watchtower or Komodo’s global update feature are good alternatives.
+A lightweight, self-hosted web dashboard for monitoring and managing Docker container image updates in a homelab. Update detection and applying updates are intentionally separate: nothing is ever updated automatically without your approval. If you want fully automated updates, tools like Watchtower or Komodo are good alternatives.
 
----
+The current version lives in the [`VERSION`](VERSION) file; release history is in the [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Features
 
-- 🔍 **Recursive compose file scanning** — automatically finds all `docker-compose.yml`, `compose.yml`, `docker-compose.yaml`, or `compose.yaml` files under a configurable root directory  
-- 🔄 **Digest-based update detection** — compares local `RepoDigests` against the upstream registry manifest digest without pulling the image  
-- 🕐 **Scheduled auto-checks** — configurable interval (default: 60 minutes)  
-- 📦 **Stack grouping** — images are grouped by Compose “stack” (based on directory name) for easier overview and bulk actions  
-- 🌐 **Remote instance aggregation** — connect to other `docker-update-checker` instances and monitor multiple hosts from one dashboard  
-- ✅ **Host selection & health panel** — choose a host, view online/offline status, and inspect last check times across local and remote instances  
-- 🧩 **Modular backend architecture** — the backend is split across `app.py`, `api.py`, `config.py`, `docker_utils.py`, `jobs.py`, and `notifier.py` for cleaner separation of concerns and easier remote deployment
-- 📊 **Container Monitoring** — view all containers across hosts with real-time status, health checks, and resource information
-- ▶️ **Container Lifecycle Management** — start, stop, restart containers directly from the dashboard
-- 🏥 **Health Check Visualization** — color-coded health status badges for containers with health checks configured  
-- 🔄 **Bulk update actions**  
-  - **Pull All Updates** — pull all outdated images across all stacks  
-  - **Pull All (Selected Stack)** — pull all outdated images in a single stack  
-  - Optional **auto-recreate after pull** to restart affected services automatically  
-- 🖥️ **Web dashboard**  
-  - Filterable and searchable image table  
-  - Stack filter and summary  
-  - Per-image re-check, pull, and compose recreate buttons  
-  - Bulk actions for entire stacks  
-  - Live host status badge and remote host selector  
-- 📋 **Operations log** — audit trail of every check, pull, recreate, and bulk job  
-- 🔔 **Notifications** — optional event-driven notifications via:
-  - Webhook (e.g. Home Assistant)
-  - MQTT
-  - Email  
-  Notifications can be sent for:
-  - New updates found during checks
-  - Pull success / failure
-  - Recreate success / failure
-  - Bulk job completion  
-- 🌙 **Dark / light mode** toggle — flips between light and your preferred dark variant (Blue or AMOLED Black, set in Preferences), remembered across browser reloads
-- 💾 **Persistent UI preferences** — auto-recreate and theme selections are remembered in the dashboard
-- 🧪 **Test notification** — send a test notification from the UI to validate your configuration  
-- 📋 **Container Management API** — REST endpoints for programmatic container control
-- 📝 **Compose File Management** — view, edit, and validate compose files from the dashboard
-- ▶️ **Stack Lifecycle Management** — start, stop, restart entire stacks with one click
-- 🔗 **Dependency Visualization** — view service relationships and network connections in compose files
-- ✅ **Bulk Stack Operations** — apply actions across multiple stacks simultaneously
-- 📊 **Host Overview** — view CPU, memory, and disk usage for the Docker host
-- 🔄 **Self-Update Notifications** — get notified when a new version of docker-update-checker is available
-- 📦 **OS Package Update Monitoring** — check for available OS package updates on each host
-
----
-
-## Version
-
-The version lives in the `VERSION` file at the repo root; the GUI and API read it from there. Current version: **1.4.0**
-
----
-
-## New Features in v0.3.0
-
-### Host Overview
-
-The Host Overview modal (under Performance → Host Overview) displays real-time resource metrics:
-- **CPU Usage** — percentage and core count
-- **Memory Usage** — used/total with percentage
-- **Disk Usage** — used/total with percentage
-- **System Information** — OS, architecture, kernel, Docker version
-- **Docker Statistics** — containers (running/stopped), images
-
-All metrics are updated in real-time from the running containers on each host.
-
-### Self-Update Notifications
-
-The application can now check for and notify you when newer versions are available.
-
-**Features:**
-- Automatic background checks (every 24 hours by default)
-- Manual check via "Update" button in header
-- Visual badge indicator when update is available
-- Click badge to see version info, release notes, and GitHub link
-
-**Configuration:**
-```bash
-SELF_UPDATE_CHECK_ENABLED=true   # Enable/disable (default: true)
-SELF_UPDATE_CHECK_INTERVAL_HOURS=24  # Check interval (default: 24)
-```
-
-### OS Package Update Monitoring
-
-Monitor OS-level package updates across all your hosts.
-
-**Features:**
-- Supports Ubuntu, Debian, CentOS, RHEL, Fedora, Alpine, Arch Linux
-- Shows total updates and security updates count
-- Lists upgradable packages with current/available versions
-- Integrates with existing notification system
-
-**Setup Required:**
-For production deployments, use the host-level agent:
-1. Deploy `scripts/os_update_agent.py` on each host
-2. Mount the output file: `/var/lib/docker-update-checker/os-updates.json:/var/lib/docker-update-checker/os-updates.json:ro`
-3. See `scripts/README.md` for full deployment instructions
-
-**Configuration:**
-```bash
-OS_UPDATE_CHECK_ENABLED=true       # Enable/disable (default: true)
-OS_UPDATE_CHECK_INTERVAL_HOURS=24  # Check interval (default: 24)
-```
-
----
-
-## New Features in v0.4.0
-
-### Dense Compact UI Layout
-
-The dashboard has been redesigned with a more compact, dense layout that displays significantly more information on screen:
-- Reduced base font size from 15px to 14px
-- Removed redundant card borders and backgrounds
-- Combined Hosts, KPIs, and Host Resources into a unified grid layout
-- Activity Log is now collapsible (hidden by default)
-- All margins, padding, and spacing reduced throughout
-- Gauge visualizations resized from 100px to 80px for better density
-- Consistent sizing across all UI elements
-
-### Backend Modularization
-
-The backend has been refactored into a modular architecture for better maintainability and separation of concerns:
-- `app.py` — Main Flask application and scheduler
-- `api.py` — All Flask route handlers centralized
-- `config.py` — Environment parsing and runtime configuration
-- `docker_utils.py` — Docker and compose helpers, image checks, compose operations
-- `jobs.py` — Job state management, progress tracking, operation logging
-- `notifier.py` — Notification backend implementations (webhook, MQTT, email)
-- `schemas.py` — Pydantic schemas for request validation
-
-### Enhanced Notification System (Phase 3)
-
-A comprehensive notification framework that supports multiple backends:
-
-**Supported Backends:**
-- **Webhook** — POST/PUT to any HTTP endpoint (e.g., Home Assistant)
-- **MQTT** — Publish to MQTT topics
-- **Email** — SMTP-based email notifications
-
-**Notification Triggers:**
-- Updates found during checks
-- Pull success/failure
-- Recreate success/failure  
-- Bulk job completion
-- Test notifications for validation
-
-**Configuration:**
-```bash
-NOTIFY_ENABLED=true
-NOTIFY_BACKEND=webhook  # or mqtt, email
-NOTIFY_WEBHOOK_URL=http://your-webhook-endpoint
-NOTIFY_ON_UPDATES_FOUND=true
-NOTIFY_ON_PULL_ERROR=true
-# ... plus backend-specific settings
-```
-
-Use the **Test Notification** button in the UI to validate your configuration.
-
-### Bulk Update Actions
-
-- **Pull All Updates** — Pull all outdated images across all stacks with one click
-- **Pull All (Selected Stack)** — Pull only outdated images in a specific stack
-- Both actions support optional auto-recreate after pulling
-- Progress tracked as background jobs with status updates
-
-### Auto-Recreate After Pull
-
-Automatically recreate containers after pulling updated images:
-- Set `AUTO_RECREATE_AFTER_PULL=true` for global auto-recreate
-- Toggle per-job in the UI when initiating pulls
-- Works for both single-image and bulk pull operations
-- Prevents downtime by recreating services immediately on new images
-
-### Stack Grouping & Management
-
-Images are now grouped by their compose stack (directory name):
-- Stack summary cards showing service and container counts
-- Stack filter dropdown for focusing on specific stacks
-- Stack-level actions (pull updates, recreate all services)
-- Stack status badges (Running/Stopped/Mixed)
-- View detailed stack information including:
-  - Compose files
-  - Defined services
-  - Running containers with status
-
-### Job Tracking & Progress
-
-All background operations are tracked as jobs:
-- Live job list in the dashboard
-- Progress bars for ongoing operations
-- Status tracking (pending, running, success, error)
-- Step-by-step progress with event streaming
-- Job history and details viewable from the UI
-
-### Container Lifecycle Management
-
-Full container management directly from the dashboard:
-- Start, stop, restart any container
-- View detailed container information (ID, image, command, ports, mounts, networks)
-- Health check visualization with color-coded badges
-- Real-time resource usage (CPU, memory) for running containers
-- Container filter by status (All, Running, Stopped, Unhealthy)
-
-### Compose File Management
-
-View, edit, and manage your compose files:
-- **View All Compose Files** — Grid view of all discovered compose files
-- **New Compose File** — Create new compose files from scratch
-- YAML editor with syntax highlighting
-- **Validate** — Check YAML syntax and structure
-- **Dependencies** — View service dependency graph and network connections
-- Automatic backups when saving (creates `.bak` files)
-
-### Host Overview Dashboard
-
-Detailed host resource monitoring:
-- CPU Usage with core count
-- Memory usage (used/total with percentage)
-- Disk usage (used/total with percentage)
-- System information (OS, architecture, kernel, Docker version)
-- Docker statistics (containers running/stopped, images count)
-- Real-time metrics from running containers
-- Auto-refresh every 30 seconds (configurable)
-
-### Self-Update Notifications
-
-Get notified when new versions of docker-update-checker are available:
-- Automatic background checks (configurable interval)
-- Manual check via **Update** button in header
-- Visual badge indicator when updates are available
-- Click badge to view version info, release notes, and GitHub link
-
----
-
-## Container Management API
-
-The following endpoints are available for container management:
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/containers` | List all containers (supports `?all=true` and `?status=running` filters) |
-| GET | `/api/containers/{id}` | Get detailed container information |
-| GET | `/api/containers/{id}/resources` | Get CPU/memory resource usage |
-| GET | `/api/host/resources` | Get Docker host resource summary |
-| POST | `/api/containers/{id}/start` | Start a stopped container |
-| POST | `/api/containers/{id}/stop` | Stop a running container (supports `?timeout=10` parameter) |
-| POST | `/api/containers/{id}/restart` | Restart a container (supports `?timeout=10` parameter) |
-
-### System API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/version` | Get the application version |
-| GET | `/api/checker/updates` | Check if application update is available |
-| POST | `/api/checker/updates/check` | Trigger update check with notification |
-
-### Host API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/host/resources` | Get Docker host resource usage (CPU, memory, disk) |
-| GET | `/api/host/os-updates` | Get OS package update information |
-| POST | `/api/host/os-updates/check` | Trigger OS update check with notification |
-
-### Compose File Management API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/compose/files/detailed` | List all compose files with metadata (services, images, project) |
-| GET | `/api/compose/files/{path}` | Get compose file content as parsed YAML |
-| PUT | `/api/compose/files/{path}` | Update compose file content (creates backup automatically) |
-| POST | `/api/compose/files/{path}/validate` | Validate compose file YAML syntax |
-| GET | `/api/compose/files/{path}/dependencies` | Get dependency graph (services, networks, volumes) |
-
-### Stack Management API
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/stacks/all` | Get all stacks with services, containers, and status |
-| GET | `/api/stacks/{name}` | Get specific stack information |
-| GET | `/api/stacks/{name}/containers` | List containers belonging to a stack |
-| GET | `/api/stacks/{name}/status` | Get overall stack status (running/stopped/mixed) |
-| POST | `/api/stacks/{name}/up` | Start stack (`docker compose up -d`) |
-| POST | `/api/stacks/{name}/down` | Stop stack (`docker compose down`) |
-| POST | `/api/stacks/{name}/restart` | Restart all containers in stack |
-| POST | `/api/stacks/bulk` | Apply action (up/down/restart) to multiple stacks |
-
----
+- **Recursive compose scanning** — finds all `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, and `compose.yaml` files under a configurable root directory
+- **Digest-based update detection** — compares local `RepoDigests` against the upstream registry manifest digest, without pulling the image
+- **Stack grouping** — images are grouped by compose stack (directory name) with per-stack summaries and actions
+- **Pull & recreate workflow** — pull updates per image, per stack, or in bulk; optionally auto-recreate affected services after pulling
+- **Container lifecycle management** — start, stop, and restart any container; view health status and CPU/memory usage
+- **Stack lifecycle management** — bring stacks up, down, or restart them; bulk actions across multiple stacks
+- **Compose file editor** — view, edit, validate, and create compose files from the dashboard, with automatic backups
+- **Host monitoring** — CPU, memory, and disk usage for the Docker host, plus per-container resource stats
+- **OS package update monitoring** — tracks available host package updates via a host-level agent (see [`scripts/README.md`](scripts/README.md))
+- **Self-update notifications** — checks GitHub for newer releases of this app and can notify you
+- **Remote instance aggregation** — monitor other docker-update-checker instances from a single dashboard
+- **Notifications** — webhook (e.g. Home Assistant), MQTT, or email; optional batching into summary notifications
+- **Scheduled auto-checks** — configurable interval (default: 60 minutes)
+- **Themes** — light, dusk-blue dark, and AMOLED black, with OS-preference detection and remembered preference
 
 ## How Update Detection Works
 
-The app fetches the `Docker-Content-Digest` manifest header directly from the registry API and compares it to the `RepoDigests` value stored with your locally pulled image. If they differ, an update is available. This approach avoids pulling the full image just to check for updates — only the manifest metadata is fetched.
+The app fetches the `Docker-Content-Digest` manifest header from the registry API and compares it with the `RepoDigests` value stored with the locally pulled image:
 
 ```text
-Local image RepoDigest  ——┐
+Local image RepoDigest  ──┐
                           ├── Match? → Up to date
-Registry manifest digest ——╝  No match? → Update available
+Registry manifest digest ─╝  No match? → Update available
 ```
 
-Images defined with `build:` instead of `image:` in a compose file are ignored, since they have no upstream registry to compare against.
+Only manifest metadata is fetched — the full image is never pulled just to check for updates.
 
----
+Image statuses:
+
+| Status | Meaning |
+|---|---|
+| Up to Date | Local digest matches registry |
+| Update Available | Registry has a newer manifest |
+| Registry Error | Could not reach the registry |
+| Not Pulled | Image is referenced by a compose file but not pulled locally |
+| Unknown | Could not determine status |
+
+Services defined with `build:` instead of `image:` are ignored (no upstream registry). `${VARIABLE}` references in image names are resolved from a `.env` file next to the compose file; unresolvable references are skipped.
+
+## Quick Start
+
+Requires Docker and Docker Compose, with your compose stacks organized under a single root directory.
+
+```bash
+git clone https://github.com/robsterba/docker-update-checker.git
+cd docker-update-checker
+cp compose.example.yaml compose.yaml
+# edit compose.yaml: point the /compose volume mount at your compose root
+docker compose up -d --build
+```
+
+The dashboard is available at `http://<host>:5000` and refreshes automatically every 10 seconds (configurable in the UI, minimum 5 seconds).
+
+To update the checker itself:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+## Configuration
+
+All configuration is via environment variables in the `environment:` block of your `compose.yaml`. Defaults:
+
+| Variable | Default | Description |
+|---|---|---|
+| `COMPOSE_ROOT` | `/compose` | Directory (inside the container) scanned for compose files |
+| `CHECK_INTERVAL_MINUTES` | `60` | Automatic check interval |
+| `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, or `ERROR` |
+| `AUTO_RECREATE_AFTER_PULL` | `false` | Recreate affected services automatically after pulling |
+| `TOKEN_CACHE_TTL` | `900` | Registry token cache TTL (seconds) |
+| `REGISTRY_DELAY_SECONDS` | `0` | Delay between registry API calls (rate limiting) |
+| `APP_SETTINGS_FILE` | `app_settings.json` | Runtime-persisted settings (check interval, etc.) |
+| `NOTIFICATION_SETTINGS_FILE` | `notification_settings.json` | Runtime-persisted notification settings |
+
+### Remote Instances
+
+Aggregate other docker-update-checker instances on remote hosts. Set `REMOTE_INSTANCES` to a JSON array, or `REMOTE_INSTANCES_FILE` to a path (mounted into the container) containing one:
+
+```json
+[
+  {"name": "Node 1", "url": "http://192.168.1.10:5000", "description": "attic server"}
+]
+```
+
+`REMOTE_INSTANCES` also accepts a newline-delimited `name|url` list. Remote instances are reachable through the dashboard's host selector; requests are proxied through the local instance.
+
+### Self-Update Checks
+
+| Variable | Default | Description |
+|---|---|---|
+| `SELF_UPDATE_CHECK_ENABLED` | `true` | Check GitHub for newer releases |
+| `SELF_UPDATE_CHECK_INTERVAL_HOURS` | `24` | Check interval |
+
+### OS Package Updates
+
+| Variable | Default | Description |
+|---|---|---|
+| `OS_UPDATE_CHECK_ENABLED` | `true` | Enable OS package update checks |
+| `OS_UPDATE_CHECK_INTERVAL_HOURS` | `24` | Check interval |
+
+For production hosts, deploy the host-level agent described in [`scripts/README.md`](scripts/README.md) and mount its output file:
+
+```yaml
+volumes:
+  - /var/lib/docker-update-checker/os-updates.json:/var/lib/docker-update-checker/os-updates.json:ro
+```
+
+### Notifications
+
+Disabled by default. Enable with `NOTIFY_ENABLED=true` and set `NOTIFY_BACKEND` to `webhook`, `mqtt`, or `email`, plus the backend-specific variables (`NOTIFY_WEBHOOK_URL`, `NOTIFY_MQTT_HOST`/`NOTIFY_MQTT_TOPIC`, `NOTIFY_EMAIL_HOST`/`NOTIFY_EMAIL_FROM`/`NOTIFY_EMAIL_TO`, etc. — see [`.env.example`](.env.example) for the full list).
+
+Trigger controls (all optional):
+
+| Variable | Default | Description |
+|---|---|---|
+| `NOTIFY_ON_UPDATES_FOUND` | `true` | New updates detected during a check |
+| `NOTIFY_ON_PULL_SUCCESS` | `false` | Image pull succeeded |
+| `NOTIFY_ON_PULL_ERROR` | `true` | Image pull failed |
+| `NOTIFY_ON_RECREATE_SUCCESS` | `false` | Compose recreate succeeded |
+| `NOTIFY_ON_RECREATE_ERROR` | `true` | Compose recreate failed |
+| `NOTIFY_ON_BULK_COMPLETE` | `false` | Bulk job completed |
+| `NOTIFY_MAX_FREQUENCY` | `0` | Throttle: minimum seconds between notifications (0 = off) |
+| `NOTIFY_SUMMARY_ENABLED` | `true` | Batch pull/recreate/bulk notifications into summaries |
+| `NOTIFY_BATCH_WINDOW` | `300` | Summary batch window (seconds) |
+
+Use the **Test Notification** action in the dashboard to verify your configuration.
+
+### About `.env`
+
+The container does not read a `.env` file directly. If you copy `.env.example` to `.env`, Docker Compose only uses it for variable *interpolation* in `compose.yaml` (e.g. `${COMPOSE_ROOT}`). Application settings must be listed in the `environment:` block of `compose.yaml` to reach the container.
 
 ## Dashboard
 
-The web UI is available at `http://<your-host>:5000` and refreshes automatically every 10 seconds.
+- **Image table** — filterable and searchable, with per-image re-check, pull, and recreate actions
+- **Stack cards** — service/container counts, status badges (Running / Stopped / Mixed), and per-stack pull/recreate actions
+- **Containers view** — all containers across hosts with status, health badges, and resource usage
+- **Bulk actions** — pull all updates (all stacks or a selected stack), with optional auto-recreate
+- **Jobs panel** — live progress for every check, pull, recreate, and prune operation
+- **Operations log** — audit trail of all actions
 
-### Status Badges
+The recommended update workflow is deliberately two-step:
 
-| Badge | Meaning |
-|---|---|
-| ✓ Up to Date | Local digest matches registry |
-| ↑ Update Available | Registry has a newer manifest |
-| ✗ Registry Error | Could not reach the registry |
-| ? Not Pulled | Image is referenced but not pulled locally |
-| ? Unknown | Could not determine status |
+1. **Pull** — download the new image (running containers keep using the old one)
+2. **Recreate** — `docker compose up -d` on the affected stack to switch containers to the new image
 
-### Actions per Image
+## Security
 
-- **Re-check** — fetches the latest digest for that image only  
-- **Pull Update** — runs `docker pull` to download the new image layers (containers keep running on the old image)  
-- **↻ Recreate** — runs `docker compose up -d --remove-orphans` on the associated compose project to restart containers on the new image  
+**This application has no authentication.** Anyone who can reach port 5000 can inspect and control your Docker host: pull images, start/stop containers and stacks, edit compose files, and prune resources.
 
-### Bulk Actions
+- Do not expose the dashboard to the public internet. Bind it to your LAN or put it behind an authenticating reverse proxy or VPN.
+- The Docker socket mount grants full API access regardless of whether it is mounted `:ro` — the read-only flag applies to the socket file, not to the API operations performed through it. Treat the socket as equivalent to root access and keep the container on a trusted network.
+- `compose.yaml`, `remote_instances.json`, and `notification_settings.json` may contain host-specific details and are gitignored.
 
-- **Pull All Updates** — pulls all images with `update_available` or `not_pulled` status across all stacks  
-- **Pull All (Stack)** — pulls all outdated images in a selected stack  
-- **↻ Recreate Stack** — recreates all services in a selected stack  
-- Optional **auto-recreate after pull** — when enabled, affected services/stacks are automatically recreated after pulling new images  
+## API
 
-### Stack Management
+All endpoints are under `/api`. Highlights:
 
-Each stack card now displays:
-- **Service count** — number of services defined in compose files
-- **Container count** — number of running containers in the stack
-- **Status badge** — overall stack state (Running / Stopped / Mixed)
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Health check (Docker connectivity, version) |
+| GET | `/api/version` | Application version |
+| GET | `/api/status` | Check state summary |
+| GET | `/api/images` | Image check results |
+| GET | `/api/stacks/all` | All stacks with services, containers, and status |
+| POST | `/api/check` | Start a full update check |
+| POST | `/api/check/<image_ref>` | Re-check a single image |
+| POST | `/api/update/<image_ref>` | Pull an image (optional `auto_recreate`) |
+| POST | `/api/bulk/update` | Bulk pull (`stack`, `auto_recreate`) |
+| POST | `/api/compose/recreate` | Recreate a stack from a compose file |
+| GET/POST | `/api/containers` | List containers (filters: `all`, `status`, `resources`) |
+| POST | `/api/containers/<id>/start` / `stop` / `restart` | Container lifecycle |
+| GET | `/api/containers/<id>/resources` | Per-container CPU/memory usage |
+| GET | `/api/host/resources` | Host CPU, memory, and disk usage |
+| GET | `/api/host/os-updates` | OS package update information |
+| GET/PUT | `/api/compose/files/<path>` | Read or write a compose file (writes create a `.bak`) |
+| POST | `/api/compose/files/<path>/validate` | Validate compose YAML |
+| POST | `/api/prune/containers` / `images` / `system` / `volumes` | Prune operations |
+| POST | `/api/stacks/<name>/up` / `down` / `restart` | Stack lifecycle |
+| POST | `/api/stacks/bulk` | Apply an action to multiple stacks |
+| GET/POST | `/api/config` | Read or update auto-recreate and check interval |
+| GET/POST | `/api/config/notification` | Read or update notification settings |
+| GET/POST | `/api/instances/remote` | Read or update remote instance configuration |
+| GET | `/api/instances` | Local + remote instances |
+| ANY | `/api/instances/<id>/<path>` | Proxy an API call to a local or remote instance |
+| GET | `/api/jobs` / `/api/jobs/<id>` | Job list and details |
+| GET | `/api/operations` | Operations log |
+| POST | `/api/notify/test` | Send a test notification |
+| GET | `/api/checker/updates` | Check for a newer release of this app |
 
-Stack actions available:
-- **Details** — view compose files, services, containers, and dependency graph
-- **Start** — start all containers in the stack (`docker compose up -d`)
-- **Restart** — restart all containers in the stack
-- **Stop** — stop and remove all containers in the stack (`docker compose down`)
-- Actions are disabled based on current stack state to prevent errors
-
-### Compose File Editor
-
-Accessible from the **Compose Files** dropdown menu:
-- **View All Compose Files** — grid view of all discovered compose files with service and image counts
-- **New Compose File** — create a new compose file from scratch
-
-Editor features:
-- Full YAML editing with syntax highlighting
-- **Validate** — check YAML syntax and structure
-- **Dependencies** — view service dependency graph, networks, and volumes
-- **Save** — writes file with automatic backup (creates `.bak` file)
-- Auto-formatting and error feedback
-
----
+The same endpoints power the dashboard; the instance proxy allows a remote dashboard to operate a remote host's API.
 
 ## Project Structure
 
 ```text
 docker-update-checker/
-├── app.py
-├── api.py                   # Flask API route handlers
-├── config.py                # environment parsing and configuration
-├── docker_utils.py          # Docker and compose helpers
-├── jobs.py                  # job state, progress tracking, and operation log
-├── notifier.py              # notification backends (webhook, MQTT, email)
-├── schemas.py               # Pydantic schemas for request validation
-├── compose.example.yaml     # Compose file template for deploying the checker
+├── app.py                   # entry point: route registration, startup validation, scheduler
+├── services.py               # Flask app object, orchestration, proxying, jobs
+├── api.py                    # HTTP route handlers
+├── config.py                 # environment parsing and configuration
+├── docker_utils.py           # Docker/compose helpers, image checks, registry API
+├── jobs.py                   # job state, progress tracking, operation log
+├── notifier.py               # notification backends (webhook, MQTT, email)
+├── schemas.py                # Pydantic request validation schemas
+├── version.py                # reads the VERSION file
+├── static/index.html         # dashboard UI (single file, no build step)
+├── scripts/                  # host-level OS update agent (see scripts/README.md)
+├── compose.example.yaml      # deployment template
+├── .env.example              # documented environment variables
+├── style.md                  # web theme spec used by the dashboard
 ├── Dockerfile
 ├── requirements.txt
-├── readme.md
-└── static/
-    └── index.html           # Dashboard UI
+├── requirements-dev.txt
+└── tests/                    # pytest suite
 ```
 
-The backend is now modularized into:
-- `config.py` for runtime configuration and environment variables
-- `docker_utils.py` for compose scanning, image checks, Docker compose operations, and Phase 2 compose file/stack management
-- `jobs.py` for background job tracking and operation logging
-- `notifier.py` for webhook, MQTT, and email notification delivery
-- `schemas.py` for Pydantic request validation schemas
-- `api.py` for the Flask route handlers and HTTP API surface
+Import flow: `app.py` → `services.py` (business logic, owns the Flask app) and `api.py` (routes) → `config.py`, `docker_utils.py`, `jobs.py`, `notifier.py`, `schemas.py`. There are no circular imports; importing any module has no side effects until `app.py` runs as the entry point.
 
-`app.py` boots the Flask app, initializes the scheduler, and imports `api` to register HTTP routes.
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- Docker and Docker Compose installed on your host  
-- Your compose stacks organized under a single root directory (e.g. `/opt/docker`)  
-
-### 1. Clone the repository
+## Development
 
 ```bash
-git clone https://github.com/your-username/docker-update-checker.git
-cd docker-update-checker
+python -m venv .venv
+.venv/Scripts/pip install -r requirements-dev.txt   # or .venv/bin/pip on Linux/macOS
+
+# run the test suite (no Docker daemon or network access required)
+python -m pytest
+
+# lint
+python -m ruff check .
 ```
 
-### 2. Copy and configure `compose.yaml`
-
-Copy the template file and edit the volume mount to point to your compose root directory:
-
-```bash
-cp compose.example.yaml compose.yaml
-```
-
-Then edit `compose.yaml`:
-
-```yaml
-volumes:
-  - /var/run/docker.sock:/var/run/docker.sock:ro
-  - /opt/docker:/compose:ro   # ← change /opt/docker to your path
-  # Optional: For OS package update monitoring
-  - /var/lib/docker-update-checker/os-updates.json:/var/lib/docker-update-checker/os-updates.json:ro
-```
-
-Note: For OS package update monitoring, you need to deploy the host-level agent. See the "OS Package Update Monitoring" section above for details.
-
-### 3. Build and start
-
-```bash
-docker compose up -d --build
-```
-
-### 4. Open the dashboard
-
-```text
-http://localhost:5000
-```
-
-If you deploy this service to multiple nodes, make sure each node is built and restarted with the latest source changes. Remote instances are aggregated via `REMOTE_INSTANCES` or `REMOTE_INSTANCES_FILE`, and each node must expose its local API on port `5000`.
-
----
-
-## Configuration
-
-All configuration is done via environment variables in your `compose.yaml` (copied from `compose.example.yaml`), or by copying `.env.example` to `.env` and customizing values.
-
-### Core Settings
-
-| Variable | Default | Description |
-|---|---|---|
-| `COMPOSE_ROOT` | `/compose` | Path inside the container where your compose files are mounted |
-| `CHECK_INTERVAL_MINUTES` | `60` | How often to automatically check for updates |
-| `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `AUTO_RECREATE_AFTER_PULL` | `false` | If `true`, automatically recreate affected services after pulling an image |
-
-### Remote Instance Configuration
-
-The dashboard can aggregate status from other `docker-update-checker` instances running on remote hosts.
-
-- Use `REMOTE_INSTANCES` to provide a JSON array of remote hosts.
-- Or use `REMOTE_INSTANCES_FILE` to point to a JSON file such as `remote_instances.example.json`.
-
-Example config entry:
-```json
-{
-  "name": "Homelab Node 1",
-  "url": "http://192.168.1.10:5000",
-  "description": "Checker instance on remote node"
-}
-```
-
-You can also use a simple newline-based list in `REMOTE_INSTANCES` like:
-```text
-node1|http://192.168.1.10:5000
-node2|http://192.168.1.11:5000
-```
-
-### Notification Settings
-
-Notifications are **disabled by default**. Enable them by setting `NOTIFY_ENABLED=true` and choosing a backend.
-
-| Variable | Default | Description |
-|---|---|---|
-| `NOTIFY_ENABLED` | `false` | Enable notifications (`true` or `false`) |
-| `NOTIFY_BACKEND` | *(empty)* | Notification backend: `webhook`, `mqtt`, or `email` |
-| `NOTIFY_MAX_FREQUENCY` | `0` | Throttle notifications (seconds between sends, `0` = disabled) |
-
-#### Webhook Notifications
-
-| Variable | Default | Description |
-|---|---|---|
-| `NOTIFY_WEBHOOK_URL` | *(empty)* | Webhook URL (e.g. Home Assistant: `http://homeassistant.local:8123/api/webhook/<webhook_id>`) |
-| `NOTIFY_WEBHOOK_METHOD` | `POST` | HTTP method: `POST` or `PUT` |
-| `NOTIFY_WEBHOOK_TIMEOUT` | `10` | Request timeout in seconds |
-
-#### MQTT Notifications
-
-| Variable | Default | Description |
-|---|---|---|
-| `NOTIFY_MQTT_HOST` | *(empty)* | MQTT broker host |
-| `NOTIFY_MQTT_PORT` | `1883` | MQTT broker port |
-| `NOTIFY_MQTT_TOPIC` | *(empty)* | Topic to publish notifications to |
-| `NOTIFY_MQTT_USERNAME` | *(empty)* | MQTT username (optional) |
-| `NOTIFY_MQTT_PASSWORD` | *(empty)* | MQTT password (optional) |
-| `NOTIFY_MQTT_RETAIN` | `false` | Whether to retain MQTT messages |
-
-#### Email Notifications
-
-| Variable | Default | Description |
-|---|---|---|
-| `NOTIFY_EMAIL_HOST` | *(empty)* | SMTP server host |
-| `NOTIFY_EMAIL_PORT` | `587` | SMTP server port |
-| `NOTIFY_EMAIL_USERNAME` | *(empty)* | SMTP username |
-| `NOTIFY_EMAIL_PASSWORD` | *(empty)* | SMTP password |
-| `NOTIFY_EMAIL_FROM` | *(empty)* | Sender email address |
-| `NOTIFY_EMAIL_TO` | *(empty)* | Recipient email address |
-| `NOTIFY_EMAIL_USE_TLS` | `true` | Use STARTTLS (`true` or `false`) |
-
-### Notification Triggers
-
-| Variable | Default | Description |
-|---|---|---|
-| `NOTIFY_ON_UPDATES_FOUND` | `true` | Notify when new updates are detected during a check |
-| `NOTIFY_ON_PULL_SUCCESS` | `false` | Notify on successful image pull |
-| `NOTIFY_ON_PULL_ERROR` | `true` | Notify on pull failure |
-| `NOTIFY_ON_RECREATE_SUCCESS` | `false` | Notify on successful compose recreate |
-| `NOTIFY_ON_RECREATE_ERROR` | `true` | Notify on recreate failure |
-| `NOTIFY_ON_BULK_COMPLETE` | `true` | Notify when a bulk pull/recreate job completes |
-
----
-
-## Volume Mounts
-
-| Host Path | Container Path | Purpose |
-|---|---|---|
-| `/var/run/docker.sock` | `/var/run/docker.sock` | Docker API access for image pulls and compose operations |
-| `/opt/docker` *(your path)* | `/compose` | Directory scanned recursively for compose files |
-
-> **⚠️ Docker Socket Permissions - Security Consideration**
-> 
-> The Docker socket is mounted **read-only (`:ro`)** by default in the `compose.example.yaml` template. This is more secure but has limitations:
-> 
-> | Mount Mode | Can Pull Images | Can Run `docker compose up -d` | Security |
-> |---|---|---|---|
-> | `:ro` (read-only) | ✅ Yes | ❌ No - will fail with permission error | **More secure** |
-> | `:rw` (read-write) | ✅ Yes | ✅ Yes | Less secure |
-> 
-> **Recommendation:** 
-> - Use `:ro` if you only need to **check for updates** and **pull images** (the app can still pull images via the Docker SDK with read-only socket)
-> - Use `:rw` if you need **automatic service recreation** (`docker compose up -d`)
-> - For maximum security: Keep as `:ro` and manually recreate containers after pulling updates via the dashboard
-
----
+The test suite covers image reference parsing, compose file discovery and validation, the registry digest flow (with HTTP mocked), job tracking, notification gating and batching, remote instance handling, the proxy layer, and the API surface via Flask's test client.
 
 ## Supported Registries
 
-| Registry | Authentication Method |
+| Registry | Authentication |
 |---|---|
 | Docker Hub (`docker.io`) | Anonymous token via `auth.docker.io` |
 | GitHub Container Registry (`ghcr.io`) | Anonymous token via `ghcr.io/token` |
 | Quay.io and others | Unauthenticated manifest HEAD request |
-| Private registries | Unauthenticated fallback (add auth support as needed) |
+| Private registries | Unauthenticated fallback |
 
-For private registries that require credentials, pre-authenticate on the host with `docker login <registry>` and mount your Docker config into the container:
+For private registries, pre-authenticate on the host with `docker login <registry>` and mount your Docker config into the container:
 
 ```yaml
 volumes:
   - /root/.docker/config.json:/root/.docker/config.json:ro
 ```
 
----
-
-## Updating Your Stacks (Recommended Workflow)
-
-Update detection and applying updates are intentionally separated — nothing updates automatically without your approval.
-
-### Standard Workflow
-
-1. **Check** — the dashboard shows which images have updates available  
-2. **Pull** — click *Pull Update* to download the new image. Running containers are unaffected at this point  
-3. **Recreate** — click *↻ Recreate* on the compose project to restart containers using the new image  
-
-This two-step process gives you full control over when downtime occurs.
-
-### Bulk Workflow with Notifications
-
-1. **Check** — run a full check or wait for the scheduled interval  
-2. **Bulk Pull**  
-   - Click **Pull All Updates** for all stacks, or  
-   - Select a stack and pull all updates for that stack only  
-3. **Optional Auto-Recreate**  
-   - If `AUTO_RECREATE_AFTER_PULL=true` or you enable it per-job, affected services are recreated automatically after pulling  
-4. **Notifications**  
-   - You can configure webhooks (e.g. Home Assistant), MQTT, or email to receive:
-     - Alerts when updates are found
-     - Pull success/failure
-     - Recreate success/failure
-     - Bulk job completion summaries  
-
----
-
-## Updating the Checker Itself
-
-```bash
-cd docker-update-checker
-git pull
-docker compose down
-docker compose up -d --build
-```
-
----
-
 ## Troubleshooting
 
-**Dashboard shows "Registry Error" for all images**  
-The container cannot reach the registry. Add DNS servers to `docker-compose.yml`:
+**Dashboard shows "Registry Error" for all images** — the container cannot reach the registry. Add DNS servers to your compose file:
 
 ```yaml
 dns:
@@ -625,40 +265,13 @@ dns:
   - 1.1.1.1
 ```
 
-**Images with `${VARIABLE}` in their name show as unknown**  
-The app attempts to resolve variables from a `.env` file in the same directory as the compose file. Make sure your `.env` file exists and contains the variable definition.
+**Images with `${VARIABLE}` in their name show as unknown** — the app resolves variables from a `.env` file in the same directory as the compose file. Ensure the file exists and defines the variable.
 
-**Digest-pinned images (`image@sha256:...`) not resolving**  
-The app automatically strips the `@sha256:` digest and compares by tag. If you see errors, check that the tag portion of the image reference is valid.
+**Digest-pinned images (`image@sha256:...`) not resolving** — the digest is stripped and the image compared by tag. Ensure the tag portion is valid.
 
-**`docker compose up -d` recreate fails with permission error**  
-Change the Docker socket mount from `:ro` to `:rw` in `docker-compose.yml`.
+**401 Unauthorized for Docker Hub official images** — official images are prefixed with `library/` automatically. Avoid combining an explicit `docker.io/` prefix with no namespace (use `redis:latest`, not `docker.io/redis:latest`).
 
-**Container logs show `401 Unauthorized` for Docker Hub official images**  
-Official images (e.g. `redis`, `nginx`) require the `library/` namespace prefix. This is handled automatically — if you still see 401s, ensure the image name in your compose file does not include an explicit `docker.io/` prefix combined with no namespace (e.g. use `redis:latest` not `docker.io/redis:latest`).
-
-**Notifications not being received**  
-- Confirm `NOTIFY_ENABLED=true`  
-- Confirm `NOTIFY_BACKEND` is set to `webhook`, `mqtt`, or `email`  
-- Check that the required variables for your chosen backend are set  
-- Use the **Test Notification** button in the UI to verify delivery  
-- For Home Assistant, ensure the webhook is configured with `local_only: true` and that your `NOTIFY_WEBHOOK_URL` matches the `webhook_id`
-
----
-
-## Dependencies
-
-| Package | Purpose |
-|---|---|
-| `flask` | Web framework and REST API |
-| `flask-cors` | Cross-origin request handling |
-| `docker` | Python Docker SDK for image pulls and local digest lookup |
-| `requests` | Registry API HTTP calls |
-| `pyyaml` | Compose file parsing |
-| `apscheduler` | Background scheduled checks |
-| `paho-mqtt` *(optional)* | MQTT notification support |
-
----
+**Notifications not received** — confirm `NOTIFY_ENABLED=true`, `NOTIFY_BACKEND` is set, the backend-specific variables are configured, and use the **Test Notification** action. For Home Assistant, ensure the webhook `webhook_id` matches `NOTIFY_WEBHOOK_URL`.
 
 ## License
 

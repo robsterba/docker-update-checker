@@ -1,14 +1,13 @@
-from flask import send_from_directory, jsonify, request, Response
+from flask import send_from_directory, jsonify, request
 import json
+import logging
+import subprocess
 import threading
 from pathlib import Path
-from typing import Any
 
-# Import Flask app and configuration
-from app import (
+# Import Flask app and orchestration logic
+from services import (
     app,
-    docker_client,
-    AUTO_RECREATE_AFTER_PULL,
     CHECK_INTERVAL_MINUTES,
     get_all_instances,
     load_remote_instances,
@@ -28,6 +27,9 @@ from app import (
     save_app_settings,
     get_check_interval_minutes,
 )
+
+import config
+from docker_utils import docker_client
 
 # Import from config module
 from config import (
@@ -69,12 +71,9 @@ from docker_utils import (
     get_compose_file_dependencies,
     list_compose_files_detailed,
     # Phase 2: Stack management
-    get_stack_name_from_path,
     stack_up,
     stack_down,
     stack_restart,
-    stack_ps,
-    get_stack_containers,
     get_all_stacks,
     # Self-update checker
     check_for_self_update,
@@ -86,8 +85,19 @@ from notifier import (
     notify_pull_result,
     notify_recreate_result,
 )
-from config import NOTIFY_ENABLED, NOTIFY_BACKEND, DEFAULT_COMPOSE_TIMEOUT, VERSION, GITHUB_REPO, SELF_UPDATE_CHECK_ENABLED, OS_UPDATE_CHECK_ENABLED, REMOTE_INSTANCES_FILE
+from config import (
+    NOTIFY_ENABLED,
+    NOTIFY_BACKEND,
+    DEFAULT_COMPOSE_TIMEOUT,
+    GITHUB_REPO,
+    SELF_UPDATE_CHECK_ENABLED,
+    OS_UPDATE_CHECK_ENABLED,
+    REMOTE_INSTANCES_FILE,
+)
+from version import VERSION
 
+
+log = logging.getLogger(__name__)
 
 # ── Routes (moved from app.py) ─────────────────────────────────────────────────
 
@@ -125,15 +135,18 @@ def api_checker_updates():
 def api_checker_updates_check():
     """Trigger a check for application updates and return the result."""
     update_info = check_for_self_update(VERSION, GITHUB_REPO)
-    
+
     # Optionally send notification if update is available and notifications are enabled
     if update_info.get("update_available") and NOTIFY_ENABLED and SELF_UPDATE_CHECK_ENABLED:
         try:
             send_notification(
                 title="Application Update Available",
-                message=f"docker-update-checker {update_info['latest_version']} is available (current: {update_info['current_version']})",
+                message=(
+                    f"docker-update-checker {update_info['latest_version']} is available "
+                    f"(current: {update_info['current_version']})"
+                ),
                 event_type="self_update_available",
-                data={
+                extra={
                     "current_version": update_info["current_version"],
                     "latest_version": update_info["latest_version"],
                     "release_url": update_info.get("release_url"),
@@ -142,7 +155,7 @@ def api_checker_updates_check():
             )
         except Exception as e:
             log.warning(f"Failed to send self-update notification: {e}")
-    
+
     return jsonify(update_info)
 
 
@@ -151,7 +164,7 @@ def api_host_os_updates():
     """Check for available OS package updates on the host."""
     if not OS_UPDATE_CHECK_ENABLED:
         return jsonify({"error": "OS update checking is disabled", "enabled": False})
-    
+
     os_updates = check_os_updates()
     return jsonify(os_updates)
 
@@ -161,21 +174,21 @@ def api_host_os_updates_check():
     """Trigger a check for OS package updates and send notification if updates are available."""
     if not OS_UPDATE_CHECK_ENABLED:
         return jsonify({"error": "OS update checking is disabled", "enabled": False})
-    
+
     os_updates = check_os_updates()
-    
+
     # Send notification if updates are available and notifications are enabled
     if os_updates.get("updates_available", 0) > 0 and NOTIFY_ENABLED and OS_UPDATE_CHECK_ENABLED:
         try:
             packages_count = os_updates.get("updates_available", 0)
             security_count = os_updates.get("security_updates", 0)
             os_name = os_updates.get("os", "Unknown")
-            
+
             send_notification(
                 title=f"OS Updates Available on {os_name}",
                 message=f"{packages_count} package(s) can be updated ({security_count} security updates)",
                 event_type="os_updates_available",
-                data={
+                extra={
                     "os": os_name,
                     "os_version": os_updates.get("version", ""),
                     "updates_available": packages_count,
@@ -186,7 +199,7 @@ def api_host_os_updates_check():
             )
         except Exception as e:
             log.warning(f"Failed to send OS update notification: {e}")
-    
+
     return jsonify(os_updates)
 
 
@@ -203,7 +216,7 @@ def api_status():
             "unknown": sum(1 for r in check_results.values()
                            if r["status"] in ("unknown", "registry_error", "not_pulled")),
             "check_interval_minutes": CHECK_INTERVAL_MINUTES,
-            "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
+            "auto_recreate_after_pull": config.AUTO_RECREATE_AFTER_PULL,
             "notify_enabled": NOTIFY_ENABLED,
             "notify_backend": NOTIFY_BACKEND or None,
             "version": VERSION
@@ -286,10 +299,9 @@ def api_set_remote_instances():
 
 @app.route("/api/config", methods=["GET", "POST"])
 def api_config():
-    global AUTO_RECREATE_AFTER_PULL
     if request.method == "GET":
         return jsonify({
-            "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
+            "auto_recreate_after_pull": config.AUTO_RECREATE_AFTER_PULL,
             "check_interval_minutes": get_check_interval_minutes(),
         })
 
@@ -305,13 +317,9 @@ def api_config():
         except Exception as e:
             return jsonify({"status": "error", "message": str(e)}), 400
 
-        # Update the module-level variable in config and the modules that
-        # imported a copy of it, so every reader sees the new value
-        import config
+        # Update the single source of truth; readers access the value
+        # via the config module so every module sees the new value
         config.AUTO_RECREATE_AFTER_PULL = auto_recreate
-        import app as _app
-        _app.AUTO_RECREATE_AFTER_PULL = auto_recreate
-        AUTO_RECREATE_AFTER_PULL = auto_recreate
         log_op("config", "auto_recreate", "success", f"Set auto_recreate_after_pull={auto_recreate}")
 
     check_interval = data.get("check_interval_minutes")
@@ -324,7 +332,7 @@ def api_config():
             return jsonify({"status": "error", "message": "check_interval_minutes must be between 1 and 1440"}), 400
 
         try:
-            from app import scheduler
+            from services import scheduler
             scheduler.reschedule_job("full_check", trigger="interval", minutes=check_interval)
         except Exception as e:
             log_op("config", "check_interval", "error", f"Failed to reschedule check job: {e}")
@@ -337,7 +345,7 @@ def api_config():
         log_op("config", "check_interval", "success", f"Set check interval to {check_interval} minute(s)")
 
     return jsonify({
-        "auto_recreate_after_pull": AUTO_RECREATE_AFTER_PULL,
+        "auto_recreate_after_pull": config.AUTO_RECREATE_AFTER_PULL,
         "check_interval_minutes": get_check_interval_minutes(),
     })
 
@@ -398,13 +406,13 @@ def api_check_single(image_ref):
 @app.route("/api/update/<path:image_ref>", methods=["POST"])
 def api_update_image(image_ref):
     from schemas import ImageUpdateRequest
-    
+
     data = request.json or {}
     try:
         validated = ImageUpdateRequest.model_validate(data)
         auto_recreate = validated.auto_recreate
         if auto_recreate is None:
-            auto_recreate = AUTO_RECREATE_AFTER_PULL
+            auto_recreate = config.AUTO_RECREATE_AFTER_PULL
     except Exception as e:
         return jsonify({"status": "error", "message": str(e), "job_id": None}), 400
 
@@ -520,14 +528,14 @@ def api_update_image(image_ref):
 @app.route("/api/bulk/update", methods=["POST"])
 def api_bulk_update():
     from schemas import BulkUpdateRequest
-    
+
     data = request.json or {}
     try:
         validated = BulkUpdateRequest.model_validate(data)
         stack_name = validated.stack
         auto_recreate = validated.auto_recreate
         if auto_recreate is None:
-            auto_recreate = AUTO_RECREATE_AFTER_PULL
+            auto_recreate = config.AUTO_RECREATE_AFTER_PULL
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
 
@@ -575,7 +583,7 @@ def api_prune_containers():
 @app.route("/api/prune/images", methods=["POST"])
 def api_prune_images():
     from schemas import PruneRequest
-    
+
     data = request.json or {}
     try:
         validated = PruneRequest.model_validate(data)
@@ -625,7 +633,7 @@ def api_prune_system():
 @app.route("/api/prune/volumes", methods=["POST"])
 def api_prune_volumes():
     from schemas import PruneRequest
-    
+
     data = request.json or {}
     try:
         validated = PruneRequest.model_validate(data)
@@ -676,7 +684,7 @@ def api_stack_recreate(stack_name):
 @app.route("/api/compose/recreate", methods=["POST"])
 def api_compose_recreate():
     from schemas import ComposeRecreateRequest
-    
+
     data = request.json or {}
     try:
         validated = ComposeRecreateRequest.model_validate(data)
@@ -817,19 +825,19 @@ def api_containers():
     all_containers = request.args.get("all", "false").lower() == "true"
     status_filter = request.args.get("status", None)
     with_resources = request.args.get("resources", "false").lower() == "true"
-    
+
     filters = {}
     if status_filter:
         filters["status"] = status_filter
-    
+
     containers = list_containers(all_containers=all_containers, filters=filters if filters else None)
-    
+
     # If resource data requested, fetch for all containers
     if with_resources and containers:
         resource_data = get_all_container_resources(containers)
         for container in containers:
             container["resources"] = resource_data.get(container["id"], {})
-    
+
     return jsonify(containers)
 
 
@@ -904,10 +912,10 @@ def api_compose_files_detailed():
     """List all compose files with detailed metadata (services, images, etc.)."""
     project_filter = request.args.get("project", None)
     files = list_compose_files_detailed()
-    
+
     if project_filter:
         files = [f for f in files if f.get("project") == project_filter]
-    
+
     return jsonify(files)
 
 
@@ -917,7 +925,7 @@ def api_compose_file_get(compose_path):
     content = get_compose_file_content(compose_path)
     if content is None:
         return jsonify({"status": "error", "message": "File not found or invalid"}), 404
-    
+
     return jsonify({"path": compose_path, "content": content})
 
 
@@ -925,7 +933,7 @@ def api_compose_file_get(compose_path):
 def api_compose_file_update(compose_path):
     """Update/save a compose file with new content."""
     from schemas import ComposeFileContentRequest
-    
+
     data = request.json or {}
     try:
         validated = ComposeFileContentRequest.model_validate(data)
@@ -933,7 +941,7 @@ def api_compose_file_update(compose_path):
         backup = validated.backup
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
-    
+
     # Validate content
     is_valid, validation_msg, errors = validate_compose_content(content)
     if not is_valid:
@@ -942,7 +950,7 @@ def api_compose_file_update(compose_path):
             "message": validation_msg,
             "errors": errors
         }), 400
-    
+
     success, message = write_compose_file(compose_path, content, backup=backup)
     if success:
         log_op("compose_update", compose_path, "success", message)
@@ -955,18 +963,17 @@ def api_compose_file_update(compose_path):
 @app.route("/api/compose/files/<path:compose_path>/validate", methods=["POST"])
 def api_compose_file_validate(compose_path):
     """Validate a compose file's content."""
-    from schemas import ComposeFileValidateRequest
-    
+
     # Get content from request body or read from file
     data = request.json or {}
     content = data.get("content")
-    
+
     if content is None:
         # Read from file if no content provided
         content = get_compose_file_content(compose_path)
         if content is None:
             return jsonify({"status": "error", "message": "File not found"}), 404
-    
+
     is_valid, message, errors = validate_compose_content(content)
     return jsonify({
         "valid": is_valid,
@@ -997,10 +1004,10 @@ def api_stack_info(stack_name):
     """Get information about a specific stack."""
     stacks = get_all_stacks()
     stack_info = stacks.get(stack_name)
-    
+
     if stack_info is None:
         return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
-    
+
     return jsonify({stack_name: stack_info})
 
 
@@ -1009,10 +1016,10 @@ def api_stack_containers(stack_name):
     """Get containers for a specific stack."""
     stacks = get_all_stacks()
     stack_info = stacks.get(stack_name)
-    
+
     if stack_info is None:
         return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
-    
+
     return jsonify({"stack": stack_name, "containers": stack_info.get("containers", [])})
 
 
@@ -1021,10 +1028,10 @@ def api_stack_status(stack_name):
     """Get status of all containers in a stack."""
     stacks = get_all_stacks()
     stack_info = stacks.get(stack_name)
-    
+
     if stack_info is None:
         return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
-    
+
     return jsonify({
         "stack": stack_name,
         "status": stack_info.get("status", "unknown"),
@@ -1036,28 +1043,28 @@ def api_stack_status(stack_name):
 def api_stack_up(stack_name):
     """Start a stack (docker compose up -d)."""
     from schemas import StackActionRequest
-    
+
     try:
         data = request.get_json(silent=True) or {}
         validated = StackActionRequest.model_validate(data)
         timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
-    
+
     # Find compose files for this stack
     stacks = get_all_stacks()
     stack_info = stacks.get(stack_name)
-    
+
     if stack_info is None:
         return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
-    
+
     compose_files = stack_info.get("compose_files", [])
     if not compose_files:
         return jsonify({"status": "error", "message": f"No compose files found for stack '{stack_name}'"}), 400
-    
+
     results = []
     all_success = True
-    
+
     for compose_path in compose_files:
         try:
             result = stack_up(compose_path, timeout=timeout)
@@ -1077,7 +1084,7 @@ def api_stack_up(stack_name):
                 "error": str(e)
             })
             all_success = False
-    
+
     if all_success:
         log_op("stack_up", stack_name, "success", f"Started {len(compose_files)} compose file(s)")
         return jsonify({"status": "success", "stack": stack_name, "results": results})
@@ -1090,28 +1097,28 @@ def api_stack_up(stack_name):
 def api_stack_down(stack_name):
     """Stop a stack (docker compose down)."""
     from schemas import StackActionRequest
-    
+
     try:
         data = request.get_json(silent=True) or {}
         validated = StackActionRequest.model_validate(data)
         timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
-    
+
     # Find compose files for this stack
     stacks = get_all_stacks()
     stack_info = stacks.get(stack_name)
-    
+
     if stack_info is None:
         return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
-    
+
     compose_files = stack_info.get("compose_files", [])
     if not compose_files:
         return jsonify({"status": "error", "message": f"No compose files found for stack '{stack_name}'"}), 400
-    
+
     results = []
     all_success = True
-    
+
     for compose_path in compose_files:
         try:
             result = stack_down(compose_path, timeout=timeout)
@@ -1131,7 +1138,7 @@ def api_stack_down(stack_name):
                 "error": str(e)
             })
             all_success = False
-    
+
     if all_success:
         log_op("stack_down", stack_name, "success", f"Stopped {len(compose_files)} compose file(s)")
         return jsonify({"status": "success", "stack": stack_name, "results": results})
@@ -1144,28 +1151,28 @@ def api_stack_down(stack_name):
 def api_stack_restart(stack_name):
     """Restart all containers in a stack."""
     from schemas import StackActionRequest
-    
+
     try:
         data = request.get_json(silent=True) or {}
         validated = StackActionRequest.model_validate(data)
         timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
-    
+
     # Find compose files for this stack
     stacks = get_all_stacks()
     stack_info = stacks.get(stack_name)
-    
+
     if stack_info is None:
         return jsonify({"status": "error", "message": f"Stack '{stack_name}' not found"}), 404
-    
+
     compose_files = stack_info.get("compose_files", [])
     if not compose_files:
         return jsonify({"status": "error", "message": f"No compose files found for stack '{stack_name}'"}), 400
-    
+
     results = []
     all_success = True
-    
+
     for compose_path in compose_files:
         try:
             result = stack_restart(compose_path, timeout=timeout)
@@ -1185,7 +1192,7 @@ def api_stack_restart(stack_name):
                 "error": str(e)
             })
             all_success = False
-    
+
     if all_success:
         log_op("stack_restart", stack_name, "success", f"Restarted {len(compose_files)} compose file(s)")
         return jsonify({"status": "success", "stack": stack_name, "results": results})
@@ -1198,7 +1205,7 @@ def api_stack_restart(stack_name):
 def api_stacks_bulk_action():
     """Perform bulk action on multiple stacks."""
     from schemas import StackBulkActionRequest
-    
+
     data = request.json or {}
     try:
         validated = StackBulkActionRequest.model_validate(data)
@@ -1207,20 +1214,20 @@ def api_stacks_bulk_action():
         timeout = validated.timeout or DEFAULT_COMPOSE_TIMEOUT
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 400
-    
+
     action_map = {
         'up': stack_up,
         'down': stack_down,
         'restart': stack_restart
     }
-    
+
     if action not in action_map:
         return jsonify({"status": "error", "message": f"Invalid action: {action}"}), 400
-    
+
     stacks = get_all_stacks()
     results = {}
     all_success = True
-    
+
     for stack_name in stack_names:
         stack_info = stacks.get(stack_name)
         if stack_info is None:
@@ -1230,11 +1237,11 @@ def api_stacks_bulk_action():
             }
             all_success = False
             continue
-        
+
         compose_files = stack_info.get("compose_files", [])
         stack_results = []
         stack_success = True
-        
+
         for compose_path in compose_files:
             try:
                 action_func = action_map[action]
@@ -1255,18 +1262,23 @@ def api_stacks_bulk_action():
                     "error": str(e)
                 })
                 stack_success = False
-        
+
         results[stack_name] = {
             "status": "success" if stack_success else "partial_success",
             "action": action,
             "results": stack_results
         }
-        
+
         if not stack_success:
             all_success = False
-    
+
     if all_success:
-        log_op("stacks_bulk", f"{action} ({','.join(stack_names)})", "success", f"Applied {action} to {len(stack_names)} stack(s)")
+        log_op(
+            "stacks_bulk",
+            f"{action} ({','.join(stack_names)})",
+            "success",
+            f"Applied {action} to {len(stack_names)} stack(s)",
+        )
         return jsonify({"status": "success", "action": action, "results": results})
     else:
         log_op("stacks_bulk", f"{action} ({','.join(stack_names)})", "error", "Partial or complete failure")
@@ -1282,7 +1294,7 @@ def api_get_notification_config():
     try:
         # Merge file settings with environment variable defaults
         file_settings = load_notification_settings()
-        
+
         # Default settings from environment variables
         defaults = {
             "enabled": NOTIFY_ENABLED,
@@ -1310,11 +1322,11 @@ def api_get_notification_config():
             "on_recreate_error": get_bool_env("NOTIFY_ON_RECREATE_ERROR", True),
             "on_bulk_complete": get_bool_env("NOTIFY_ON_BULK_COMPLETE", False),
         }
-        
+
         # File settings override defaults
         final_settings = {**defaults, **file_settings}
         return jsonify(final_settings)
-        
+
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -1326,15 +1338,15 @@ def api_set_notification_config():
         data = request.get_json(silent=True) or {}
         if not data:
             return jsonify({"status": "error", "message": "No settings data provided"}), 400
-        
+
         # Save settings to file
         success = save_notification_settings(data)
         if not success:
             return jsonify({"status": "error", "message": "Failed to save settings"}), 500
-        
+
         log_op("config_notification_save", "", "success", "Notification settings saved")
         return jsonify({"status": "success", "message": "Notification settings saved"})
-        
+
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

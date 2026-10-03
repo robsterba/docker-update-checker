@@ -141,7 +141,7 @@ def _should_batch_notification(event_type: str) -> bool:
     """Determine if this notification type should be batched into summaries."""
     # Batch pull and recreate success notifications, but send errors immediately
     batchable_types = {"pull_result", "recreate_result", "bulk_complete"}
-    return (NOTIFY_SUMMARY_ENABLED and 
+    return (NOTIFY_SUMMARY_ENABLED and
             event_type in batchable_types and
             NOTIFY_BATCH_WINDOW > 0)
 
@@ -149,22 +149,22 @@ def _should_batch_notification(event_type: str) -> bool:
 def _send_batched_notifications():
     """Send summary notifications for all batched events."""
     global _pending_notifications, _last_batch_time, _batch_timer
-    
+
     with _batch_lock:
         if not _pending_notifications:
             return
-            
+
         # Group notifications by type for summary
         notifications_by_type = dict(_pending_notifications)
         _pending_notifications.clear()
         _last_batch_time = time.time()
-        
+
     # Send summary for each notification type
     for event_type, notifications in notifications_by_type.items():
         if event_type == "pull_result":
             successes = [n for n in notifications if n.get("status") == "success"]
             errors = [n for n in notifications if n.get("status") == "error"]
-            
+
             if successes:
                 image_names = [n.get("extra", {}).get("image", n.get("title", "")) for n in successes]
                 send_notification_direct(
@@ -174,16 +174,16 @@ def _send_batched_notifications():
                     status="success",
                     extra={"count": len(successes), "images": image_names, "type": "summary"}
                 )
-                
+
             if errors:
                 for error_notif in errors:
                     # Send individual error notifications immediately
                     send_notification_direct(**error_notif)
-                    
+
         elif event_type == "recreate_result":
             successes = [n for n in notifications if n.get("status") == "success"]
             errors = [n for n in notifications if n.get("status") == "error"]
-            
+
             if successes:
                 targets = [n.get("extra", {}).get("target", n.get("title", "")) for n in successes]
                 send_notification_direct(
@@ -193,33 +193,37 @@ def _send_batched_notifications():
                     status="success",
                     extra={"count": len(successes), "targets": targets, "type": "summary"}
                 )
-                
+
             if errors:
                 for error_notif in errors:
                     send_notification_direct(**error_notif)
-                    
+
         elif event_type == "bulk_complete":
             for notif in notifications:
                 send_notification_direct(**notif)
 
 
 def _schedule_batch_timer():
-    """Schedule the batch notification timer if not already running."""
+    """Schedule the batch notification timer if not already running.
+
+    Must be called with _batch_lock already held (it is only called from
+    send_notification, which acquires the lock); re-acquiring the lock here
+    would deadlock since threading.Lock is not reentrant.
+    """
     global _batch_timer
-    
-    with _batch_lock:
-        if _batch_timer is not None:
-            return
-            
-        def batch_wrapper():
-            global _batch_timer
-            _send_batched_notifications()
-            with _batch_lock:
-                _batch_timer = None
-                
-        _batch_timer = threading.Timer(NOTIFY_BATCH_WINDOW, batch_wrapper)
-        _batch_timer.daemon = True
-        _batch_timer.start()
+
+    if _batch_timer is not None:
+        return
+
+    def batch_wrapper():
+        global _batch_timer
+        _send_batched_notifications()
+        with _batch_lock:
+            _batch_timer = None
+
+    _batch_timer = threading.Timer(NOTIFY_BATCH_WINDOW, batch_wrapper)
+    _batch_timer.daemon = True
+    _batch_timer.start()
 
 
 def send_notification_direct(
@@ -231,7 +235,7 @@ def send_notification_direct(
 ) -> None:
     """Send a notification directly without batching logic."""
     from config import NOTIFY_ENABLED, NOTIFY_BACKEND
-    
+
     if not NOTIFY_ENABLED:
         return
 
@@ -271,14 +275,14 @@ def send_notification(
     extra: Optional[dict] = None
 ) -> None:
     """Send a notification using the configured backend.
-    
+
     notifications may be batched into summary notifications for certain event types.
-    
+
     Raises:
         RuntimeError: If NOTIFY_ENABLED is False or backend is not configured
     """
-    from config import NOTIFY_ENABLED, NOTIFY_BACKEND
-    
+    from config import NOTIFY_ENABLED
+
     if not NOTIFY_ENABLED:
         return
 
@@ -295,7 +299,7 @@ def send_notification(
             _pending_notifications[event_type].append(notification_data)
             _schedule_batch_timer()
         return
-    
+
     # Send directly for non-batchable notifications
     send_notification_direct(event_type, title, message, status, extra)
 
@@ -303,7 +307,7 @@ def send_notification(
 def notify_updates_found(results: dict) -> None:
     """Notify when updates are found during a check."""
     from config import NOTIFY_ON_UPDATES_FOUND
-    
+
     if not NOTIFY_ON_UPDATES_FOUND:
         return
 
@@ -332,7 +336,7 @@ def notify_pull_result(
 ) -> None:
     """Notify about image pull results."""
     from config import NOTIFY_ON_PULL_SUCCESS, NOTIFY_ON_PULL_ERROR
-    
+
     if ok and not NOTIFY_ON_PULL_SUCCESS:
         return
     if (not ok) and not NOTIFY_ON_PULL_ERROR:
@@ -355,7 +359,7 @@ def notify_recreate_result(
 ) -> None:
     """Notify about compose recreate results."""
     from config import NOTIFY_ON_RECREATE_SUCCESS, NOTIFY_ON_RECREATE_ERROR
-    
+
     if ok and not NOTIFY_ON_RECREATE_SUCCESS:
         return
     if (not ok) and not NOTIFY_ON_RECREATE_ERROR:
@@ -377,7 +381,7 @@ def notify_bulk_complete(
 ) -> None:
     """Notify when a bulk job completes."""
     from config import NOTIFY_ON_BULK_COMPLETE
-    
+
     if not NOTIFY_ON_BULK_COMPLETE:
         return
 

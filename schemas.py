@@ -12,7 +12,7 @@ from pydantic import BaseModel, field_validator
 class ConfigUpdateRequest(BaseModel):
     """Request body for /api/config endpoint."""
     auto_recreate: bool
-    
+
     @field_validator('auto_recreate')
     @classmethod
     def parse_auto_recreate(cls, v):
@@ -29,7 +29,7 @@ class ConfigUpdateRequest(BaseModel):
 class ImageUpdateRequest(BaseModel):
     """Request body for /api/update/<image_ref> endpoint."""
     auto_recreate: Optional[bool] = None
-    
+
     @field_validator('auto_recreate')
     @classmethod
     def parse_auto_recreate(cls, v):
@@ -49,7 +49,7 @@ class BulkUpdateRequest(BaseModel):
     """Request body for /api/bulk/update endpoint."""
     stack: Optional[str] = None
     auto_recreate: Optional[bool] = None
-    
+
     @field_validator('stack')
     @classmethod
     def validate_stack(cls, v):
@@ -59,7 +59,7 @@ class BulkUpdateRequest(BaseModel):
             if not v:
                 raise ValueError("stack must be a non-empty string")
         return v
-    
+
     @field_validator('auto_recreate')
     @classmethod
     def parse_auto_recreate(cls, v):
@@ -78,7 +78,7 @@ class BulkUpdateRequest(BaseModel):
 class ComposeRecreateRequest(BaseModel):
     """Request body for /api/compose/recreate endpoint."""
     compose_path: str
-    
+
     @field_validator('compose_path')
     @classmethod
     def validate_compose_path(cls, v):
@@ -92,7 +92,7 @@ class ComposeRecreateRequest(BaseModel):
 class PruneRequest(BaseModel):
     """Request body for prune endpoints (/api/prune/volumes, /api/prune/images)."""
     all: Optional[bool] = False
-    
+
     @field_validator('all')
     @classmethod
     def parse_all(cls, v):
@@ -119,7 +119,7 @@ class InstanceProxyRequest(BaseModel):
 class ComposeFileListRequest(BaseModel):
     """Request query parameters for /api/compose/files endpoint."""
     project: Optional[str] = None
-    
+
     @field_validator('project')
     @classmethod
     def validate_project(cls, v):
@@ -135,7 +135,7 @@ class ComposeFileContentRequest(BaseModel):
     """Request body for /api/compose/files/<path> PUT endpoint."""
     content: dict
     backup: Optional[bool] = True
-    
+
     @field_validator('content')
     @classmethod
     def validate_content(cls, v):
@@ -148,7 +148,7 @@ class ComposeFileContentRequest(BaseModel):
 class ComposeFileValidateRequest(BaseModel):
     """Request body for /api/compose/files/<path>/validate endpoint."""
     content: Optional[dict] = None
-    
+
     @field_validator('content')
     @classmethod
     def validate_content(cls, v):
@@ -161,7 +161,7 @@ class ComposeFileValidateRequest(BaseModel):
 class StackActionRequest(BaseModel):
     """Request body for stack actions (/api/stacks/<name>/up, down, restart)."""
     timeout: Optional[int] = None
-    
+
     @field_validator('timeout')
     @classmethod
     def validate_timeout(cls, v):
@@ -177,7 +177,7 @@ class StackBulkActionRequest(BaseModel):
     stack_names: list[str]
     action: str  # 'up', 'down', 'restart'
     timeout: Optional[int] = None
-    
+
     @field_validator('stack_names')
     @classmethod
     def validate_stack_names(cls, v):
@@ -188,7 +188,7 @@ class StackBulkActionRequest(BaseModel):
             if not isinstance(name, str) or not name.strip():
                 raise ValueError(f"Stack name '{name}' is invalid")
         return v
-    
+
     @field_validator('action')
     @classmethod
     def validate_action(cls, v):
@@ -196,7 +196,7 @@ class StackBulkActionRequest(BaseModel):
         if v not in ('up', 'down', 'restart'):
             raise ValueError(f"action must be 'up', 'down', or 'restart', got '{v}'")
         return v
-    
+
     @field_validator('timeout')
     @classmethod
     def validate_timeout(cls, v):
@@ -210,7 +210,7 @@ class StackBulkActionRequest(BaseModel):
 class ComposeFileRenameRequest(BaseModel):
     """Request body for renaming/moving a compose file."""
     new_path: str
-    
+
     @field_validator('new_path')
     @classmethod
     def validate_new_path(cls, v):

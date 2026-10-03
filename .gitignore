@@ -4,6 +4,8 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+.pytest_cache/
+.ruff_cache/
 
 # Logs
 *.log
@@ -19,7 +21,12 @@ notification_settings.json
 remote_instances.json
 compose.yaml
 
-# Development documentation (exclude all .md except readme and changelog)
+# Documentation (exclude all .md except readme, changelog, and the theme spec)
 *.md
 !readme.md
 !CHANGELOG.md
+!style.md
+
+# Test fixtures are committed on purpose despite the config rules above
+!tests/fixtures/compose/media/compose.yaml
+!tests/fixtures/compose/web/.env
