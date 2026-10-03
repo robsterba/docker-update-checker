@@ -105,6 +105,32 @@ class TestFindComposeFiles:
             "web/docker-compose.yml": "web",
         }
 
+    def test_excluded_directories_are_skipped(self, tmp_path, monkeypatch):
+        import docker_utils
+
+        (tmp_path / "media" / "compose.yaml").parent.mkdir()
+        (tmp_path / "media" / "compose.yaml").write_text("services: {}\n")
+        # a compose file inside an excluded directory (e.g. the app's own tests)
+        (tmp_path / "tests" / "fixtures").mkdir(parents=True)
+        (tmp_path / "tests" / "fixtures" / "compose.yaml").write_text("services: {}\n")
+
+        monkeypatch.setattr(docker_utils, "COMPOSE_ROOT", str(tmp_path))
+        files = find_compose_files()
+        assert [f["path"].replace("\\", "/") for f in files] == ["media/compose.yaml"]
+
+    def test_exclude_dirs_configurable(self, tmp_path, monkeypatch):
+        import docker_utils
+
+        (tmp_path / "archive").mkdir()
+        (tmp_path / "archive" / "compose.yaml").write_text("services: {}\n")
+        (tmp_path / "media").mkdir()
+        (tmp_path / "media" / "compose.yaml").write_text("services: {}\n")
+
+        monkeypatch.setattr(docker_utils, "COMPOSE_ROOT", str(tmp_path))
+        monkeypatch.setattr(docker_utils, "COMPOSE_EXCLUDE_DIRS", frozenset({"archive"}))
+        files = find_compose_files()
+        assert [f["path"].replace("\\", "/") for f in files] == ["media/compose.yaml"]
+
 
 class TestGetServicesForImage:
     def test_maps_image_to_service_name(self):

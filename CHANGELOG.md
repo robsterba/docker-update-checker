@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.6.1] — 2026-10-03
+
+### Fixed
+
+- **The scanner no longer descends into excluded directories** when finding compose files. New `COMPOSE_EXCLUDE_DIRS` setting (comma-separated directory names, default: `tests`) prunes directories in place during the walk, so a deployment that mounts the repository itself under `COMPOSE_ROOT` no longer discovers the app's own test fixture compose files and tries to pull their images. The exclusion applies everywhere scanning happens: update checks, stack lists, and the compose file browser.
+
+---
+
 ## [v1.6.0] — 2026-10-03
 
 ### Added

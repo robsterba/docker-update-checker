@@ -26,6 +26,7 @@ from config import (
     DEFAULT_COMPOSE_TIMEOUT,
     DEFAULT_REGISTRY_TIMEOUT,
     REGISTRY_DELAY_SECONDS,
+    COMPOSE_EXCLUDE_DIRS,
 )
 
 log = logging.getLogger(__name__)
@@ -166,7 +167,9 @@ def find_compose_files() -> list[dict]:
 
     # Use os.walk with followlinks=False for cross-version compatibility
     # (recurse_symlinks was added in Python 3.12, but we need to support older versions)
-    for dirpath, _dirnames, filenames in os.walk(root, followlinks=False):
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        # Prune excluded directories in place so os.walk does not descend into them
+        dirnames[:] = [d for d in dirnames if d not in COMPOSE_EXCLUDE_DIRS]
         for filename in filenames:
             if filename in patterns:
                 full_path = Path(dirpath) / filename

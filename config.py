@@ -55,6 +55,14 @@ NOTIFY_SUMMARY_ENABLED = get_bool_env("NOTIFY_SUMMARY_ENABLED", True)  # Send su
 
 # ── Config ────────────────────────────────────────────────────────────────────
 COMPOSE_ROOT = get_env("COMPOSE_ROOT", "/compose")
+# Directories (by name, at any depth) skipped during compose file scanning.
+# Defaults to "tests" so the app never scans its own test fixtures when the
+# repository itself lives under COMPOSE_ROOT.
+COMPOSE_EXCLUDE_DIRS = frozenset(
+    name.strip()
+    for name in get_env("COMPOSE_EXCLUDE_DIRS", "tests").split(",")
+    if name.strip()
+)
 CHECK_INTERVAL_MINUTES = get_int_env("CHECK_INTERVAL_MINUTES", 60)
 LOG_LEVEL = get_env("LOG_LEVEL", "INFO")
 AUTO_RECREATE_AFTER_PULL = get_bool_env("AUTO_RECREATE_AFTER_PULL", False)

@@ -73,6 +73,7 @@ All configuration is via environment variables in the `environment:` block of yo
 | Variable | Default | Description |
 |---|---|---|
 | `COMPOSE_ROOT` | `/compose` | Directory (inside the container) scanned for compose files |
+| `COMPOSE_EXCLUDE_DIRS` | `tests` | Comma-separated directory names skipped during scanning |
 | `CHECK_INTERVAL_MINUTES` | `60` | Automatic check interval |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, or `ERROR` |
 | `AUTO_RECREATE_AFTER_PULL` | `false` | Recreate affected services automatically after pulling |
