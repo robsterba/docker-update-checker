@@ -22,6 +22,12 @@ The current version lives in the [`VERSION`](VERSION) file; release history is i
 - **Scheduled auto-checks** — configurable interval (default: 60 minutes)
 - **Themes** — light, dusk-blue dark, and AMOLED black, with OS-preference detection and remembered preference
 
+## Screenshots
+
+| Main dashboard (light) | Stacks view (light) | OS package updates (dark) |
+|---|---|---|
+| ![Main dashboard, light theme](docs/DUC-main-light.png) | ![Stacks view, light theme](docs/duc-stacks-light.png) | ![OS package updates, dark theme](docs/DUC-os-pkg-dark.png) |
+
 ## How Update Detection Works
 
 The app fetches the `Docker-Content-Digest` manifest header from the registry API and compares it with the `RepoDigests` value stored with the locally pulled image:
