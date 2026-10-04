@@ -40,6 +40,7 @@ class TestNormalizeRemoteInstance:
             "name": "Node 1",
             "url": "http://192.168.1.10:5000",
             "description": "attic",
+            "token": "",
             "type": "remote",
         }
 

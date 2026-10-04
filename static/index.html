@@ -402,7 +402,7 @@
   .table-scroll th{position:sticky;top:0;background:var(--bg-surface-alt);z-index:1}
 </style>
 <!-- Phase 2: YAML parser for compose file editing -->
-<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+<script src="/static/js-yaml.min.js"></script>
 </head>
 <body>
 
@@ -479,6 +479,7 @@
           <button class="dropdown-menu-item" onclick="showRemoteHostsConfig()">Remote Hosts</button>
           <button class="dropdown-menu-item" onclick="showTaskdConfig()">taskd Integration</button>
           <button class="dropdown-menu-item" onclick="showPreferencesConfig()">Preferences</button>
+          <button class="dropdown-menu-item" onclick="changeApiToken()">API Token</button>
         </div>
       </div>
       <div class="dropdown">
@@ -752,6 +753,117 @@
 <script>
 const API = '';
 const MAX_JOBS = 30;
+
+// ── API token authentication ────────────────────────────────────────────────
+// When the server has API_TOKEN set, every /api/* call needs an Authorization
+// header. The wrapper below injects it into all fetches (including future
+// call sites) and shows a prompt on the first 401, then retries once.
+const STORAGE_API_TOKEN_KEY = 'docker-update-checker-api-token';
+let _apiTokenPrompt = null;
+
+function getApiToken() {
+  return localStorage.getItem(STORAGE_API_TOKEN_KEY) || '';
+}
+
+function promptForApiToken() {
+  if (_apiTokenPrompt) return _apiTokenPrompt.promise;
+  const state = { promise: null, resolve: null };
+  state.promise = new Promise(resolve => { state.resolve = resolve; });
+  _apiTokenPrompt = state;
+  const existing = getApiToken();
+  const modal = document.createElement('div');
+  modal.className = 'modal-backdrop open';
+  modal.id = 'apiTokenPromptBackdrop';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:420px">
+      <div class="modal-title">Authentication Required</div>
+      <div style="margin:.5rem 0 .75rem;font-size:.85rem;color:var(--text-secondary)">
+        This dashboard requires an API token. Enter the token configured via the
+        <code>API_TOKEN</code> environment variable.
+      </div>
+      <input type="password" class="config-input" id="apiTokenInput" placeholder="API token"
+             value="${escAttr(existing)}" style="width:100%;max-width:none" autofocus>
+      <div style="margin-top:1rem;text-align:right">
+        <button class="btn btn-ghost btn-sm" id="apiTokenCancel">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="apiTokenSubmit">Sign In</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  const input = modal.querySelector('#apiTokenInput');
+  const finish = (value) => {
+    modal.remove();
+    _apiTokenPrompt = null;
+    state.resolve(value);
+  };
+  modal.querySelector('#apiTokenSubmit').onclick = () => {
+    const token = input.value.trim();
+    if (token) {
+      localStorage.setItem(STORAGE_API_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(STORAGE_API_TOKEN_KEY); // sign out
+    }
+    finish(token);
+  };
+  modal.querySelector('#apiTokenCancel').onclick = () => finish(null);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') modal.querySelector('#apiTokenSubmit').click();
+  });
+  input.focus();
+  return state.promise;
+}
+
+function authHeaders(headers) {
+  const token = getApiToken();
+  if (!token) return headers || {};
+  return Object.assign({}, headers || {}, { 'Authorization': 'Bearer ' + token });
+}
+
+const _origFetch = window.fetch.bind(window);
+let _authRetrySuppressedUntil = 0;
+
+window.fetch = async function(input, init) {
+  const url = typeof input === 'string' ? input : (input && input.url) || '';
+  let isApiCall = false;
+  try {
+    const u = new URL(url, location.href);
+    isApiCall = u.origin === location.origin && u.pathname.startsWith('/api');
+  } catch (err) { /* malformed URL: not ours to authenticate */ }
+
+  function withAuthOpts(base) {
+    return Object.assign({}, base || {}, { headers: authHeaders(base && base.headers) });
+  }
+
+  let opts = init;
+  if (isApiCall && getApiToken()) {
+    opts = withAuthOpts(init);
+  }
+  let response = await _origFetch(input, opts);
+  if ((response.status === 401 || response.status === 429) && isApiCall) {
+    // A stale stored token polls into the rate-limit lockout; either way the
+    // fix is a token. Suppress the prompt briefly after a failed retry so a
+    // wrong token does not re-open the modal on every polling cycle.
+    const now = Date.now();
+    if (now >= _authRetrySuppressedUntil) {
+      const token = await promptForApiToken();
+      if (token) {
+        opts = withAuthOpts(init);
+        response = await _origFetch(input, opts);
+        if (response.status === 401 || response.status === 429) {
+          showToast('API token rejected', 'error');
+          _authRetrySuppressedUntil = Date.now() + 30000;
+        }
+      }
+    }
+  }
+  return response;
+};
+
+function changeApiToken() {
+  promptForApiToken().then(token => {
+    if (token !== null) location.reload(); // save/clear already applied
+  });
+}
+
 let allImages = [];
 let allStacks = [];
 let allJobs = [];
@@ -2559,6 +2671,7 @@ function addRemoteHost() {
     name: name,
     url: url,
     type: 'remote',
+    token: '',
     description: 'Remote Docker Update Checker instance'
   };
   
@@ -2574,14 +2687,17 @@ function addRemoteHost() {
 function editRemoteHost(instanceId) {
   const inst = allInstances.find(i => i.id === instanceId);
   if (!inst) return;
-  
+
   const name = prompt('New name:', inst.name);
   if (name === null) return;
   const url = prompt('New URL:', inst.url || '');
   if (url === null) return;
-  
+  const token = prompt('API token of the remote instance (blank = none):', inst.token || '');
+  if (token === null) return;
+
   inst.name = name.trim() || inst.name;
   inst.url = url.trim() || inst.url;
+  inst.token = token.trim();
   renderRemoteHostsList();
   showToast(`Updated: ${inst.name}`, 'success');
 }
@@ -3011,7 +3127,7 @@ function saveNotificationConfig() {
 async function saveRemoteHostsConfig() {
   const hosts = allInstances
     .filter(i => i.id !== 'local')
-    .map(i => ({ name: i.name, url: i.url, description: i.description || '' }));
+    .map(i => ({ id: i.id, name: i.name, url: i.url, description: i.description || '', token: i.token || '' }));
   try {
     const response = await fetch('/api/instances/remote', {
       method: 'POST',

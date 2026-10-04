@@ -37,9 +37,11 @@ from config import (
     get_env,
     get_bool_env,
     get_int_env,
+    SECRET_MASK,
 )
 
 # Import from canonical modules
+from auth import api_auth_guard
 from jobs import (
     state_lock,
     check_results,
@@ -99,6 +101,27 @@ from version import VERSION
 
 
 log = logging.getLogger(__name__)
+
+# ── Security ─────────────────────────────────────────────────────────────────
+
+# Require the shared API token on every /api/* request when API_TOKEN is set
+app.before_request(api_auth_guard)
+
+
+@app.after_request
+def apply_security_headers(response):
+    """Baseline browser security headers for the dashboard and API."""
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+        "connect-src 'self'; base-uri 'none'; form-action 'self'"
+    )
+    return response
+
 
 # ── Routes (moved from app.py) ─────────────────────────────────────────────────
 
@@ -226,13 +249,21 @@ def api_status():
 
 @app.route("/api/instances")
 def api_instances():
-    return jsonify(get_all_instances())
+    instances = get_all_instances()
+    for inst in instances:
+        if inst.get("token"):
+            inst["token"] = SECRET_MASK
+    return jsonify(instances)
 
 
 @app.route("/api/instances/remote", methods=["GET"])
 def api_get_remote_instances():
-    """List the currently configured remote instances."""
-    return jsonify(load_remote_instances())
+    """List the currently configured remote instances (tokens masked)."""
+    instances = load_remote_instances()
+    for inst in instances:
+        if inst.get("token"):
+            inst["token"] = SECRET_MASK
+    return jsonify(instances)
 
 
 @app.route("/api/instances/remote", methods=["POST"])
@@ -261,6 +292,7 @@ def api_set_remote_instances():
 
     normalized = []
     seen = set()
+    existing = {inst["id"]: inst for inst in load_remote_instances()}
     for item in hosts:
         entry = normalize_remote_instance(item)
         if not entry:
@@ -271,10 +303,19 @@ def api_set_remote_instances():
         if entry["id"] in seen:
             continue
         seen.add(entry["id"])
+        # A masked token means "unchanged": keep the previously stored one.
+        # The frontend sends the host's original id so a rename still finds
+        # the stored token (the derived id would have changed with the name).
+        if entry["token"] == SECRET_MASK:
+            original_id = str(item.get("id", "") or "").strip()
+            stored = existing.get(original_id) or existing.get(entry["id"])
+            entry["token"] = stored.get("token", "") if stored else ""
         normalized.append({
+            "id": entry["id"],
             "name": entry["name"],
             "url": entry["url"],
             "description": entry["description"],
+            "token": entry["token"],
         })
 
     try:
@@ -1326,6 +1367,12 @@ def api_get_notification_config():
 
         # File settings override defaults
         final_settings = {**defaults, **file_settings}
+        # Never return stored credentials to the browser; the masked value
+        # round-trips through the save endpoint unchanged. Webhook URLs are
+        # included: they typically embed service tokens (Discord/Slack/ntfy).
+        for key in ("mqtt_password", "email_password", "webhook_url"):
+            if final_settings.get(key):
+                final_settings[key] = SECRET_MASK
         return jsonify(final_settings)
 
     except Exception as e:
@@ -1340,8 +1387,17 @@ def api_set_notification_config():
         if not data:
             return jsonify({"status": "error", "message": "No settings data provided"}), 400
 
-        # Save settings to file
-        success = save_notification_settings(data)
+        # A masked value means "unchanged": keep the stored secret instead of
+        # overwriting it with the mask.
+        existing = load_notification_settings()
+        for key in ("mqtt_password", "email_password", "webhook_url"):
+            if data.get(key) == SECRET_MASK:
+                data[key] = existing.get(key, get_env(f"NOTIFY_{key.upper()}", ""))
+
+        # Merge over the existing file so partial posts (automation clients)
+        # do not erase previously stored settings
+        merged = {**existing, **data}
+        success = save_notification_settings(merged)
         if not success:
             return jsonify({"status": "error", "message": "Failed to save settings"}), 500
 

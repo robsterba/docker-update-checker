@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v1.8.0] — 2026-10-03
+
+### Added
+
+- **API token authentication** (`auth.py`): set `API_TOKEN` and every `/api/*` request requires an `Authorization: Bearer <token>` header. The dashboard detects the first 401/429, prompts for the token (password input, stored in localStorage), and retries; a **Settings → API Token** action changes or clears it. Token comparison is timing-safe; failed attempts are rate limited per client address (10 failures per 60s window → 60s lockout, valid tokens included) with log-friendly throttling. `/`, `/favicon.ico`, `/health`, and `/api/version` stay open so the login prompt can render. When `API_TOKEN` is unset the app runs exactly as before and logs a startup warning
+- **Remote instance tokens**: entries in `remote_instances.json` (and the Remote Hosts UI) accept a `token` matching the remote's `API_TOKEN`; the instance proxy forwards it as a bearer header. Tokens are masked (`********`) in API responses and preserved through saves and renames (the UI sends each host's original id so renaming cannot drop its token)
+
+### Security
+
+- **Secret masking**: SMTP and MQTT passwords plus webhook URLs (which embed service tokens) are never returned by the API — masked values round-trip and preserve the stored secret. Notification settings POSTs now merge over the stored file, so partial payloads from automation clients cannot erase settings
+- **Security headers on every response**: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, and a same-origin `Content-Security-Policy` (with `base-uri 'none'` and `form-action 'self'`); 401/429 responses are marked `Cache-Control: no-store`
+- **`flask-cors` removed** — the dashboard is same-origin; the dependency (and its allow-all policy) is gone
+- **js-yaml vendored**: the compose editor's js-yaml dependency is now served from `/static/` instead of the jsDelivr CDN — required by the CSP, and it removes a supply-chain exposure (and a hard internet dependency) from a LAN app
+
+---
+
 ## [v1.7.3] — 2026-10-03
 
 ### Documentation

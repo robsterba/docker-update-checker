@@ -18,7 +18,6 @@ from typing import Optional
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, Response, jsonify, request
-from flask_cors import CORS
 
 import config
 from config import (
@@ -94,7 +93,6 @@ from docker_utils import (
 log = logging.getLogger(__name__)
 
 app = Flask(__name__, static_folder="static")
-CORS(app)
 
 def derive_stack_name(compose_path: str) -> str:
     p = Path(compose_path)
@@ -130,6 +128,7 @@ def normalize_remote_instance(entry: dict | str) -> Optional[dict]:
         "name": name,
         "url": url.rstrip('/'),
         "description": description,
+        "token": str(entry.get("token", "") or "").strip(),
         "type": "remote",
     }
 
@@ -298,6 +297,7 @@ def proxy_remote_request(instance_id: str, proxy_path: str) -> Response:
         return jsonify({"status": "error", "message": "Unsupported proxy path"}), 400
 
     remote_url = f"{instance['url']}/api/{proxy_path}"
+    headers = {"Authorization": f"Bearer {instance['token']}"} if instance.get("token") else None
     try:
         payload = request.get_json(silent=True)
         params = request.args.to_dict(flat=True)
@@ -306,6 +306,7 @@ def proxy_remote_request(instance_id: str, proxy_path: str) -> Response:
             remote_url,
             json=payload if payload is not None else None,
             params=params,
+            headers=headers,
             timeout=(3, DEFAULT_PROXY_TIMEOUT),  # fail fast on unreachable hosts
         )
         return Response(response.content, status=response.status_code,

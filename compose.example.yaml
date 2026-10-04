@@ -27,6 +27,8 @@ services:
       # How often to auto-check (minutes)
       CHECK_INTERVAL_MINUTES: "180"
       LOG_LEVEL: INFO
+      # Shared bearer token for the API and dashboard (empty = no authentication)
+      #API_TOKEN: ${API_TOKEN}
       # Remote instance discovery — uncomment to enable
       REMOTE_INSTANCES_FILE: /app/remote_instances.json
       #NOTIFY_ENABLED: true

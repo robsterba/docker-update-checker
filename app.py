@@ -8,6 +8,7 @@ import logging
 import sys
 from pathlib import Path
 
+import config
 from config import COMPOSE_ROOT
 from services import app, start_background_workers
 
@@ -26,6 +27,12 @@ elif not compose_root_path.is_dir():
     sys.exit(1)
 else:
     log.info(f"COMPOSE_ROOT set to: {COMPOSE_ROOT}")
+
+if not config.API_TOKEN:
+    log.warning(
+        "API_TOKEN is not set — the API and dashboard are accessible without "
+        "authentication. Set API_TOKEN to require a bearer token."
+    )
 
 
 if __name__ == "__main__":

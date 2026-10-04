@@ -100,6 +100,14 @@ REMOTE_INSTANCES_FILE = get_env("REMOTE_INSTANCES_FILE", "").strip()
 TOKEN_CACHE_TTL = get_int_env("TOKEN_CACHE_TTL", 900)
 REGISTRY_TOKEN_CACHE: dict[str, dict[str, object]] = {}
 
+# ── Security ─────────────────────────────────────────────────────────────────
+# Shared bearer token required on all /api/* requests (except the dashboard
+# shell and /api/version). Empty = authentication disabled (logs a warning).
+API_TOKEN = get_env("API_TOKEN", "").strip()
+# Value returned instead of secrets in API responses; a POST containing this
+# value preserves the previously stored secret.
+SECRET_MASK = "********"
+
 # Notification settings file
 NOTIFICATION_SETTINGS_FILE = get_env("NOTIFICATION_SETTINGS_FILE", "notification_settings.json")
 

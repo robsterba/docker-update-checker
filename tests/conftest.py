@@ -28,6 +28,7 @@ os.environ["TASKD_HOST_LABEL"] = ""
 os.environ["TASKD_SETTINGS_FILE"] = str(Path(tempfile.gettempdir()) / "duc-test-taskd-settings.json")
 os.environ["REMOTE_INSTANCES"] = ""
 os.environ["REMOTE_INSTANCES_FILE"] = ""
+os.environ["API_TOKEN"] = ""
 os.environ["CHECK_INTERVAL_MINUTES"] = "60"
 os.environ["AUTO_RECREATE_AFTER_PULL"] = "false"
 os.environ["SELF_UPDATE_CHECK_ENABLED"] = "false"

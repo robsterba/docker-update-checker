@@ -179,10 +179,22 @@ The recommended update workflow is deliberately two-step:
 
 ## Security
 
-**This application has no authentication.** Anyone who can reach port 5000 can inspect and control your Docker host: pull images, start/stop containers and stacks, edit compose files, and prune resources.
+### API Token Authentication
 
-- Do not expose the dashboard to the public internet. Bind it to your LAN or put it behind an authenticating reverse proxy or VPN.
+Set `API_TOKEN` to require a shared bearer token on every `/api/*` request. The dashboard prompts for the token on first use (saved in the browser's localStorage), and a **Settings → API Token** action lets you change or clear it. When `API_TOKEN` is unset the app runs without authentication and logs a startup warning.
+
+- The token is sent as an `Authorization: Bearer <token>` header — browser CSRF is not a concern with header-based tokens.
+- Failed attempts are rate limited: after 10 failures from one address within 60 seconds, that address is locked out for 60 seconds (valid tokens included). The limiter uses the socket peer address and assumes direct LAN access — behind a reverse proxy, all clients share one lockout bucket.
+- The dashboard shell (`/`, `/favicon.ico`, `/health`) and `/api/version` stay open so the login prompt can render.
+- The browser stores the token in `localStorage`; the CSP allows inline scripts (the dashboard is a single inline script file), so an XSS would be able to steal it. Compose file contents and instance names are HTML-escaped before rendering; if you ever embed untrusted content, treat the token as exposed. Use a long, random token.
+- Remote instances: add a `token` field to each entry in `remote_instances.json` (or via **Settings → Remote Hosts → Edit**) matching that instance's `API_TOKEN`; the proxy forwards it automatically. Tokens are masked (`********`) in API responses, and posting the mask preserves the stored value.
+
+### Other protections
+
+- Browser security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, and a `Content-Security-Policy` scoped to same-origin) are applied to every response; the unused `flask-cors` dependency is gone — the dashboard is same-origin only.
+- SMTP and MQTT passwords are never returned by the API; they are masked, and unchanged (masked) values preserve the stored secret on save.
 - The Docker socket mount grants full API access regardless of whether it is mounted `:ro` — the read-only flag applies to the socket file, not to the API operations performed through it. Treat the socket as equivalent to root access and keep the container on a trusted network.
+- Even on a private LAN, bind the dashboard to trusted interfaces or put it behind an authenticating reverse proxy or VPN (e.g. expose it only over Tailscale). A token stops a compromised LAN device from controlling Docker; it does not encrypt traffic.
 - `compose.yaml`, `remote_instances.json`, `notification_settings.json`, and `taskd_settings.json` may contain host-specific details and are gitignored.
 
 ## API
@@ -231,6 +243,7 @@ docker-update-checker/
 ├── services.py               # Flask app object, orchestration, proxying, jobs
 ├── api.py                    # HTTP route handlers
 ├── config.py                 # environment parsing and configuration
+├── auth.py                   # API token guard and rate limiting
 ├── docker_utils.py           # Docker/compose helpers, image checks, registry API
 ├── jobs.py                   # job state, progress tracking, operation log
 ├── notifier.py               # notification backends (webhook, MQTT, email)
@@ -248,7 +261,7 @@ docker-update-checker/
 └── tests/                    # pytest suite
 ```
 
-Import flow: `app.py` → `services.py` (business logic, owns the Flask app) and `api.py` (routes) → `config.py`, `docker_utils.py`, `jobs.py`, `notifier.py`, `taskd.py`, `schemas.py`. There are no circular imports; importing any module has no side effects until `app.py` runs as the entry point.
+Import flow: `app.py` → `services.py` (business logic, owns the Flask app) and `api.py` (routes) → `config.py`, `auth.py`, `docker_utils.py`, `jobs.py`, `notifier.py`, `taskd.py`, `schemas.py`. There are no circular imports; importing any module has no side effects until `app.py` runs as the entry point.
 
 ## Development
 
