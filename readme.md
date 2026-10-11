@@ -14,7 +14,6 @@ The current version lives in the [`VERSION`](VERSION) file; release history is i
 - **Stack lifecycle management** — bring stacks up, down, or restart them; bulk actions across multiple stacks
 - **Compose file editor** — view, edit, validate, and create compose files from the dashboard, with automatic backups
 - **Host monitoring** — CPU, memory, and disk usage for the Docker host, plus per-container resource stats
-- **OS package update monitoring** — tracks available host package updates via a host-level agent (see [`scripts/README.md`](scripts/README.md))
 - **Self-update notifications** — checks GitHub for newer releases of this app and can notify you
 - **Remote instance aggregation** — monitor other docker-update-checker instances from a single dashboard
 - **Notifications** — webhook (e.g. Home Assistant), MQTT, or email; optional batching into summary notifications
@@ -24,9 +23,9 @@ The current version lives in the [`VERSION`](VERSION) file; release history is i
 
 ## Screenshots
 
-| Main dashboard (light) | Stacks view (light) | OS package updates (dark) |
-|---|---|---|
-| ![Main dashboard, light theme](docs/DUC-main-light.png) | ![Stacks view, light theme](docs/duc-stacks-light.png) | ![OS package updates, dark theme](docs/DUC-os-pkg-dark.png) |
+| Main dashboard (light) | Stacks view (light) |
+|---|---|
+| ![Main dashboard, light theme](docs/DUC-main-light.png) | ![Stacks view, light theme](docs/duc-stacks-light.png) |
 
 ## How Update Detection Works
 
@@ -107,20 +106,6 @@ Aggregate other docker-update-checker instances on remote hosts. Set `REMOTE_INS
 |---|---|---|
 | `SELF_UPDATE_CHECK_ENABLED` | `true` | Check GitHub for newer releases |
 | `SELF_UPDATE_CHECK_INTERVAL_HOURS` | `24` | Check interval |
-
-### OS Package Updates
-
-| Variable | Default | Description |
-|---|---|---|
-| `OS_UPDATE_CHECK_ENABLED` | `true` | Enable OS package update checks |
-| `OS_UPDATE_CHECK_INTERVAL_HOURS` | `24` | Check interval |
-
-For production hosts, deploy the host-level agent described in [`scripts/README.md`](scripts/README.md) and mount its output file:
-
-```yaml
-volumes:
-  - /var/lib/docker-update-checker/os-updates.json:/var/lib/docker-update-checker/os-updates.json:ro
-```
 
 ### Notifications
 
@@ -223,7 +208,6 @@ All endpoints are under `/api`. Highlights:
 | POST | `/api/containers/<id>/start` / `stop` / `restart` | Container lifecycle |
 | GET | `/api/containers/<id>/resources` | Per-container CPU/memory usage |
 | GET | `/api/host/resources` | Host CPU, memory, and disk usage |
-| GET | `/api/host/os-updates` | OS package update information |
 | GET/PUT | `/api/compose/files/<path>` | Read or write a compose file (writes create a `.bak`) |
 | POST | `/api/compose/files/<path>/validate` | Validate compose YAML |
 | POST | `/api/prune/containers` / `images` / `system` / `volumes` | Prune operations |
@@ -257,7 +241,6 @@ docker-update-checker/
 ├── schemas.py                # Pydantic request validation schemas
 ├── version.py                # reads the VERSION file
 ├── static/index.html         # dashboard UI (single file, no build step)
-├── scripts/                  # host-level OS update agent (see scripts/README.md)
 ├── compose.example.yaml      # deployment template
 ├── .env.example              # documented environment variables
 ├── style.md                  # web theme spec used by the dashboard

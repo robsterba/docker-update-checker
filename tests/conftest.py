@@ -32,7 +32,6 @@ os.environ["API_TOKEN"] = ""
 os.environ["CHECK_INTERVAL_MINUTES"] = "60"
 os.environ["AUTO_RECREATE_AFTER_PULL"] = "false"
 os.environ["SELF_UPDATE_CHECK_ENABLED"] = "false"
-os.environ["OS_UPDATE_CHECK_ENABLED"] = "false"
 os.environ["LOG_LEVEL"] = "WARNING"
 
 # Remove stale settings files from previous runs so tests start clean
