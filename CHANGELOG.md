@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [Unreleased]
+
+### Removed
+
+- **OS package update checking** — the app is Docker-image-update-only again. Removed: the `GET /api/host/os-updates` and `POST /api/host/os-updates/check` endpoints (they now 404), the `os_update_check` scheduled background job and its `os_updates_available` notification, the "OS Package Updates" card on the System tab, the host-level agent under `scripts/` (agent, systemd unit/timer, cron wrapper, and its README), and the `OS_UPDATE_CHECK_ENABLED` / `OS_UPDATE_CHECK_INTERVAL_HOURS` environment variables (now ignored — existing compose files that set them keep working). Users who deployed the host agent can disable it (`sudo systemctl disable --now os_update_agent.timer` or remove the cron entry) and delete `/var/lib/docker-update-checker/os-updates.json`; nothing breaks if it keeps running
+
+---
+
 ## [v1.8.0] — 2026-10-03
 
 ### Added

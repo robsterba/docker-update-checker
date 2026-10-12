@@ -141,12 +141,6 @@ SELF_UPDATE_CHECK_INTERVAL_HOURS = get_int_env("SELF_UPDATE_CHECK_INTERVAL_HOURS
 # GitHub repository for update checks
 GITHUB_REPO = "robsterba/docker-update-checker"
 
-# ── OS Package Update Checker ─────────────────────────────────────────────────────
-# Enable/disable checking for OS package updates
-OS_UPDATE_CHECK_ENABLED = get_bool_env("OS_UPDATE_CHECK_ENABLED", True)
-# Interval in hours for checking for OS updates (default: 24 hours)
-OS_UPDATE_CHECK_INTERVAL_HOURS = get_int_env("OS_UPDATE_CHECK_INTERVAL_HOURS", 24)
-
 
 def cleanup_token_cache() -> int:
     """Remove expired tokens from the registry token cache.
