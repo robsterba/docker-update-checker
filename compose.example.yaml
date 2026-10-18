@@ -14,8 +14,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # Mount your entire compose root (adjust path as needed)
       - ${COMPOSE_ROOT}:/compose:ro
-      # Mount remote instances file if using remote host aggregation
-      - ./remote_instances.json:/app/remote_instances.json:ro
+      # Mount remote instances file if using remote host aggregation.
+      # Must be writable (no :ro) so Settings → Remote Hosts can persist
+      # per-host API tokens to it.
+      - ./remote_instances.json:/app/remote_instances.json
       # Persist UI-saved settings across container recreation (deploys wipe
       # them otherwise). Create the files on the host first with touch —
       # Docker creates a directory if the host file is missing:

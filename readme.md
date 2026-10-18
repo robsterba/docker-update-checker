@@ -94,9 +94,11 @@ Aggregate other docker-update-checker instances on remote hosts. Set `REMOTE_INS
 
 ```json
 [
-  {"name": "Node 1", "url": "http://192.168.1.10:5000", "description": "attic server"}
+  {"name": "Node 1", "url": "http://192.168.1.10:5000", "description": "attic server", "token": "same-value-as-that-hosts-API_TOKEN"}
 ]
 ```
+
+The `token` field is optional; it defaults to empty (no authentication). If you manage remote hosts through **Settings → Remote Hosts**, mount the file writable (no `:ro`) — the GUI persists edits and tokens to it.
 
 `REMOTE_INSTANCES` also accepts a newline-delimited `name|url` list. Remote instances are reachable through the dashboard's host selector; requests are proxied through the local instance.
 
