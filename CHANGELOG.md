@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Readable registry-auth diagnostics** — a Docker bind mount where the host file is missing turns the mounted path into a directory; the app now detects that case and says so (once, not per image). Docker Hub answers 401 both for invalid credentials and an exhausted pull quota (body says "toomanyrequests"), so 401 warnings now include the registry's response body, and the quota case gets its own message. If mounted credentials are rejected, the app falls back to anonymous tokens so checks of public images keep working.
+
+---
+
 ## [v2.0.1] — 2026-10-27
 
 ### Fixed

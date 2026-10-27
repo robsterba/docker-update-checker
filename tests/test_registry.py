@@ -86,8 +86,28 @@ class TestRegistryCredentials:
     def test_hub_credentials_rejected_returns_none(self, tmp_path, monkeypatch, requests_mock):
         _write_docker_config(tmp_path, {"https://index.docker.io/v1/": ("me", "bad")})
         monkeypatch.setenv("DOCKER_CONFIG", str(tmp_path))
-        requests_mock.get(HUB_TOKEN_URL, status_code=401)
+        requests_mock.get(HUB_TOKEN_URL, status_code=401, json={"error": "incorrect authentication credentials"})
 
+        assert get_registry_token("registry-1.docker.io", "library/redis") is None
+
+    def test_rejected_credentials_fall_back_to_anonymous(self, tmp_path, monkeypatch, requests_mock):
+        _write_docker_config(tmp_path, {"https://index.docker.io/v1/": ("me", "bad")})
+        monkeypatch.setenv("DOCKER_CONFIG", str(tmp_path))
+        mock = requests_mock.get(HUB_TOKEN_URL, [
+            {"status_code": 401, "json": {"error": "incorrect authentication credentials"}},
+            {"json": {"token": "anon-fallback"}},
+        ])
+
+        assert get_registry_token("registry-1.docker.io", "library/redis") == "anon-fallback"
+        assert mock.call_count == 2
+        assert "Authorization" not in mock.request_history[1].headers
+
+    def test_quota_exhausted_401_returns_none(self, requests_mock):
+        requests_mock.get(
+            HUB_TOKEN_URL,
+            status_code=401,
+            json={"error": "toomanyrequests: You have reached your pull rate limit."},
+        )
         assert get_registry_token("registry-1.docker.io", "library/redis") is None
 
     def test_malformed_config_is_ignored(self, tmp_path, monkeypatch):

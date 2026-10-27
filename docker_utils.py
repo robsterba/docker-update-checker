@@ -308,6 +308,57 @@ def _registry_basic_auth(registry: str, creds: dict[str, tuple[str, str]]) -> Op
     return creds.get(registry)
 
 
+def _clip_body(text: str, limit: int = 200) -> str:
+    """Shorten a registry error body for log messages."""
+    text = (text or "").strip().replace("\n", " ")
+    return text[:limit] or "no response body"
+
+
+def _request_hub_token(repo: str, auth: Optional[tuple[str, str]]) -> Optional[str]:
+    """Request a Docker Hub pull token, optionally with credentials.
+
+    Returns None after logging the failure reason. Docker Hub answers 401
+    both for invalid credentials and for an exhausted pull quota (body says
+    "toomanyrequests"), so the body is logged to tell them apart.
+    """
+    r = requests.get(
+        "https://auth.docker.io/token",
+        params={"service": "registry.docker.io", "scope": f"repository:{repo}:pull"},
+        auth=auth,
+        timeout=DEFAULT_REGISTRY_TIMEOUT,
+    )
+    if r.status_code in (401, 403):
+        if "toomanyrequests" in r.text.lower():
+            log.warning(
+                f"Docker Hub pull quota exhausted for {repo} (HTTP {r.status_code}): "
+                f"{_clip_body(r.text)}. The quota is shared by every host logged "
+                f"into this account; check the usage page on hub.docker.com or "
+                f"wait for the window to reset."
+            )
+        elif auth:
+            log.warning(
+                f"Docker Hub rejected the mounted config.json credentials for {repo} "
+                f"(HTTP {r.status_code}): {_clip_body(r.text)}. Re-run docker login "
+                f"on the host."
+            )
+        else:
+            log.warning(
+                f"Docker Hub authentication error for {repo} (HTTP {r.status_code}): "
+                f"{_clip_body(r.text)}. Mount a config.json created by docker login "
+                f"to authenticate."
+            )
+        return None
+    if r.status_code == 429:
+        log.warning(
+            f"Docker Hub rate limit reached for {repo} (HTTP 429). "
+            f"Anonymous pulls are limited per IP; mount a config.json with "
+            f"docker login credentials to use the higher per-user limit."
+        )
+        return None
+    r.raise_for_status()
+    return r.json().get("token")
+
+
 def get_registry_token(registry: str, repo: str) -> Optional[str]:
     cache_key = f"{registry}:{repo}"
     cached = REGISTRY_TOKEN_CACHE.get(cache_key)
@@ -323,35 +374,11 @@ def get_registry_token(registry: str, repo: str) -> Optional[str]:
             if '/' not in repo:
                 repo = f"library/{repo}"
             auth = _registry_basic_auth(registry, load_registry_credentials())
-            r = requests.get(
-                "https://auth.docker.io/token",
-                params={"service": "registry.docker.io", "scope": f"repository:{repo}:pull"},
-                auth=auth,
-                timeout=DEFAULT_REGISTRY_TIMEOUT,
-            )
-            # Handle 401/403 errors for Docker Hub auth issues
-            if r.status_code in (401, 403):
-                if auth:
-                    log.warning(
-                        f"Docker Hub rejected the mounted config.json credentials for {repo} "
-                        f"(HTTP {r.status_code}). Re-run docker login on the host."
-                    )
-                else:
-                    log.warning(
-                        f"Docker Hub authentication error for {repo} (HTTP {r.status_code}). "
-                        f"No credentials found in ~/.docker/config.json; mount the file "
-                        f"created by docker login to authenticate."
-                    )
-                return None
-            if r.status_code == 429:
-                log.warning(
-                    f"Docker Hub rate limit reached for {repo} (HTTP 429). "
-                    f"Anonymous pulls are limited per IP; mount a config.json with "
-                    f"docker login credentials to use the higher per-user limit."
-                )
-                return None
-            r.raise_for_status()
-            token = r.json().get("token")
+            token = _request_hub_token(repo, auth)
+            if token is None and auth is not None:
+                # Bad credentials should not break checks of public images;
+                # fall back to the anonymous per-IP allowance.
+                token = _request_hub_token(repo, None)
         elif registry == "ghcr.io":
             auth = _registry_basic_auth(registry, load_registry_credentials())
             r = requests.get(
@@ -363,8 +390,8 @@ def get_registry_token(registry: str, repo: str) -> Optional[str]:
             # Handle GitHub auth errors
             if r.status_code in (401, 403):
                 log.warning(
-                    f"GitHub Container Registry authentication error for {repo}. "
-                    f"Status: {r.status_code}"
+                    f"GitHub Container Registry authentication error for {repo} "
+                    f"(HTTP {r.status_code}): {_clip_body(r.text)}"
                 )
                 return None
             if r.status_code == 429:
