@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [v2.0.1] — 2026-10-27
+
+### Fixed
+
+- **Registry credentials from Docker's config.json are now actually used** — the app (and its error messages) always claimed mounting `/root/.docker/config.json` authenticates registry checks, but the credentials were never read. `docker login` credentials from the mounted config (honoring `DOCKER_CONFIG`) are now passed to the Docker Hub and GHCR token endpoints, raising Docker Hub's anonymous per-IP pull limit. Registry warnings now include the HTTP status, distinguish 429 rate limits from 401/403 auth failures, and no longer fire a misleading "authentication error" after a failed token fetch (the doomed unauthenticated manifest HEAD is skipped)
+
+---
+
 ## [v2.0.0] — 2026-10-17
 
 ### Removed

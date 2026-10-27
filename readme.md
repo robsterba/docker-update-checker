@@ -273,17 +273,19 @@ The test suite covers image reference parsing, compose file discovery and valida
 
 | Registry | Authentication |
 |---|---|
-| Docker Hub (`docker.io`) | Anonymous token via `auth.docker.io` |
-| GitHub Container Registry (`ghcr.io`) | Anonymous token via `ghcr.io/token` |
+| Docker Hub (`docker.io`) | Anonymous token via `auth.docker.io`, or credentials from the mounted Docker config |
+| GitHub Container Registry (`ghcr.io`) | Anonymous token via `ghcr.io/token`, or credentials from the mounted Docker config |
 | Quay.io and others | Unauthenticated manifest HEAD request |
 | Private registries | Unauthenticated fallback |
 
-For private registries, pre-authenticate on the host with `docker login <registry>` and mount your Docker config into the container:
+For private registries — or to raise Docker Hub's anonymous per-IP pull limits (HTTP 429/rate-limit warnings) — pre-authenticate on the host with `docker login <registry>` and mount your Docker config into the container:
 
 ```yaml
 volumes:
   - /root/.docker/config.json:/root/.docker/config.json:ro
 ```
+
+Credentials are read from the `auths` section of that file at token-request time. Note that a config using a credential helper (`credsStore`/`credHelpers`, where `docker login` stores no `auth` entry in the file) cannot be read from inside the container; use a plain `docker login` on the host so the credentials land in config.json.
 
 ## Troubleshooting
 
@@ -300,6 +302,8 @@ dns:
 **Digest-pinned images (`image@sha256:...`) not resolving** — the digest is stripped and the image compared by tag. Ensure the tag portion is valid.
 
 **401 Unauthorized for Docker Hub official images** — official images are prefixed with `library/` automatically. Avoid combining an explicit `docker.io/` prefix with no namespace (use `redis:latest`, not `docker.io/redis:latest`).
+
+**"Docker Hub rate limit reached" / auth warnings while `docker pull` works** — the app queries registries over plain HTTPS (the Docker daemon's login state is not shared with it), so every check counts against Docker Hub's anonymous per-IP limit — especially with remote-instance aggregation multiplying checks from one IP. Run `docker login` on the host and mount `/root/.docker/config.json` (see [Supported Registries](#supported-registries)) to use the higher per-user limit.
 
 **Notifications not received** — confirm `NOTIFY_ENABLED=true`, `NOTIFY_BACKEND` is set, the backend-specific variables are configured, and use the **Test Notification** action. For Home Assistant, ensure the webhook `webhook_id` matches `NOTIFY_WEBHOOK_URL`.
 

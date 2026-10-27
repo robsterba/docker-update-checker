@@ -18,6 +18,9 @@ services:
       # Must be writable (no :ro) so Settings → Remote Hosts can persist
       # per-host API tokens to it.
       - ./remote_instances.json:/app/remote_instances.json
+      # Authenticate registry requests (raises Docker Hub's anonymous pull
+      # limit). Run `docker login` on the host first, then uncomment:
+      # - /root/.docker/config.json:/root/.docker/config.json:ro
       # Persist UI-saved settings across container recreation (deploys wipe
       # them otherwise). Create the files on the host first with touch —
       # Docker creates a directory if the host file is missing:

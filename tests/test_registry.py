@@ -1,11 +1,13 @@
 """Tests for registry token/digest flow with all HTTP traffic mocked."""
+import base64
+import json
 import time
 
 import pytest
 
 import docker_utils
 from config import REGISTRY_TOKEN_CACHE
-from docker_utils import check_image, get_registry_token, get_remote_digest
+from docker_utils import check_image, get_registry_token, get_remote_digest, load_registry_credentials
 
 HUB_TOKEN_URL = "https://auth.docker.io/token"
 HUB_MANIFEST_URL = "https://registry-1.docker.io/v2/library/redis/manifests/7"
@@ -43,6 +45,69 @@ class TestGetRegistryToken:
 
     def test_unsupported_registry_returns_none(self):
         assert get_registry_token("quay.io", "team/app") is None
+
+
+def _write_docker_config(config_dir, auths: dict[str, tuple[str, str]]):
+    """Write a Docker config.json with base64 auths into config_dir."""
+    payload = {
+        key: {"auth": base64.b64encode(f"{user}:{password}".encode()).decode()}
+        for key, (user, password) in auths.items()
+    }
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "config.json").write_text(json.dumps({"auths": payload}))
+
+
+class TestRegistryCredentials:
+    def test_hub_credentials_used_for_token_request(self, tmp_path, monkeypatch, requests_mock):
+        _write_docker_config(tmp_path, {"https://index.docker.io/v1/": ("me", "secret")})
+        monkeypatch.setenv("DOCKER_CONFIG", str(tmp_path))
+        mock = requests_mock.get(HUB_TOKEN_URL, json={"token": "authed-token"})
+
+        assert get_registry_token("registry-1.docker.io", "library/redis") == "authed-token"
+        expected = "Basic " + base64.b64encode(b"me:secret").decode()
+        assert mock.last_request.headers["Authorization"] == expected
+
+    def test_ghcr_credentials_used_for_token_request(self, tmp_path, monkeypatch, requests_mock):
+        _write_docker_config(tmp_path, {"ghcr.io": ("user", "ghp-token")})
+        monkeypatch.setenv("DOCKER_CONFIG", str(tmp_path))
+        mock = requests_mock.get(GHCR_TOKEN_URL, json={"token": "ghcr-token"})
+
+        assert get_registry_token("ghcr.io", "owner/app") == "ghcr-token"
+        expected = "Basic " + base64.b64encode(b"user:ghp-token").decode()
+        assert mock.last_request.headers["Authorization"] == expected
+
+    def test_missing_config_is_anonymous(self, tmp_path, monkeypatch, requests_mock):
+        monkeypatch.setenv("DOCKER_CONFIG", str(tmp_path / "nonexistent"))
+        mock = requests_mock.get(HUB_TOKEN_URL, json={"token": "anon-token"})
+
+        assert get_registry_token("registry-1.docker.io", "library/redis") == "anon-token"
+        assert "Authorization" not in mock.last_request.headers
+
+    def test_hub_credentials_rejected_returns_none(self, tmp_path, monkeypatch, requests_mock):
+        _write_docker_config(tmp_path, {"https://index.docker.io/v1/": ("me", "bad")})
+        monkeypatch.setenv("DOCKER_CONFIG", str(tmp_path))
+        requests_mock.get(HUB_TOKEN_URL, status_code=401)
+
+        assert get_registry_token("registry-1.docker.io", "library/redis") is None
+
+    def test_malformed_config_is_ignored(self, tmp_path, monkeypatch):
+        config_dir = tmp_path / "docker"
+        config_dir.mkdir()
+        (config_dir / "config.json").write_text("{not json")
+        monkeypatch.setenv("DOCKER_CONFIG", str(config_dir))
+
+        assert load_registry_credentials() == {}
+
+    def test_token_429_returns_none(self, requests_mock):
+        requests_mock.get(HUB_TOKEN_URL, status_code=429)
+        assert get_registry_token("registry-1.docker.io", "library/redis") is None
+
+    def test_failed_token_skips_hub_manifest_request(self, requests_mock):
+        head = requests_mock.head(HUB_MANIFEST_URL, status_code=401)
+        requests_mock.get(HUB_TOKEN_URL, status_code=401)
+
+        assert get_remote_digest("redis:7") is None
+        assert head.call_count == 0
 
 
 class TestGetRemoteDigest:

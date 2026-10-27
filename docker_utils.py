@@ -1,3 +1,5 @@
+import base64
+import json
 import os
 import time
 import re
@@ -8,6 +10,7 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 import docker
 import requests
@@ -233,6 +236,59 @@ def parse_image_ref(image_ref: str) -> tuple[str, str, str]:
         return "registry-1.docker.io", ref, tag
 
 
+def _config_key_host(key: str) -> str:
+    """Hostname of a Docker config.json auths key ("https://index.docker.io/v1/" -> "index.docker.io")."""
+    key = key.strip()
+    if "//" not in key:
+        key = f"https://{key}"
+    return (urlparse(key).hostname or "").lower()
+
+
+def load_registry_credentials() -> dict[str, tuple[str, str]]:
+    """Read registry username/password pairs from Docker's config.json.
+
+    Credentials come from `docker login` on the host; mount the file into the
+    container (see readme: Supported Registries). The location follows the
+    DOCKER_CONFIG environment variable, defaulting to ~/.docker/config.json.
+
+    Returns:
+        Mapping of registry hostname to (username, password).
+    """
+    creds: dict[str, tuple[str, str]] = {}
+    config_dir = os.environ.get("DOCKER_CONFIG") or os.path.expanduser("~/.docker")
+    config_path = Path(config_dir) / "config.json"
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+        auths = data.get("auths") or {}
+    except FileNotFoundError:
+        return creds
+    except Exception as e:
+        log.warning(f"Could not read Docker config {config_path}: {e}")
+        return creds
+
+    for key, entry in auths.items():
+        auth = entry.get("auth") if isinstance(entry, dict) else None
+        if not auth:
+            continue
+        try:
+            username, _, password = base64.b64decode(auth).decode("utf-8").partition(":")
+        except Exception:
+            continue
+        host = _config_key_host(key)
+        # Docker Hub logins are stored under several key spellings
+        if host in ("index.docker.io", "docker.io", "registry.docker.io", "auth.docker.io"):
+            host = "registry-1.docker.io"
+        if username:
+            creds[host] = (username, password)
+    return creds
+
+
+def _registry_basic_auth(registry: str, creds: dict[str, tuple[str, str]]) -> Optional[tuple[str, str]]:
+    if registry in ("registry-1.docker.io", "docker.io"):
+        return creds.get("registry-1.docker.io")
+    return creds.get(registry)
+
+
 def get_registry_token(registry: str, repo: str) -> Optional[str]:
     cache_key = f"{registry}:{repo}"
     cached = REGISTRY_TOKEN_CACHE.get(cache_key)
@@ -247,25 +303,42 @@ def get_registry_token(registry: str, repo: str) -> Optional[str]:
         if registry in ("registry-1.docker.io", "docker.io"):
             if '/' not in repo:
                 repo = f"library/{repo}"
+            auth = _registry_basic_auth(registry, load_registry_credentials())
             r = requests.get(
                 "https://auth.docker.io/token",
                 params={"service": "registry.docker.io", "scope": f"repository:{repo}:pull"},
+                auth=auth,
                 timeout=DEFAULT_REGISTRY_TIMEOUT,
             )
-            # Handle 401/403 errors for Docker Hub rate limiting or auth issues
+            # Handle 401/403 errors for Docker Hub auth issues
             if r.status_code in (401, 403):
+                if auth:
+                    log.warning(
+                        f"Docker Hub rejected the mounted config.json credentials for {repo} "
+                        f"(HTTP {r.status_code}). Re-run docker login on the host."
+                    )
+                else:
+                    log.warning(
+                        f"Docker Hub authentication error for {repo} (HTTP {r.status_code}). "
+                        f"No credentials found in ~/.docker/config.json; mount the file "
+                        f"created by docker login to authenticate."
+                    )
+                return None
+            if r.status_code == 429:
                 log.warning(
-                    f"Docker Hub authentication error for {repo}. "
-                    f"Mount /root/.docker/config.json to authenticate. "
-                    f"Status: {r.status_code}"
+                    f"Docker Hub rate limit reached for {repo} (HTTP 429). "
+                    f"Anonymous pulls are limited per IP; mount a config.json with "
+                    f"docker login credentials to use the higher per-user limit."
                 )
                 return None
             r.raise_for_status()
             token = r.json().get("token")
         elif registry == "ghcr.io":
+            auth = _registry_basic_auth(registry, load_registry_credentials())
             r = requests.get(
                 "https://ghcr.io/token",
                 params={"service": "ghcr.io", "scope": f"repository:{repo}:pull"},
+                auth=auth,
                 timeout=DEFAULT_REGISTRY_TIMEOUT,
             )
             # Handle GitHub auth errors
@@ -274,6 +347,9 @@ def get_registry_token(registry: str, repo: str) -> Optional[str]:
                     f"GitHub Container Registry authentication error for {repo}. "
                     f"Status: {r.status_code}"
                 )
+                return None
+            if r.status_code == 429:
+                log.warning(f"GitHub Container Registry rate limit reached for {repo} (HTTP 429).")
                 return None
             r.raise_for_status()
             token = r.json().get("token")
@@ -308,6 +384,11 @@ def get_remote_digest(image_ref: str) -> Optional[str]:
         token = get_registry_token(registry, repo)
         if token:
             headers["Authorization"] = f"Bearer {token}"
+        elif registry in ("registry-1.docker.io", "docker.io", "ghcr.io"):
+            # These registries reject every unauthenticated manifest request;
+            # the token fetch above already logged the underlying failure, so
+            # a tokenless HEAD would only add a misleading 401 warning.
+            return None
 
         if registry in ("registry-1.docker.io", "docker.io"):
             if '/' not in repo:
@@ -320,11 +401,11 @@ def get_remote_digest(image_ref: str) -> Optional[str]:
 
         r2 = requests.head(url, headers=headers, timeout=DEFAULT_REGISTRY_TIMEOUT)
 
-        # Handle 401/403 errors gracefully
-        if r2.status_code in (401, 403):
+        # Handle 401/403/429 errors gracefully
+        if r2.status_code in (401, 403, 429):
             log.warning(
-                f"Docker Hub authentication error for {image_ref}. "
-                f"Mount /root/.docker/config.json to authenticate."
+                f"Registry {registry} refused the manifest request for {image_ref} "
+                f"(HTTP {r2.status_code})."
             )
             return None
 
