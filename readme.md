@@ -285,7 +285,7 @@ volumes:
   - /root/.docker/config.json:/root/.docker/config.json:ro
 ```
 
-Credentials are read from the `auths` section of that file at token-request time. Note that a config using a credential helper (`credsStore`/`credHelpers`, where `docker login` stores no `auth` entry in the file) cannot be read from inside the container; use a plain `docker login` on the host so the credentials land in config.json.
+Credentials are read from the `auths` section of that file at token-request time. Note that a config using a credential helper (`credsStore`/`credHelpers`, where `docker login` stores no `auth` entry in the file) cannot be read from inside the container; use a plain `docker login` on the host so the credentials land in config.json. Also: the host file must exist **before** the container is created — if it is missing, Docker creates a directory at the mount point and the app logs "config.json is a directory". Run `docker login` first, then recreate the container.
 
 ## Troubleshooting
 

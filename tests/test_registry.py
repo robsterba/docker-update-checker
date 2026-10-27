@@ -98,6 +98,21 @@ class TestRegistryCredentials:
 
         assert load_registry_credentials() == {}
 
+    def test_config_directory_is_ignored_with_single_warning(self, tmp_path, monkeypatch, caplog):
+        # Docker creates a directory at the mount point when the host file is
+        # missing at container creation; read_text then raises IsADirectoryError
+        monkeypatch.setattr(docker_utils, "_docker_config_warning_shown", False)
+        (tmp_path / "config.json").mkdir()
+        monkeypatch.setenv("DOCKER_CONFIG", str(tmp_path))
+
+        import logging
+        with caplog.at_level(logging.WARNING, logger="docker_utils"):
+            assert load_registry_credentials() == {}
+            assert load_registry_credentials() == {}
+
+        directory_warnings = [r for r in caplog.records if "is a directory" in r.message]
+        assert len(directory_warnings) == 1
+
     def test_token_429_returns_none(self, requests_mock):
         requests_mock.get(HUB_TOKEN_URL, status_code=429)
         assert get_registry_token("registry-1.docker.io", "library/redis") is None

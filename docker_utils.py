@@ -244,6 +244,10 @@ def _config_key_host(key: str) -> str:
     return (urlparse(key).hostname or "").lower()
 
 
+# Warn once about an unreadable Docker config instead of once per token request
+_docker_config_warning_shown = False
+
+
 def load_registry_credentials() -> dict[str, tuple[str, str]]:
     """Read registry username/password pairs from Docker's config.json.
 
@@ -254,6 +258,7 @@ def load_registry_credentials() -> dict[str, tuple[str, str]]:
     Returns:
         Mapping of registry hostname to (username, password).
     """
+    global _docker_config_warning_shown
     creds: dict[str, tuple[str, str]] = {}
     config_dir = os.environ.get("DOCKER_CONFIG") or os.path.expanduser("~/.docker")
     config_path = Path(config_dir) / "config.json"
@@ -263,7 +268,21 @@ def load_registry_credentials() -> dict[str, tuple[str, str]]:
     except FileNotFoundError:
         return creds
     except Exception as e:
-        log.warning(f"Could not read Docker config {config_path}: {e}")
+        if not _docker_config_warning_shown:
+            _docker_config_warning_shown = True
+            if isinstance(e, IsADirectoryError):
+                log.warning(
+                    f"Docker config {config_path} is a directory, not a file — Docker "
+                    f"creates one there when the host file was missing at container "
+                    f"creation. Run `docker login` on the host, remove the stray "
+                    f"directory, and recreate the container. Registry requests stay "
+                    f"unauthenticated until then."
+                )
+            else:
+                log.warning(
+                    f"Could not read Docker config {config_path}: {e}. "
+                    f"Registry requests will continue unauthenticated."
+                )
         return creds
 
     for key, entry in auths.items():
