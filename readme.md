@@ -257,8 +257,9 @@ Import flow: `app.py` → `services.py` (business logic, owns the Flask app) and
 ## Development
 
 ```bash
-python -m venv .venv
-.venv/Scripts/pip install -r requirements-dev.txt   # or .venv/bin/pip on Linux/macOS
+# Python 3.12: matches the Docker image and CI, and the pinned pydantic has no 3.13+ wheels
+python3.12 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
 
 # run the test suite (no Docker daemon or network access required)
 python -m pytest
