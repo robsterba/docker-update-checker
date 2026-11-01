@@ -53,6 +53,6 @@ services:
       # NOTIFY_MQTT_HOST: your-mqtt-broker
       # NOTIFY_MQTT_PORT: 1883
       # NOTIFY_MQTT_TOPIC: homelab/docker-update-checker/events
-      # NOTIFY_MQTT_USERNAME: 
-      # NOTIFY_MQTT_PASSWORD: 
+      # NOTIFY_MQTT_USERNAME:
+      # NOTIFY_MQTT_PASSWORD:
       # NOTIFY_MQTT_RETAIN: false

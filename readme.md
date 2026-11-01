@@ -265,6 +265,9 @@ python -m pytest
 
 # lint
 python -m ruff check .
+
+# install the pre-commit hooks (ruff lint + whitespace checks on each commit)
+pre-commit install
 ```
 
 The test suite covers image reference parsing, compose file discovery and validation, the registry digest flow (with HTTP mocked), job tracking, notification gating and batching, remote instance handling, the proxy layer, and the API surface via Flask's test client.

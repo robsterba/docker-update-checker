@@ -1119,12 +1119,12 @@ async function selectInstance(instanceId) {
   const found = allInstances.find(i => i.id === instanceId);
   currentInstance = found || allInstances[0] || currentInstance;
   document.getElementById('instanceSelect').value = currentInstance.id;
-  
+
   // Clear all caches
   allStacks = [];
   allImages = [];
   allJobs = [];
-  
+
   let status = hostStatuses[currentInstance.id];
   if (!status) {
     applyInstanceStatusToHeader(null);
@@ -1183,7 +1183,7 @@ async function checkForUpdates(showToastMessage = true) {
 function updateUpdateBadge(updateData) {
   const badge = document.getElementById('updateAvailableBadge');
   if (!badge) return;
-  
+
   if (updateData && updateData.update_available) {
     badge.classList.remove('hidden');
     badge.title = `Update available: v${updateData.latest_version} (current: v${updateData.current_version})`;
@@ -1198,18 +1198,18 @@ function showUpdateInfo() {
     showToast('No update information available', 'info');
     return;
   }
-  
+
   const modal = document.getElementById('hostOverviewModalBackdrop');
   const content = document.getElementById('hostOverviewContent');
-  
+
   if (!modal || !content) {
     showToast('Modal not found', 'error');
     return;
   }
-  
+
   modal.classList.add('open');
   document.getElementById('hostOverviewTitle').textContent = 'Application Update';
-  
+
   let html = `
     <div style="padding: 1rem;">
       <h3 style="margin-bottom: 1rem;">Update Available</h3>
@@ -1224,7 +1224,7 @@ function showUpdateInfo() {
         </div>
       </div>
   `;
-  
+
   if (updateInfo.release_url) {
     html += `
       <p style="margin-bottom: 1rem;">
@@ -1234,7 +1234,7 @@ function showUpdateInfo() {
       </p>
     `;
   }
-  
+
   if (updateInfo.release_notes) {
     html += `
       <div style="background: var(--bg-surface-alt); border: 1px solid var(--border-subtle); border-radius: .5rem; padding: 1rem; margin-bottom: 1rem;">
@@ -1243,21 +1243,21 @@ function showUpdateInfo() {
       </div>
     `;
   }
-  
+
   html += `
       <p style="font-size: .85rem; color: var(--text-secondary);">
         To update, pull the latest changes from the repository and rebuild the container.
       </p>
     </div>
   `;
-  
+
   content.innerHTML = html;
 }
 
 async function loadHostResources() {
   try {
     const d = await safeInstanceFetch('/host/resources');
-    
+
     if (d.__error) {
       console.warn('Host resources error:', d.__error);
       renderHostResources({ error: d.__error });
@@ -1323,10 +1323,10 @@ function closeHostOverviewModal(event) {
 function renderHostOverviewModal(resources) {
   const modal = document.getElementById('hostOverviewModalBackdrop');
   const content = document.getElementById('hostOverviewContent');
-  
+
   modal.classList.add('open');
   document.getElementById('hostOverviewTitle').textContent = 'Host Overview';
-  
+
   if (resources.__error || resources.error) {
     content.innerHTML = `
       <div class="empty" style="padding: 2rem; text-align: center;">
@@ -1339,10 +1339,10 @@ function renderHostOverviewModal(resources) {
     `;
     return;
   }
-  
+
   // Build compact host overview HTML
   let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">';
-  
+
   // System Info Card
   html += `
     <div class="resource-card" style="grid-column: 1 / -1;">
@@ -1367,7 +1367,7 @@ function renderHostOverviewModal(resources) {
       </div>
     </div>
   `;
-  
+
   // CPU Section
   html += `
     <div class="resource-card">
@@ -1388,7 +1388,7 @@ function renderHostOverviewModal(resources) {
       </div>
     </div>
   `;
-  
+
   // Memory Section
   html += `
     <div class="resource-card">
@@ -1413,7 +1413,7 @@ function renderHostOverviewModal(resources) {
       </div>
     </div>
   `;
-  
+
   // Disk Section
   html += `
     <div class="resource-card">
@@ -1438,7 +1438,7 @@ function renderHostOverviewModal(resources) {
       </div>
     </div>
   `;
-  
+
   // Docker Section
   html += `
     <div class="resource-card" style="grid-column: 1 / -1;">
@@ -1463,9 +1463,9 @@ function renderHostOverviewModal(resources) {
       </div>
     </div>
   `;
-  
+
   html += '</div>';
-  
+
   content.innerHTML = html;
 }
 
@@ -1640,7 +1640,7 @@ function getAutoRecreate() {
 
 function renderStacks(stacks) {
   const el = document.getElementById('stackGrid');
-  
+
   // Handle both Phase 1 (array) and Phase 2 (object) data structures
   const stackCount = Array.isArray(stacks) ? stacks.length : Object.keys(stacks).length;
   document.getElementById('kpiStacks').textContent = stackCount || '0';
@@ -1652,7 +1652,7 @@ function renderStacks(stacks) {
 
   // Check if using Phase 2 stack data (from /api/stacks/all)
   const isPhase2Data = stacks && !Array.isArray(stacks) && Object.keys(stacks).length > 0;
-  
+
   if (isPhase2Data) {
     // Phase 2: Enhanced stack rendering with management actions
     el.innerHTML = Object.entries(stacks).map(([stackName, stackInfo]) => {
@@ -1660,7 +1660,7 @@ function renderStacks(stacks) {
       const serviceCount = stackInfo.services ? stackInfo.services.length : 0;
       const containerCount = stackInfo.containers ? stackInfo.containers.length : 0;
       const runningCount = stackInfo.containers ? stackInfo.containers.filter(c => c.status === 'running').length : 0;
-      
+
       return `
     <div class="stack-card">
       <div class="stack-head">
@@ -2192,17 +2192,17 @@ function closePerformanceModal(e) {
 async function showPerformanceMonitoring() {
   const modal = document.getElementById('performanceModalBackdrop');
   const body = document.getElementById('performanceModalBody');
-  
+
   modal.classList.add('open');
-  
+
   // Load host resources and containers with resources
   const [hostRes, containers] = await Promise.all([
     safeInstanceFetch('/host/resources'),
     safeInstanceFetch('/containers?all=true&resources=true')
   ]);
-  
+
   let html = '<div class="resource-card">';
-  
+
   // Host Resources Summary
   if (!hostRes.__error) {
     html += `
@@ -2229,11 +2229,11 @@ async function showPerformanceMonitoring() {
       </div>
     `;
   }
-  
+
   // Container Resource Table
   if (!containers.__error && containers.length > 0) {
     const runningContainers = containers.filter(c => c.is_running || c.status === 'running');
-    
+
     if (runningContainers.length > 0) {
       html += `
         <div style="grid-column: 1 / -1;">
@@ -2249,14 +2249,14 @@ async function showPerformanceMonitoring() {
             </thead>
             <tbody>
     `;
-      
+
       runningContainers.forEach(container => {
         const resources = container.resources || {};
         const cpuPercent = resources.cpu_percent !== undefined ? resources.cpu_percent : null;
         const memoryPercent = resources.memory_percent !== undefined ? resources.memory_percent : null;
         const status = container.status || container.is_running ? 'running' : 'stopped';
         const name = container.name || container.id || 'unknown';
-        
+
         html += `
               <tr>
                 <td style="padding: .7rem 1rem; font-size: .85rem;">${escHtml(name.startsWith('/') ? name.substring(1) : name)}</td>
@@ -2266,11 +2266,11 @@ async function showPerformanceMonitoring() {
               </tr>
         `;
       });
-      
+
       html += '</tbody></table>';
     }
   }
-  
+
   html += '</div>';
   body.innerHTML = html;
 }
@@ -2430,7 +2430,7 @@ function showNotificationConfig() {
       </div>
     </div>
   `;
-  
+
   document.getElementById('configModalTitle').textContent = 'Notification Configuration';
   document.getElementById('configModalBody').innerHTML = html;
   document.getElementById('configModalBackdrop').classList.add('open');
@@ -2441,7 +2441,7 @@ function showNotificationConfig() {
     document.getElementById('mqttConfigSection').style.display = this.value === 'mqtt' ? 'block' : 'none';
     document.getElementById('emailConfigSection').style.display = this.value === 'email' ? 'block' : 'none';
   });
-  
+
   // Load current settings into the form
   loadNotificationSettings();
 }
@@ -2466,18 +2466,18 @@ function showRemoteHostsConfig() {
       <div id="remoteHostsList"></div>
     </div>
   `;
-  
+
   document.getElementById('configModalTitle').textContent = 'Remote Hosts Configuration';
   document.getElementById('configModalBody').innerHTML = html;
   document.getElementById('configModalBackdrop').classList.add('open');
-  
+
   renderRemoteHostsList();
 }
 
 function renderRemoteHostsList() {
   const container = document.getElementById('remoteHostsList');
   if (!container) return;
-  
+
   container.innerHTML = allInstances
     .filter(i => i.id !== 'local')
     .map(inst => `
@@ -2495,12 +2495,12 @@ function renderRemoteHostsList() {
 function addRemoteHost() {
   const name = document.getElementById('newHostName').value.trim();
   const url = document.getElementById('newHostUrl').value.trim();
-  
+
   if (!name || !url) {
     showToast('Please enter both name and URL', 'error');
     return;
   }
-  
+
   // Add to allInstances
   const newHost = {
     id: name.toLowerCase().replace(/\s+/g, '-'),
@@ -2510,11 +2510,11 @@ function addRemoteHost() {
     token: '',
     description: 'Remote Docker Update Checker instance'
   };
-  
+
   allInstances.push(newHost);
   renderRemoteHostsList();
   showToast(`Added remote host: ${name} — click Save to persist`, 'success');
-  
+
   // Clear inputs
   document.getElementById('newHostName').value = '';
   document.getElementById('newHostUrl').value = '';
@@ -2540,7 +2540,7 @@ function editRemoteHost(instanceId) {
 
 function removeRemoteHost(instanceId) {
   if (!confirm('Remove this remote host?')) return;
-  
+
   allInstances = allInstances.filter(i => i.id !== instanceId);
   renderRemoteHostsList();
   showToast('Remote host removed', 'success');
@@ -2790,7 +2790,7 @@ async function showPreferencesConfig() {
 
 async function saveConfig() {
   if (!currentConfigSection) return;
-  
+
   switch (currentConfigSection) {
     case 'notifications':
       saveNotificationConfig();
@@ -2805,7 +2805,7 @@ async function saveConfig() {
       await savePreferencesConfig();
       break;
   }
-  
+
   closeConfigModal();
 }
 
@@ -2891,7 +2891,7 @@ function loadNotificationSettings() {
     if (document.getElementById('configNotifyBulkComplete')) {
       document.getElementById('configNotifyBulkComplete').checked = settings.on_bulk_complete || false;
     }
-    
+
     // Update backend section visibility
     const backend = settings.backend || '';
     document.getElementById('webhookConfigSection').style.display = backend === 'webhook' ? 'block' : 'none';
@@ -2907,12 +2907,12 @@ function saveNotificationConfig() {
   const settings = {
     enabled: document.getElementById('configNotifyEnabled').checked,
     backend: document.getElementById('configBackend').value,
-    
+
     // Webhook settings
     webhook_url: document.getElementById('configWebhookUrl').value,
     webhook_method: document.getElementById('configWebhookMethod').value,
     webhook_timeout: parseInt(document.getElementById('configWebhookTimeout').value) || 10,
-    
+
     // MQTT settings
     mqtt_host: document.getElementById('configMqttHost').value,
     mqtt_port: parseInt(document.getElementById('configMqttPort').value) || 1883,
@@ -2920,7 +2920,7 @@ function saveNotificationConfig() {
     mqtt_username: document.getElementById('configMqttUsername').value,
     mqtt_password: document.getElementById('configMqttPassword').value,
     mqtt_retain: document.getElementById('configMqttRetain').checked,
-    
+
     // Email settings
     email_host: document.getElementById('configEmailHost').value,
     email_port: parseInt(document.getElementById('configEmailPort').value) || 587,
@@ -2929,7 +2929,7 @@ function saveNotificationConfig() {
     email_from: document.getElementById('configEmailFrom').value,
     email_to: document.getElementById('configEmailTo').value,
     email_use_tls: document.getElementById('configEmailTls').checked,
-    
+
     // Notification triggers
     on_updates_found: document.getElementById('configNotifyUpdates').checked,
     on_pull_success: document.getElementById('configNotifyPullSuccess').checked,
@@ -2938,7 +2938,7 @@ function saveNotificationConfig() {
     on_recreate_error: document.getElementById('configNotifyRecreateError').checked,
     on_bulk_complete: document.getElementById('configNotifyBulkComplete').checked,
   };
-  
+
   fetch('/api/config/notification', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -3044,8 +3044,8 @@ function toggleAllContainers() {
 function healthBadge(health) {
   if (!health) return '<span class="health-badge none"></span>';
   const status = health.Status || 'none';
-  const className = status === 'healthy' ? 'healthy' : 
-                   status === 'unhealthy' ? 'unhealthy' : 
+  const className = status === 'healthy' ? 'healthy' :
+                   status === 'unhealthy' ? 'unhealthy' :
                    'starting';
   const label = status.charAt(0).toUpperCase() + status.slice(1);
   return `<span class="health-badge ${className}">${label}</span>`;
@@ -3063,7 +3063,7 @@ function containerStatusBadge(status) {
 
 function renderContainers(containers) {
   const el = document.getElementById('containersList');
-  
+
   if (!containers.length) {
     el.innerHTML = `<div style="padding:.5rem;color:var(--text-secondary);font-size:.82rem">No containers found.</div>`;
     return;
@@ -3085,7 +3085,7 @@ function renderContainers(containers) {
     const created = container.created ? new Date(container.created).toLocaleString() : 'unknown';
     const health = container.health;
     const resources = container.resources || {};
-    
+
     // Filter by current filter if not 'all'
     if (containerFilter !== 'all') {
       if (containerFilter === 'running' && !isRunning) return '';
@@ -3096,7 +3096,7 @@ function renderContainers(containers) {
     // Resource data
     const cpuPercent = resources.cpu_percent !== undefined ? resources.cpu_percent : null;
     const memoryPercent = resources.memory_percent !== undefined ? resources.memory_percent : null;
-    
+
     // Build resource bars only for running containers
     let resourceHtml = '';
     if (isRunning && (cpuPercent !== null || memoryPercent !== null)) {
@@ -3122,7 +3122,7 @@ function renderContainers(containers) {
     } else {
       actions += `<button class="btn btn-primary btn-sm" onclick="startContainer('${escAttr(container.id)}')">Start</button>`;
     }
-    
+
     actions += `<button class="btn btn-ghost btn-sm" onclick="inspectContainer('${escAttr(container.id)}')">Details</button>`;
 
     return `
@@ -3142,7 +3142,7 @@ function renderContainers(containers) {
       </div>
     `;
   }).join('');
-  
+
   if (el.innerHTML === '') {
     el.innerHTML = `<div style="padding:.5rem;color:var(--text-secondary);font-size:.82rem">No containers match this filter.</div>`;
   }
@@ -3155,7 +3155,7 @@ async function loadContainers() {
     if (!response.ok) {
       const message = await response.text();
       renderContainers([]);
-      document.getElementById('containersList').innerHTML = 
+      document.getElementById('containersList').innerHTML =
         `<div style="padding:.5rem;color:var(--danger);font-size:.82rem">Failed to load containers: ${escHtml(message)}</div>`;
       return;
     }
@@ -3163,7 +3163,7 @@ async function loadContainers() {
     renderContainers(allContainers);
   } catch (err) {
     renderContainers([]);
-    document.getElementById('containersList').innerHTML = 
+    document.getElementById('containersList').innerHTML =
       `<div style="padding:.5rem;color:var(--danger);font-size:.82rem">Connection failed: ${escHtml(err.message)}</div>`;
   }
 }
@@ -3231,7 +3231,7 @@ async function inspectContainer(containerId) {
       return;
     }
     const data = await response.json();
-    
+
     const details = [
       `<p><strong>ID:</strong> <code>${escHtml(data.Id || containerId)}</code></p>`,
       `<p><strong>Name:</strong> ${escHtml(data.Name || 'unknown')}</p>`,
@@ -3243,11 +3243,11 @@ async function inspectContainer(containerId) {
       `<p><strong>Mounts:</strong> ${JSON.stringify(data.Mounts || [])}</p>`,
       `<p><strong>Network:</strong> ${escHtml(data.NetworkSettings?.Networks || 'unknown')}</p>`,
     ];
-    
+
     if (data.State?.Health) {
       details.push(`<p><strong>Health:</strong> ${healthBadge(data.State.Health)}</p>`);
     }
-    
+
     showModal('Container Details', details.join(''));
   } catch (err) {
     showModal('Error', `<p style="color:var(--danger)">Error: ${escHtml(err.message)}</p>`);
@@ -3279,17 +3279,17 @@ async function loadComposeFiles() {
 
 function renderComposeFiles(files) {
   const el = document.getElementById('composeFileList');
-  
+
   // Handle undefined/null files
   if (!files) {
     files = [];
   }
-  
+
   if (!files.length) {
     el.innerHTML = `<div style="padding:1.25rem;color:var(--text-secondary)">No compose files found.</div>`;
     return;
   }
-  
+
   el.innerHTML = files.map(file => {
     const shortPath = file.path.split('/').slice(-3).join('/');
     return `
@@ -3323,10 +3323,10 @@ async function viewComposeFile(path) {
 function showComposeEditor(path = '', content = {}) {
   const yamlContent = jsyaml.dump(content || {});
   const modalTitle = path ? `Edit: ${path.split('/').pop()}` : 'New Compose File';
-  
+
   const editorId = 'composeEditor';
   const saveBtnId = 'composeSaveBtn';
-  
+
   const html = `
     <div class="compose-editor" id="${editorId}" contenteditable="true" style="min-height:300px">${escHtml(yamlContent)}</div>
     <div class="compose-actions">
@@ -3337,9 +3337,9 @@ function showComposeEditor(path = '', content = {}) {
     </div>
     <div id="composeValidationResult"></div>
   `;
-  
+
   showModal(modalTitle, html);
-  
+
   // Initialize editor content
   const editor = document.getElementById(editorId);
   if (editor) {
@@ -3351,27 +3351,27 @@ function showComposeEditor(path = '', content = {}) {
 async function saveComposeFile() {
   const editor = document.getElementById('composeEditor');
   if (!editor) return;
-  
+
   const yamlContent = editor.textContent;
-  
+
   try {
     const parsed = jsyaml.load(yamlContent);
     if (!parsed || typeof parsed !== 'object') {
       throw new Error('Invalid YAML: must contain an object/dictionary');
     }
-    
+
     const path = currentEditingFile || '/compose/new-compose.yml';
     const response = await instanceFetch(`/compose/files/${encodeURIComponent(path)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: parsed, backup: true })
     });
-    
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.message || await response.text());
     }
-    
+
     const result = await response.json();
     showToast(result.message || 'Compose file saved', 'success');
     closeModal();
@@ -3385,10 +3385,10 @@ async function saveComposeFile() {
 async function validateComposeContent() {
   const editor = document.getElementById('composeEditor');
   if (!editor) return;
-  
+
   const yamlContent = editor.textContent;
   const resultDiv = document.getElementById('composeValidationResult');
-  
+
   try {
     const parsed = jsyaml.load(yamlContent);
     const response = await instanceFetch(`/compose/files/${encodeURIComponent(currentEditingFile || '')}/validate`, {
@@ -3396,9 +3396,9 @@ async function validateComposeContent() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: parsed })
     });
-    
+
     const data = await response.json();
-    
+
     if (resultDiv) {
       if (data.valid) {
         resultDiv.innerHTML = `<div class="validation-success">✓ ${escHtml(data.message)}</div>`;
@@ -3418,7 +3418,7 @@ async function showDependenciesForCurrentFile() {
     showToast('No file selected', 'error');
     return;
   }
-  
+
   showToast('Loading dependencies...', 'info', 2000);
   try {
     const response = await instanceFetch(`/compose/files/${encodeURIComponent(currentEditingFile)}/dependencies`);
@@ -3426,23 +3426,23 @@ async function showDependenciesForCurrentFile() {
       throw new Error(await response.text());
     }
     const data = await response.json();
-    
+
     let html = '<div class="dependency-graph">';
     html += '<h4 style="margin-bottom:.75rem">Dependency Graph</h4>';
     html += '<div style="margin-bottom:.5rem"><strong>Services:</strong> ' + data.nodes.map(n => `<span class="dependency-node">${escHtml(n)}</span>`).join('') + '</div>';
-    
+
     if (data.edges && data.edges.length > 0) {
       html += '<div style="margin:.5rem 0"><strong>Dependencies:</strong></div>';
       html += data.edges.map(e => `<div class="dependency-edge">${escHtml(e.from)} → ${escHtml(e.to)} (${escHtml(e.type)})</div>`).join('');
     }
-    
+
     if (Object.keys(data.networks || {}).length > 0) {
       html += '<div style="margin-top:.5rem"><strong>Networks:</strong></div>';
-      html += Object.entries(data.networks || {}).map(([name, services]) => 
+      html += Object.entries(data.networks || {}).map(([name, services]) =>
         `<div><strong>${escHtml(name)}:</strong> ${services.map(s => escHtml(s)).join(', ')}</div>`
       ).join('');
     }
-    
+
     html += '</div>';
     showModal('Dependencies: ' + currentEditingFile.split('/').pop(), html);
   } catch (err) {
@@ -3478,25 +3478,25 @@ async function viewStackDetails(stackName) {
     }
     const data = await response.json();
     const stackInfo = data[stackName];
-    
+
     let html = '<div>';
     html += `<p><strong>Compose Files:</strong></p><ul>`;
     html += (stackInfo.compose_files || []).map(f => `<li><code>${escHtml(f)}</code></li>`).join('');
     html += `</ul>`;
-    
+
     html += `<p style="margin-top:.75rem"><strong>Services:</strong> ${(stackInfo.services || []).map(s => `<span class="stack-pill">${escHtml(s)}</span>`).join(' ')}</p>`;
-    
+
     if (stackInfo.containers && stackInfo.containers.length > 0) {
       html += `<p style="margin-top:.75rem"><strong>Containers:</strong></p><ul>`;
-      html += stackInfo.containers.map(c => 
+      html += stackInfo.containers.map(c =>
         `<li>${escHtml(c.name || c.id)} - <span class="badge ${c.status === 'running' ? 'running' : 'error'}">${escHtml(c.status)}</span> (${escHtml(c.service)})</li>`
       ).join('');
       html += `</ul>`;
     }
-    
+
     html += `<p style="margin-top:.75rem"><strong>Status:</strong> <span class="stack-status-badge ${stackInfo.status || 'unknown'}">${escHtml(stackInfo.status || 'unknown')}</span></p>`;
     html += '</div>';
-    
+
     showModal(`Stack: ${escHtml(stackName)}`, html);
   } catch (err) {
     showToast(`Failed to load stack details: ${err.message}`, 'error');

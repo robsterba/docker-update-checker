@@ -1405,5 +1405,3 @@ def api_taskd_test():
         return jsonify(result), 502
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-
-

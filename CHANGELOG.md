@@ -285,7 +285,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Generic notification dispatcher supporting:
     - Webhook (e.g. Home Assistant)
     - MQTT
-    - Email  
+    - Email
   - Events notified:
     - New updates found during checks (`updates_found`)
     - Pull success / failure (`pull_result`)
