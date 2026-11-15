@@ -194,7 +194,16 @@ def patch_task(settings: dict, task_id: str, body: dict) -> dict:
 
 
 def complete_task(settings: dict, task_id: str) -> dict:
-    r = _request(settings, "POST", f"/tasks/{task_id}/complete")
+    # The source header identifies the request as coming from this
+    # integration: taskd uses it to distinguish reconcile completions
+    # (no deployment trigger) from manual GUI completions (trigger the
+    # matching Semaphore job).
+    r = _request(
+        settings,
+        "POST",
+        f"/tasks/{task_id}/complete",
+        headers={"source": settings["source"]},
+    )
     return r.json()
 
 
