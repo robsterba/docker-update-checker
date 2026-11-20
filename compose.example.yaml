@@ -4,6 +4,12 @@ services:
     build: .
     container_name: docker-update-checker
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     ports:
       - "5000:5000"
     dns:
